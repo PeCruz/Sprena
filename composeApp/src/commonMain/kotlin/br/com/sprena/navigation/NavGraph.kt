@@ -19,9 +19,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import br.com.sprena.shared.auth.domain.model.UserModel
 import br.com.sprena.presentation.core.navigation.BottomNavIntent
 import br.com.sprena.presentation.core.navigation.BottomNavViewModel
 import br.com.sprena.presentation.core.navigation.BottomTab
@@ -50,16 +53,23 @@ import br.com.sprena.presentation.kanban.KanbanViewModel
 import br.com.sprena.presentation.kanban.createtask.CreateTaskIntent
 import br.com.sprena.presentation.kanban.createtask.CreateTaskScreen
 import br.com.sprena.presentation.kanban.createtask.CreateTaskViewModel
+import br.com.sprena.presentation.home.HomeUiEvent
+import br.com.sprena.presentation.home.HomeViewModel
 import br.com.sprena.presentation.login.LoginScreen
 import br.com.sprena.presentation.login.LoginViewModel
+import br.com.sprena.shared.auth.domain.model.UserRole
 import br.com.sprena.presentation.category.CategoryScreen
 import br.com.sprena.presentation.category.CategoryViewModel
 import br.com.sprena.presentation.menu.MenuItem
 import br.com.sprena.presentation.menu.MenuScreen
 import br.com.sprena.presentation.menu.MenuViewModel
 import br.com.sprena.presentation.settings.SettingsScreen
+import br.com.sprena.presentation.sportclient.SportClient
+import br.com.sprena.presentation.sportclient.SportClientEffect
+import br.com.sprena.presentation.sportclient.SportClientIntent
 import br.com.sprena.presentation.sportclient.SportClientScreen
 import br.com.sprena.presentation.sportclient.SportClientViewModel
+import br.com.sprena.presentation.sportclient.edit.SportClientEditScreen
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -68,8 +78,10 @@ import org.koin.compose.viewmodel.koinViewModel
 object Routes {
     const val LOGIN = "login"
     const val HOME = "home"
+    const val HOME_WITH_ARGS = "home/{userId}/{username}/{userName}/{userRole}"
     const val CREATE_TASK = "create_task"
     const val CREATE_EVENT = "create_event"
+    const val EDIT_SPORT_CLIENT = "edit_sport_client"
     const val SETTINGS = "settings"
     const val MENU = "menu"
     const val CATEGORY = "category"
@@ -95,15 +107,38 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
             LoginScreen(
                 viewModel = loginViewModel,
                 themeViewModel = themeViewModel,
-                onNavigateHome = {
-                    navController.navigate(Routes.HOME) {
+                onNavigateHome = { user ->
+                    val encodedName = user.name.replace(" ", "+")
+                    navController.navigate(
+                        "${Routes.HOME}/${user.id}/${user.username}/$encodedName/${user.role.name}",
+                    ) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 },
             )
         }
 
-        composable(route = Routes.HOME) { backStackEntry ->
+        composable(
+            route = Routes.HOME_WITH_ARGS,
+            arguments = listOf(
+                navArgument("userId") { type = NavType.StringType },
+                navArgument("username") { type = NavType.StringType },
+                navArgument("userName") { type = NavType.StringType },
+                navArgument("userRole") { type = NavType.StringType },
+            ),
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            val username = backStackEntry.arguments?.getString("username") ?: ""
+            val userName = (backStackEntry.arguments?.getString("userName") ?: "").replace("+", " ")
+            val userRoleStr = backStackEntry.arguments?.getString("userRole") ?: "CLIENT"
+            val userRole = UserRole.valueOf(userRoleStr)
+            val authenticatedUser = UserModel(
+                id = userId,
+                username = username,
+                name = userName,
+                role = userRole,
+            )
+
             val savedStateHandle = backStackEntry.savedStateHandle
             val createdName = savedStateHandle.get<String>("created_task_name")
             val createdPriority = savedStateHandle.get<Int>("created_task_priority")
@@ -120,6 +155,7 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
                 themeViewModel = themeViewModel,
                 menuViewModel = menuViewModel,
                 categoryViewModel = categoryViewModel,
+                authenticatedUser = authenticatedUser,
                 createdTaskName = createdName,
                 createdTaskPriority = createdPriority,
                 onTaskConsumed = {
@@ -240,6 +276,82 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
             )
         }
 
+        composable(route = Routes.EDIT_SPORT_CLIENT) {
+            val previousEntry = navController.previousBackStackEntry
+            val editClientId = previousEntry?.savedStateHandle?.get<String>("edit_client_id") ?: ""
+            val editClientName = previousEntry?.savedStateHandle?.get<String>("edit_client_name") ?: ""
+            val editClientApelido = previousEntry?.savedStateHandle?.get<String>("edit_client_apelido") ?: ""
+            val editClientCpf = previousEntry?.savedStateHandle?.get<String>("edit_client_cpf") ?: ""
+            val editClientPhone = previousEntry?.savedStateHandle?.get<String>("edit_client_phone") ?: ""
+            val editClientModalities = previousEntry?.savedStateHandle?.get<String>("edit_client_modalities") ?: ""
+            val editClientAttendance = previousEntry?.savedStateHandle?.get<Int>("edit_client_attendance") ?: 1
+            val editClientPayment = previousEntry?.savedStateHandle?.get<String>("edit_client_payment") ?: "CASH"
+            val editClientCashCents = previousEntry?.savedStateHandle?.get<Long>("edit_client_cash_cents") ?: 0L
+            val editClientPaymentHistory = previousEntry?.savedStateHandle?.get<String>("edit_client_payment_history") ?: ""
+
+            val modalities = editClientModalities.split(",")
+                .filter { it.isNotBlank() }
+                .mapNotNull { name ->
+                    br.com.sprena.shared.sportclient.domain.validation.SportModality.entries
+                        .firstOrNull { it.name == name }
+                }
+            val paymentMethod = br.com.sprena.shared.sportclient.domain.validation.PaymentMethod.entries
+                .firstOrNull { it.name == editClientPayment }
+                ?: br.com.sprena.shared.sportclient.domain.validation.PaymentMethod.CASH
+            val history = editClientPaymentHistory.split(",").filter { it.isNotBlank() }
+
+            val clientToEdit = SportClient(
+                id = editClientId,
+                name = editClientName,
+                apelido = editClientApelido,
+                cpf = editClientCpf,
+                phone = editClientPhone,
+                modalities = modalities,
+                attendance = editClientAttendance,
+                paymentMethod = paymentMethod,
+                cashAmountCents = editClientCashCents,
+                paymentHistory = history,
+            )
+
+            SportClientEditScreen(
+                client = clientToEdit,
+                onNavigateBack = { navController.popBackStack() },
+                onSave = { updatedClient ->
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("updated_client_id", updatedClient.id)
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("updated_client_name", updatedClient.name)
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("updated_client_apelido", updatedClient.apelido)
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("updated_client_cpf", updatedClient.cpf)
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("updated_client_phone", updatedClient.phone)
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("updated_client_modalities", updatedClient.modalities.joinToString(",") { it.name })
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("updated_client_attendance", updatedClient.attendance)
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("updated_client_payment", updatedClient.paymentMethod.name)
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("updated_client_cash_cents", updatedClient.cashAmountCents)
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("updated_client_payment_history", updatedClient.paymentHistory.joinToString(","))
+                    navController.popBackStack()
+                },
+            )
+        }
+
         composable(route = Routes.SETTINGS) {
             SettingsScreen(
                 themeViewModel = themeViewModel,
@@ -274,6 +386,7 @@ private fun HomeWithBottomNav(
     themeViewModel: ThemeViewModel,
     menuViewModel: MenuViewModel,
     categoryViewModel: CategoryViewModel,
+    authenticatedUser: UserModel? = null,
     createdTaskName: String? = null,
     createdTaskPriority: Int? = null,
     onTaskConsumed: () -> Unit = {},
@@ -288,9 +401,17 @@ private fun HomeWithBottomNav(
     val bottomNavViewModel: BottomNavViewModel = koinViewModel()
     val bottomNavState by bottomNavViewModel.state.collectAsState()
 
+    val homeViewModel: HomeViewModel = koinViewModel()
     val sportClientViewModel: SportClientViewModel = koinViewModel()
     val kanbanViewModel: KanbanViewModel = koinViewModel()
     val eventosViewModel: EventosViewModel = koinViewModel()
+
+    // Carrega dados do usuário autenticado no HomeViewModel
+    LaunchedEffect(authenticatedUser) {
+        if (authenticatedUser != null) {
+            homeViewModel.onEvent(HomeUiEvent.UserLoaded(authenticatedUser))
+        }
+    }
 
     LaunchedEffect(createdTaskName, createdTaskPriority) {
         if (createdTaskName != null && createdTaskPriority != null) {
@@ -329,6 +450,100 @@ private fun HomeWithBottomNav(
                 )
             }
             onEventConsumed()
+        }
+    }
+
+    // Collect SportClient effects for navigation
+    LaunchedEffect(Unit) {
+        sportClientViewModel.effects.collect { effect ->
+            when (effect) {
+                is SportClientEffect.NavigateToEdit -> {
+                    val client = effect.client
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("edit_client_id", client.id)
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("edit_client_name", client.name)
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("edit_client_apelido", client.apelido)
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("edit_client_cpf", client.cpf)
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("edit_client_phone", client.phone)
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("edit_client_modalities", client.modalities.joinToString(",") { it.name })
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("edit_client_attendance", client.attendance)
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("edit_client_payment", client.paymentMethod.name)
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("edit_client_cash_cents", client.cashAmountCents)
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("edit_client_payment_history", client.paymentHistory.joinToString(","))
+                    navController.navigate(Routes.EDIT_SPORT_CLIENT)
+                }
+                is SportClientEffect.ShowError -> { /* handled in screen */ }
+            }
+        }
+    }
+
+    // Handle updated client returning from edit screen
+    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+    val updatedClientId = savedStateHandle?.get<String>("updated_client_id")
+    LaunchedEffect(updatedClientId) {
+        if (updatedClientId != null) {
+            val updatedName = savedStateHandle.get<String>("updated_client_name") ?: ""
+            val updatedApelido = savedStateHandle.get<String>("updated_client_apelido") ?: ""
+            val updatedCpf = savedStateHandle.get<String>("updated_client_cpf") ?: ""
+            val updatedPhone = savedStateHandle.get<String>("updated_client_phone") ?: ""
+            val updatedModalities = (savedStateHandle.get<String>("updated_client_modalities") ?: "")
+                .split(",").filter { it.isNotBlank() }
+                .mapNotNull { name ->
+                    br.com.sprena.shared.sportclient.domain.validation.SportModality.entries
+                        .firstOrNull { it.name == name }
+                }
+            val updatedAttendance = savedStateHandle.get<Int>("updated_client_attendance") ?: 1
+            val updatedPayment = br.com.sprena.shared.sportclient.domain.validation.PaymentMethod.entries
+                .firstOrNull { it.name == (savedStateHandle.get<String>("updated_client_payment") ?: "") }
+                ?: br.com.sprena.shared.sportclient.domain.validation.PaymentMethod.CASH
+            val updatedCashCents = savedStateHandle.get<Long>("updated_client_cash_cents") ?: 0L
+            val updatedPaymentHistory = (savedStateHandle.get<String>("updated_client_payment_history") ?: "")
+                .split(",").filter { it.isNotBlank() }
+
+            val updatedClient = SportClient(
+                id = updatedClientId,
+                name = updatedName,
+                apelido = updatedApelido,
+                cpf = updatedCpf,
+                phone = updatedPhone,
+                modalities = updatedModalities,
+                attendance = updatedAttendance,
+                paymentMethod = updatedPayment,
+                cashAmountCents = updatedCashCents,
+                paymentHistory = updatedPaymentHistory,
+            )
+            sportClientViewModel.handleIntent(SportClientIntent.ClientUpdated(updatedClient))
+
+            // Clean up
+            savedStateHandle.remove<String>("updated_client_id")
+            savedStateHandle.remove<String>("updated_client_name")
+            savedStateHandle.remove<String>("updated_client_apelido")
+            savedStateHandle.remove<String>("updated_client_cpf")
+            savedStateHandle.remove<String>("updated_client_phone")
+            savedStateHandle.remove<String>("updated_client_modalities")
+            savedStateHandle.remove<Int>("updated_client_attendance")
+            savedStateHandle.remove<String>("updated_client_payment")
+            savedStateHandle.remove<Long>("updated_client_cash_cents")
+            savedStateHandle.remove<String>("updated_client_payment_history")
         }
     }
 

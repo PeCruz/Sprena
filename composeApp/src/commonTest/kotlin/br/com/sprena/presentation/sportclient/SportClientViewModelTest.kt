@@ -54,7 +54,7 @@ class SportClientViewModelTest {
         attendance = 3,
         paymentMethod = PaymentMethod.CASH,
         cashAmountCents = 5000L,
-        lastPaymentMonth = "04/2026",
+        paymentHistory = listOf("04/2026"),
     )
 
     private val sampleClient2 = SportClient(
@@ -67,7 +67,7 @@ class SportClientViewModelTest {
         attendance = 2,
         paymentMethod = PaymentMethod.WELLHUB,
         cashAmountCents = 1500L,
-        lastPaymentMonth = "03/2026",
+        paymentHistory = listOf("03/2026"),
     )
 
     // =========================================================================
@@ -250,12 +250,14 @@ class SportClientViewModelTest {
     }
 
     @Test
-    fun `ClientUpdated can change lastPaymentMonth`() = runTest {
+    fun `ClientUpdated can change paymentHistory`() = runTest {
         val vm = createVm()
         vm.handleIntent(SportClientIntent.ClientAdded(sampleClient))
-        val updated = sampleClient.copy(lastPaymentMonth = "05/2026")
+        val updated = sampleClient.copy(paymentHistory = listOf("04/2026", "05/2026"))
         vm.handleIntent(SportClientIntent.ClientUpdated(updated))
-        assertEquals("05/2026", vm.state.first().clients.first().lastPaymentMonth)
+        val client = vm.state.first().clients.first()
+        assertEquals(listOf("04/2026", "05/2026"), client.paymentHistory)
+        assertEquals("05/2026", client.lastPaymentMonth)
     }
 
     // =========================================================================

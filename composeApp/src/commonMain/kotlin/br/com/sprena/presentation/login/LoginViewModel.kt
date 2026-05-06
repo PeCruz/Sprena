@@ -2,6 +2,8 @@ package br.com.sprena.presentation.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.sprena.shared.auth.domain.model.AuthResult
+import br.com.sprena.shared.auth.domain.usecase.LoginUseCase
 import br.com.sprena.shared.auth.domain.validation.LoginValidator
 import br.com.sprena.shared.core.mvi.MviViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -12,7 +14,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class LoginViewModel : ViewModel(), MviViewModel<LoginState, LoginIntent, LoginEffect> {
+class LoginViewModel(
+    private val loginUseCase: LoginUseCase,
+) : ViewModel(), MviViewModel<LoginState, LoginIntent, LoginEffect> {
 
     private val _state = MutableStateFlow(LoginState())
     override val state: StateFlow<LoginState> = _state.asStateFlow()
@@ -23,20 +27,25 @@ class LoginViewModel : ViewModel(), MviViewModel<LoginState, LoginIntent, LoginE
     override fun handleIntent(intent: LoginIntent) {
         when (intent) {
             is LoginIntent.UsernameChanged -> {
-                val validation = LoginValidator.validateUsername(intent.value)
+                val clamped = intent.value.take(LoginValidator.USERNAME_MAX_LENGTH)
+                val validation = LoginValidator.validateUsername(clamped)
                 _state.value = _state.value.copy(
-                    username = intent.value,
-                    usernameError = validation.errorMessage,
-                    canSubmit = canSubmit(intent.value, _state.value.password),
+                    username = clamped,
+                    usernameError = if (clamped.isEmpty()) null else validation.errorMessage,
+                    canSubmit = canSubmit(clamped, _state.value.password),
+                    authError = null,
                 )
             }
 
             is LoginIntent.PasswordChanged -> {
-                val validation = LoginValidator.validatePassword(intent.value)
+                val digitsOnly = intent.value.filter { it.isDigit() }
+                    .take(LoginValidator.PASSWORD_LENGTH)
+                val validation = LoginValidator.validatePassword(digitsOnly)
                 _state.value = _state.value.copy(
-                    password = intent.value,
-                    passwordError = validation.errorMessage,
-                    canSubmit = canSubmit(_state.value.username, intent.value),
+                    password = digitsOnly,
+                    passwordError = if (digitsOnly.isEmpty()) null else validation.errorMessage,
+                    canSubmit = canSubmit(_state.value.username, digitsOnly),
+                    authError = null,
                 )
             }
 
@@ -46,22 +55,37 @@ class LoginViewModel : ViewModel(), MviViewModel<LoginState, LoginIntent, LoginE
                 )
             }
 
-            is LoginIntent.Submit -> {
-                val uResult = LoginValidator.validateUsername(_state.value.username)
-                val pResult = LoginValidator.validatePassword(_state.value.password)
+            is LoginIntent.Submit -> handleSubmit()
+        }
+    }
 
-                if (uResult.isValid && pResult.isValid) {
-                    viewModelScope.launch {
-                        _effects.emit(LoginEffect.NavigateHome)
-                    }
-                } else {
+    private fun handleSubmit() {
+        val currentState = _state.value
+        val uResult = LoginValidator.validateUsername(currentState.username)
+        val pResult = LoginValidator.validatePassword(currentState.password)
+
+        if (!uResult.isValid || !pResult.isValid) {
+            _state.value = currentState.copy(
+                usernameError = uResult.errorMessage,
+                passwordError = pResult.errorMessage,
+                authError = null,
+            )
+            return
+        }
+
+        viewModelScope.launch {
+            _state.value = currentState.copy(isLoading = true, authError = null)
+
+            when (val result = loginUseCase(currentState.username, currentState.password)) {
+                is AuthResult.Success -> {
+                    _state.value = _state.value.copy(isLoading = false)
+                    _effects.emit(LoginEffect.NavigateHome(result.user))
+                }
+                is AuthResult.Error -> {
                     _state.value = _state.value.copy(
-                        usernameError = uResult.errorMessage,
-                        passwordError = pResult.errorMessage,
+                        isLoading = false,
+                        authError = result.message,
                     )
-                    viewModelScope.launch {
-                        _effects.emit(LoginEffect.ShowError("Verifique os campos"))
-                    }
                 }
             }
         }

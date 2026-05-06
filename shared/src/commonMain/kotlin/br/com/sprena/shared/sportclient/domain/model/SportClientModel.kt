@@ -19,5 +19,12 @@ data class SportClientModel(
     val attendance: Int,
     val paymentMethod: PaymentMethod,
     val cashAmountCents: Long,
-    val lastPaymentMonth: String,
-)
+    val paymentHistory: List<String> = emptyList(),
+) {
+    /**
+     * Retorna o mês de pagamento mais recente do histórico,
+     * ou string vazia se não houver nenhum.
+     */
+    val lastPaymentMonth: String
+        get() = paymentHistory.lastOrNull() ?: ""
+}

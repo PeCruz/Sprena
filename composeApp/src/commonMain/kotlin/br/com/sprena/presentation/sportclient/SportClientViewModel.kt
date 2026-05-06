@@ -57,6 +57,13 @@ class SportClientViewModel :
                 _state.value = _state.value.copy(selectedClient = null)
             }
 
+            is SportClientIntent.EditClientClicked -> {
+                _state.value = _state.value.copy(selectedClient = null)
+                viewModelScope.launch {
+                    _effects.emit(SportClientEffect.NavigateToEdit(intent.client))
+                }
+            }
+
             is SportClientIntent.ClientUpdated -> {
                 val updated = _state.value.clients.map { c ->
                     if (c.id == intent.client.id) intent.client else c

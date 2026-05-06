@@ -22,7 +22,7 @@ import org.koin.dsl.module
 
 fun appModule() = module {
     viewModelOf(::HomeViewModel)
-    viewModelOf(::LoginViewModel)
+    viewModel { LoginViewModel(get()) }
     viewModelOf(::KanbanViewModel)
     viewModelOf(::AddTaskViewModel)
     viewModel { CreateTaskViewModel() }

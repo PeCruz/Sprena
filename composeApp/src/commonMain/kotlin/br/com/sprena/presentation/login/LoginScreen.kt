@@ -20,14 +20,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
@@ -38,10 +35,12 @@ import androidx.compose.ui.unit.dp
 import br.com.sprena.core.ui.components.SprenaLogo
 import br.com.sprena.core.ui.components.ThemeToggleButton
 import br.com.sprena.presentation.core.theme.ThemeViewModel
+import br.com.sprena.shared.auth.domain.model.UserModel
 
 /**
  * Tela de Login — simple sign-in com logo Sprena,
- * campos de username/password e botão de entrar.
+ * campos de username (max 8 chars) / password (6 dígitos numéricos)
+ * e botão de entrar.
  *
  * Apenas renderiza state e dispara intents (MVI).
  */
@@ -49,24 +48,21 @@ import br.com.sprena.presentation.core.theme.ThemeViewModel
 fun LoginScreen(
     viewModel: LoginViewModel,
     themeViewModel: ThemeViewModel,
-    onNavigateHome: () -> Unit,
+    onNavigateHome: (UserModel) -> Unit,
 ) {
     val state by viewModel.state.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     // Observa efeitos one-shot
     LaunchedEffect(Unit) {
         viewModel.effects.collect { effect ->
             when (effect) {
-                is LoginEffect.NavigateHome -> onNavigateHome()
-                is LoginEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
+                is LoginEffect.NavigateHome -> onNavigateHome(effect.user)
+                is LoginEffect.ShowError -> { /* Handled inline via authError state */ }
             }
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-    ) { innerPadding ->
+    Scaffold { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -104,7 +100,7 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // --- Username ---
+                // --- Username (max 8 caracteres) ---
                 OutlinedTextField(
                     value = state.username,
                     onValueChange = { viewModel.handleIntent(LoginIntent.UsernameChanged(it)) },
@@ -121,11 +117,11 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // --- Password ---
+                // --- Password (6 dígitos numéricos) ---
                 OutlinedTextField(
                     value = state.password,
                     onValueChange = { viewModel.handleIntent(LoginIntent.PasswordChanged(it)) },
-                    label = { Text("Senha") },
+                    label = { Text("Senha (6 dígitos)") },
                     singleLine = true,
                     isError = state.passwordError != null,
                     supportingText = state.passwordError?.let { error -> { Text(error) } },
@@ -145,7 +141,7 @@ fun LoginScreen(
                         }
                     },
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
+                        keyboardType = KeyboardType.NumberPassword,
                         imeAction = ImeAction.Done,
                     ),
                     keyboardActions = KeyboardActions(
@@ -153,6 +149,17 @@ fun LoginScreen(
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 )
+
+                // --- Auth error (inline) ---
+                if (state.authError != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = state.authError!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -175,4 +182,4 @@ fun LoginScreen(
             }
         }
     }
-}
+}

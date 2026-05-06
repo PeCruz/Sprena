@@ -8,7 +8,7 @@ import br.com.sprena.shared.sportclient.domain.validation.SportModality
  * Cliente de esportes (futevôlei, beach tennis, vôlei).
  *
  * @param cashAmountCents valor em dinheiro (centavos) — obrigatório para todos os métodos.
- * @param lastPaymentMonth último mês pago, formato MM/YYYY.
+ * @param paymentHistory lista de meses pagos, formato MM/YYYY.
  */
 data class SportClient(
     val id: String,
@@ -20,8 +20,12 @@ data class SportClient(
     val attendance: Int,
     val paymentMethod: PaymentMethod,
     val cashAmountCents: Long,
-    val lastPaymentMonth: String,
-)
+    val paymentHistory: List<String> = emptyList(),
+) {
+    /** Último mês pago (derivado do histórico). */
+    val lastPaymentMonth: String
+        get() = paymentHistory.lastOrNull() ?: ""
+}
 
 /**
  * State da tela Home — gestão de clientes de esportes.

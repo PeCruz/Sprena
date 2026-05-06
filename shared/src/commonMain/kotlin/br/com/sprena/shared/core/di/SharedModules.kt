@@ -1,5 +1,6 @@
 package br.com.sprena.shared.core.di
 
+import br.com.sprena.shared.auth.di.authModule
 import br.com.sprena.shared.sportclient.di.sportClientModule
 
 /**
@@ -9,14 +10,16 @@ import br.com.sprena.shared.sportclient.di.sportClientModule
  * toda a infraestrutura e domínios compartilhados.
  *
  * Ordem de carregamento:
- *  1. [kanbanModule]       → domínio Kanban
- *  2. [financialModule]    → domínio Financeiro
- *  3. [sportClientModule]  → domínio SportClient
+ *  1. [authModule]         → domínio Auth (autenticação + autorização)
+ *  2. [kanbanModule]       → domínio Kanban
+ *  3. [financialModule]    → domínio Financeiro
+ *  4. [sportClientModule]  → domínio SportClient
  *
  * Firebase Firestore é inicializado no platformModule (Android)
  * e injetado via Koin nas implementações de Repository.
  */
 fun sharedModules() = listOf(
+    authModule(),
     kanbanModule,
     financialModule,
     sportClientModule,
