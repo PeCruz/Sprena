@@ -19,7 +19,7 @@ data class SportClientDto(
     val attendance: Int = 0,
     val paymentMethod: String = "",
     val cashAmountCents: Long = 0L,
-    val lastPaymentMonth: String = "",
+    val paymentHistory: List<String> = emptyList(),
 ) {
 
     /**
@@ -39,7 +39,7 @@ data class SportClientDto(
         attendance = attendance,
         paymentMethod = PaymentMethod.valueOf(paymentMethod.ifBlank { PaymentMethod.CASH.name }),
         cashAmountCents = cashAmountCents,
-        lastPaymentMonth = lastPaymentMonth,
+        paymentHistory = paymentHistory,
     )
 
     companion object {
@@ -55,7 +55,7 @@ data class SportClientDto(
             attendance = model.attendance,
             paymentMethod = model.paymentMethod.name,
             cashAmountCents = model.cashAmountCents,
-            lastPaymentMonth = model.lastPaymentMonth,
+            paymentHistory = model.paymentHistory,
         )
     }
 }

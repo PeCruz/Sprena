@@ -7,11 +7,11 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * TDD Red — LoginValidator
+ * TDD — LoginValidator
  *
  * Regras:
- *  - Username: obrigatório, mín 3, máx 50
- *  - Password: obrigatório, mín 6
+ *  - Username: obrigatório, mín 3, máx 8
+ *  - Password: obrigatório, exatamente 6 dígitos numéricos
  */
 class LoginValidatorTest {
 
@@ -43,20 +43,20 @@ class LoginValidatorTest {
     }
 
     @Test
-    fun `username with 50 chars at max boundary is valid`() {
+    fun `username with 8 chars at max boundary is valid`() {
         val atMax = "a".repeat(LoginValidator.USERNAME_MAX_LENGTH)
         assertTrue(LoginValidator.validateUsername(atMax).isValid)
     }
 
     @Test
-    fun `username with 51 chars above max is invalid`() {
+    fun `username with 9 chars above max is invalid`() {
         val overMax = "a".repeat(LoginValidator.USERNAME_MAX_LENGTH + 1)
         assertFalse(LoginValidator.validateUsername(overMax).isValid)
     }
 
     @Test
     fun `username with valid content is valid`() {
-        assertTrue(LoginValidator.validateUsername("pedro.sprena").isValid)
+        assertTrue(LoginValidator.validateUsername("admin").isValid)
     }
 
     // ── Password ─────────────────────────────────────────
@@ -74,20 +74,34 @@ class LoginValidatorTest {
     }
 
     @Test
-    fun `password with 5 chars below min is invalid`() {
-        val short = "a".repeat(LoginValidator.PASSWORD_MIN_LENGTH - 1)
-        assertFalse(LoginValidator.validatePassword(short).isValid)
+    fun `password with 5 digits below required length is invalid`() {
+        assertFalse(LoginValidator.validatePassword("12345").isValid)
     }
 
     @Test
-    fun `password with 6 chars at min boundary is valid`() {
-        val atMin = "a".repeat(LoginValidator.PASSWORD_MIN_LENGTH)
-        assertTrue(LoginValidator.validatePassword(atMin).isValid)
-        assertNull(LoginValidator.validatePassword(atMin).errorMessage)
+    fun `password with exactly 6 digits is valid`() {
+        val result = LoginValidator.validatePassword("123456")
+        assertTrue(result.isValid)
+        assertNull(result.errorMessage)
     }
 
     @Test
-    fun `password long is valid`() {
-        assertTrue(LoginValidator.validatePassword("minha_senha_super_segura_2026!").isValid)
+    fun `password with 7 digits above required length is invalid`() {
+        assertFalse(LoginValidator.validatePassword("1234567").isValid)
+    }
+
+    @Test
+    fun `password with letters is invalid`() {
+        assertFalse(LoginValidator.validatePassword("abc123").isValid)
+    }
+
+    @Test
+    fun `password with special chars is invalid`() {
+        assertFalse(LoginValidator.validatePassword("12345!").isValid)
+    }
+
+    @Test
+    fun `password with spaces is invalid`() {
+        assertFalse(LoginValidator.validatePassword("12 456").isValid)
     }
 }

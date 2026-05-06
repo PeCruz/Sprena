@@ -15,6 +15,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -30,17 +31,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import br.com.sprena.shared.auth.domain.model.UserRole
 import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Tela principal do app Sprena.
- * Observa o estado do [HomeViewModel] e renderiza a UI de forma declarativa.
+ * Adapta conteúdo conforme o role do usuário autenticado.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel = koinViewModel()
+    viewModel: HomeViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -91,7 +93,7 @@ fun HomeScreen(
                     ) {
                         // App icon / logo area
                         Text(
-                            text = "🛶",
+                            text = roleEmoji(uiState.userRole),
                             style = MaterialTheme.typography.displayLarge,
                         )
 
@@ -113,6 +115,19 @@ fun HomeScreen(
                             textAlign = TextAlign.Center,
                         )
 
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Role chip
+                        SuggestionChip(
+                            onClick = { },
+                            label = {
+                                Text(
+                                    text = uiState.userRole.displayName,
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            },
+                        )
+
                         Spacer(modifier = Modifier.height(32.dp))
 
                         // Build info
@@ -126,4 +141,10 @@ fun HomeScreen(
             }
         }
     }
+}
+
+private fun roleEmoji(role: UserRole): String = when (role) {
+    UserRole.ADM -> "👑"
+    UserRole.MOD -> "🛡️"
+    UserRole.CLIENT -> "🛶"
 }

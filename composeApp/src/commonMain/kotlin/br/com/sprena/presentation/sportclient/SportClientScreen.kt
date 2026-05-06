@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,7 +63,6 @@ import br.com.sprena.core.ui.components.ThemeToggleButton
 import br.com.sprena.core.ui.mask.CpfMaskTransformation
 import br.com.sprena.core.ui.mask.CurrencyMaskTransformation
 import br.com.sprena.core.ui.mask.PhoneMaskTransformation
-import br.com.sprena.core.ui.mask.centsToDigitString
 import br.com.sprena.core.ui.mask.filterDigitsOnly
 import br.com.sprena.core.ui.mask.parseCurrencyDigits
 import br.com.sprena.presentation.core.theme.ThemeViewModel
@@ -187,14 +188,14 @@ fun SportClientScreen(
         )
     }
 
-    // --- Edit / Detail Dialog ---
+    // --- Read-only Detail Dialog ---
     val selectedClient = state.selectedClient
     if (selectedClient != null) {
-        EditSportClientDialog(
+        SportClientDetailDialog(
             client = selectedClient,
             onDismiss = { viewModel.handleIntent(SportClientIntent.DismissClientDetail) },
-            onUpdate = { updated ->
-                viewModel.handleIntent(SportClientIntent.ClientUpdated(updated))
+            onEdit = { client ->
+                viewModel.handleIntent(SportClientIntent.EditClientClicked(client))
             },
             onDelete = { clientId ->
                 viewModel.handleIntent(SportClientIntent.ClientDeleted(clientId))
@@ -212,17 +213,14 @@ private fun SportClientTableHeader() {
             .padding(horizontal = 8.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Coluna avatar (espaço fixo)
+        Spacer(modifier = Modifier.size(40.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = "Nome",
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(0.9f),
-        )
-        Text(
-            text = "Apelido",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1.2f),
         )
         Text(
             text = "Modalidade",
@@ -231,22 +229,40 @@ private fun SportClientTableHeader() {
             modifier = Modifier.weight(1.2f),
         )
         Text(
-            text = "Freq.",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(0.6f),
-        )
-        Text(
-            text = "Pgto",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1.1f),
-        )
-        Text(
             text = "Mês Pgto",
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(0.8f),
+        )
+    }
+}
+
+/**
+ * Avatar circular com as iniciais do cliente.
+ */
+@Composable
+private fun ClientAvatar(name: String, modifier: Modifier = Modifier) {
+    val initials = name.trim()
+        .split(" ")
+        .filter { it.isNotBlank() }
+        .take(2)
+        .joinToString("") { it.first().uppercase() }
+        .ifEmpty { "?" }
+
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .background(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shape = CircleShape,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = initials,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
         )
     }
 }
@@ -260,24 +276,32 @@ private fun SportClientTableRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 12.dp),
+            .padding(horizontal = 8.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = client.name,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(0.9f),
-        )
-        Text(
-            text = client.apelido,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
+        ClientAvatar(name = client.name)
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Nome + Apelido abaixo
+        Column(modifier = Modifier.weight(1.2f)) {
+            Text(
+                text = client.name,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (client.apelido.isNotBlank()) {
+                Text(
+                    text = client.apelido,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+
         Text(
             text = modalitiesLabel(client.modalities),
             style = MaterialTheme.typography.bodyMedium,
@@ -286,21 +310,9 @@ private fun SportClientTableRow(
             modifier = Modifier.weight(1.2f),
         )
         Text(
-            text = "${client.attendance}x",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(0.6f),
-        )
-        Text(
-            text = paymentMethodLabel(client.paymentMethod),
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1.1f),
-        )
-        Text(
             text = client.lastPaymentMonth,
             style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(0.8f),
         )
     }
 }
@@ -357,6 +369,8 @@ private fun SportClientFormFields(
     lastPaymentMonthDisplay: String,
     onLastPaymentMonthClick: () -> Unit,
     lastPaymentMonthError: String?,
+    paymentHistory: List<String> = emptyList(),
+    onRemovePaymentMonth: (String) -> Unit = {},
 ) {
     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
         // --- Nome ---
@@ -529,35 +543,69 @@ private fun SportClientFormFields(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // --- Mês Pagamento ---
-        OutlinedTextField(
-            value = lastPaymentMonthDisplay,
-            onValueChange = {},
-            label = { Text("Mês Pagamento *") },
-            placeholder = { Text("MM/AAAA") },
-            readOnly = true,
-            isError = lastPaymentMonthError != null,
-            supportingText = lastPaymentMonthError?.let { e -> { Text(e) } },
-            singleLine = true,
-            trailingIcon = {
-                Icon(
-                    imageVector = Icons.Default.DateRange,
-                    contentDescription = "Selecionar mês",
-                )
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onLastPaymentMonthClick() },
-            interactionSource = remember { MutableInteractionSource() }.also { source ->
-                LaunchedEffect(source) {
-                    source.interactions.collect { interaction ->
-                        if (interaction is PressInteraction.Release) {
-                            onLastPaymentMonthClick()
+        // --- Mês Pagamento (adicionar ao histórico) ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = lastPaymentMonthDisplay,
+                onValueChange = {},
+                label = { Text("Adicionar Mês Pgto *") },
+                placeholder = { Text("MM/AAAA") },
+                readOnly = true,
+                isError = lastPaymentMonthError != null,
+                supportingText = lastPaymentMonthError?.let { e -> { Text(e) } },
+                singleLine = true,
+                trailingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = "Selecionar mês",
+                    )
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onLastPaymentMonthClick() },
+                interactionSource = remember { MutableInteractionSource() }.also { source ->
+                    LaunchedEffect(source) {
+                        source.interactions.collect { interaction ->
+                            if (interaction is PressInteraction.Release) {
+                                onLastPaymentMonthClick()
+                            }
                         }
                     }
+                },
+            )
+        }
+
+        // --- Histórico de pagamentos (chips removíveis) ---
+        if (paymentHistory.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Meses pagos:",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+            ) {
+                paymentHistory.forEach { month ->
+                    FilterChip(
+                        selected = true,
+                        onClick = { onRemovePaymentMonth(month) },
+                        label = { Text(month) },
+                        trailingIcon = {
+                            Text(
+                                text = "✕",
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        },
+                    )
                 }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -787,7 +835,11 @@ private fun AddSportClientDialog(
                     attendance = selectedAttendance!!,
                     paymentMethod = selectedPayment!!,
                     cashAmountCents = cashAmountCents ?: 0L,
-                    lastPaymentMonth = lastPaymentMonth,
+                    paymentHistory = if (lastPaymentMonth.isNotBlank()) {
+                        listOf(lastPaymentMonth)
+                    } else {
+                        emptyList()
+                    },
                 )
                 onConfirm(client)
             }) {
@@ -803,53 +855,17 @@ private fun AddSportClientDialog(
 }
 
 // =========================================================================
-// Edit / Detail Dialog
+// Read-only Detail Dialog
 // =========================================================================
 
 @Composable
-private fun EditSportClientDialog(
+private fun SportClientDetailDialog(
     client: SportClient,
     onDismiss: () -> Unit,
-    onUpdate: (SportClient) -> Unit,
+    onEdit: (SportClient) -> Unit,
     onDelete: (String) -> Unit,
 ) {
-    var name by remember(client.id) { mutableStateOf(client.name) }
-    var apelido by remember(client.id) { mutableStateOf(client.apelido) }
-    var cpfDigits by remember(client.id) { mutableStateOf(client.cpf) }
-    var phoneDigits by remember(client.id) { mutableStateOf(client.phone) }
-    var selectedModalities by remember(client.id) { mutableStateOf(client.modalities.toSet()) }
-    var selectedAttendance by remember(client.id) { mutableStateOf<Int?>(client.attendance) }
-    var selectedPayment by remember(client.id) { mutableStateOf<PaymentMethod?>(client.paymentMethod) }
-    var cashDigits by remember(client.id) { mutableStateOf(centsToDigitString(client.cashAmountCents)) }
-    var lastPaymentMonth by remember(client.id) { mutableStateOf(client.lastPaymentMonth) }
-    var showMonthPicker by remember { mutableStateOf(false) }
-
-    var nameError by remember { mutableStateOf<String?>(null) }
-    var apelidoError by remember { mutableStateOf<String?>(null) }
-    var cpfError by remember { mutableStateOf<String?>(null) }
-    var phoneError by remember { mutableStateOf<String?>(null) }
-    var modalityError by remember { mutableStateOf<String?>(null) }
-    var attendanceError by remember { mutableStateOf<String?>(null) }
-    var paymentError by remember { mutableStateOf<String?>(null) }
-    var cashError by remember { mutableStateOf<String?>(null) }
-    var lastPaymentMonthError by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
-
-    if (showMonthPicker) {
-        val (defaultYear, defaultMonth) = currentYearMonth()
-        val initMonth = lastPaymentMonth.substringBefore("/").toIntOrNull() ?: defaultMonth
-        val initYear = lastPaymentMonth.substringAfter("/").toIntOrNull() ?: defaultYear
-        MonthYearPickerDialog(
-            initialMonth = initMonth,
-            initialYear = initYear,
-            onDismiss = { showMonthPicker = false },
-            onConfirm = { month, year ->
-                lastPaymentMonth = "${month.toString().padStart(2, '0')}/${year.toString().padStart(4, '0')}"
-                lastPaymentMonthError = null
-                showMonthPicker = false
-            },
-        )
-    }
 
     if (showDeleteConfirmation) {
         AlertDialog(
@@ -883,7 +899,14 @@ private fun EditSportClientDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Editar Cliente", modifier = Modifier.weight(1f))
+                Text(client.name, modifier = Modifier.weight(1f))
+                IconButton(onClick = { onEdit(client) }) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Editar",
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
                 IconButton(onClick = { showDeleteConfirmation = true }) {
                     Icon(
                         imageVector = Icons.Default.Delete,
@@ -894,99 +917,68 @@ private fun EditSportClientDialog(
             }
         },
         text = {
-            SportClientFormFields(
-                name = name,
-                onNameChange = { name = it; nameError = null },
-                nameError = nameError,
-                apelido = apelido,
-                onApelidoChange = { apelido = it; apelidoError = null },
-                apelidoError = apelidoError,
-                cpfDigits = cpfDigits,
-                onCpfChange = { cpfDigits = filterDigitsOnly(it, 11); cpfError = null },
-                cpfError = cpfError,
-                phoneDigits = phoneDigits,
-                onPhoneChange = { phoneDigits = filterDigitsOnly(it, 11); phoneError = null },
-                phoneError = phoneError,
-                selectedModalities = selectedModalities,
-                onModalityToggle = { modality ->
-                    selectedModalities = if (modality in selectedModalities) {
-                        selectedModalities - modality
-                    } else {
-                        selectedModalities + modality
-                    }
-                    modalityError = null
-                },
-                modalityError = modalityError,
-                selectedAttendance = selectedAttendance,
-                onAttendanceChange = { selectedAttendance = it; attendanceError = null },
-                attendanceError = attendanceError,
-                selectedPayment = selectedPayment,
-                onPaymentChange = { selectedPayment = it; paymentError = null; cashError = null },
-                paymentError = paymentError,
-                cashDigits = cashDigits,
-                onCashChange = { cashDigits = filterDigitsOnly(it, 10); cashError = null },
-                cashError = cashError,
-                lastPaymentMonthDisplay = lastPaymentMonth,
-                onLastPaymentMonthClick = { showMonthPicker = true },
-                lastPaymentMonthError = lastPaymentMonthError,
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val nameResult = SportClientValidator.validateName(name)
-                val apelidoResult = SportClientValidator.validateApelido(apelido)
-                val cpfResult = SportClientValidator.validateCpf(cpfDigits)
-                val phoneResult = SportClientValidator.validatePhone(phoneDigits)
-                val modalityResult = SportClientValidator.validateModalidade(selectedModalities.toList())
-                val attendanceResult = SportClientValidator.validateAttendance(selectedAttendance)
-                val paymentResult = SportClientValidator.validatePaymentMethod(selectedPayment)
-                val lastMonthResult = SportClientValidator.validateLastPaymentMonth(lastPaymentMonth)
-
-                nameError = nameResult.errorMessage
-                apelidoError = apelidoResult.errorMessage
-                cpfError = cpfResult.errorMessage
-                phoneError = phoneResult.errorMessage
-                modalityError = modalityResult.errorMessage
-                attendanceError = attendanceResult.errorMessage
-                paymentError = paymentResult.errorMessage
-                lastPaymentMonthError = lastMonthResult.errorMessage
-
-                val cashAmountCents = parseCurrencyDigits(cashDigits)
-                if (selectedPayment != null) {
-                    val cashResult = SportClientValidator.validateCashAmount(
-                        cashAmountCents,
-                        selectedPayment!!,
-                    )
-                    cashError = cashResult.errorMessage
-                    if (!cashResult.isValid) return@TextButton
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                if (client.apelido.isNotBlank()) {
+                    DetailRow(label = "Apelido", value = client.apelido)
                 }
-
-                if (!nameResult.isValid || !apelidoResult.isValid || !cpfResult.isValid ||
-                    !phoneResult.isValid || !modalityResult.isValid || !attendanceResult.isValid ||
-                    !paymentResult.isValid || !lastMonthResult.isValid
-                ) return@TextButton
-
-                onUpdate(
-                    client.copy(
-                        name = name.trim(),
-                        apelido = apelido.trim(),
-                        cpf = cpfDigits,
-                        phone = phoneDigits,
-                        modalities = selectedModalities.toList(),
-                        attendance = selectedAttendance!!,
-                        paymentMethod = selectedPayment!!,
-                        cashAmountCents = cashAmountCents ?: 0L,
-                        lastPaymentMonth = lastPaymentMonth,
-                    ),
+                DetailRow(label = "CPF", value = formatCpf(client.cpf))
+                DetailRow(label = "Telefone", value = formatPhone(client.phone))
+                DetailRow(
+                    label = "Modalidade",
+                    value = modalitiesLabel(client.modalities),
                 )
-            }) {
-                Text("Salvar")
+                DetailRow(label = "Frequência", value = "${client.attendance}x por semana")
+                DetailRow(
+                    label = "Pagamento",
+                    value = paymentMethodLabel(client.paymentMethod),
+                )
+                DetailRow(
+                    label = "Valor",
+                    value = formatCurrency(client.cashAmountCents),
+                )
+                if (client.paymentHistory.isNotEmpty()) {
+                    DetailRow(
+                        label = "Meses pagos",
+                        value = client.paymentHistory.joinToString(", "),
+                    )
+                }
             }
         },
-        dismissButton = {
+        confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text("Fechar")
             }
         },
     )
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+}
+
+private fun formatCpf(digits: String): String {
+    if (digits.length != 11) return digits
+    return "${digits.substring(0, 3)}.${digits.substring(3, 6)}.${digits.substring(6, 9)}-${digits.substring(9)}"
+}
+
+private fun formatPhone(digits: String): String {
+    if (digits.length != 11) return digits
+    return "(${digits.substring(0, 2)}) ${digits.substring(2, 7)}-${digits.substring(7)}"
+}
+
+private fun formatCurrency(cents: Long): String {
+    val reais = cents / 100
+    val centavos = cents % 100
+    return "R$ $reais,${centavos.toString().padStart(2, '0')}"
 }

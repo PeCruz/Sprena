@@ -20,4 +20,5 @@ data class LoginState(
     val isPasswordVisible: Boolean = false,
     val isLoading: Boolean = false,
     val canSubmit: Boolean = false,
+    val authError: String? = null,
 ) : UiState
