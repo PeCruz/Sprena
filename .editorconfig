@@ -1,13 +1,26 @@
 root = true
 
-[*.{kt,kts}]
+[*]
 charset = utf-8
 end_of_line = lf
-indent_size = 4
-indent_style = space
 insert_final_newline = true
-max_line_length = 120
 trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
 
-# ktlint — allow PascalCase names for @Composable functions (Compose convention)
+[*.{kt,kts}]
+max_line_length = 120
+ktlint_standard_no-wildcard-imports = enabled
+ktlint_standard_filename = enabled
+# Compose convention: allow PascalCase names for @Composable functions
 ktlint_function_naming_ignore_when_annotated_with = Composable
+
+[*.{yml,yaml,json,toml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = off
+
+[Makefile]
+indent_style = tab
