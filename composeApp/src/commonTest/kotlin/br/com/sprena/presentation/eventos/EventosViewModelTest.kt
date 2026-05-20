@@ -184,7 +184,7 @@ class EventosViewModelTest {
     // =========================================================================
 
     @Test
-    fun `Eventos tab shows only future events (dateEpochDay >= today)`() =
+    fun `Eventos tab shows only future events when dateEpochDay is today or later`() =
         runTest {
             val vm = createVmWithMixedEvents()
             val filtered = vm.state.first().filteredEvents

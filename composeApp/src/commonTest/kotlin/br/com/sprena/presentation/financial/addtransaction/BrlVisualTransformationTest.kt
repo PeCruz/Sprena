@@ -78,12 +78,12 @@ class BrlVisualTransformationTest {
     }
 
     @Test
-    fun `six digits 100000 formats as R$ 1.000,00`() {
+    fun `six digits 100000 formats as one thousand reais`() {
         assertEquals("R$ 1.000,00", transform("100000"))
     }
 
     @Test
-    fun `six digits 123456 formats as R$ 1.234,56`() {
+    fun `six digits 123456 formats as one thousand two hundred thirty four reais and 56 cents`() {
         assertEquals("R$ 1.234,56", transform("123456"))
     }
 
