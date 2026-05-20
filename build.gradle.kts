@@ -6,4 +6,28 @@ plugins {
     alias(libs.plugins.compose.compiler) apply false
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.google.services) apply false
+    alias(libs.plugins.detekt)
+}
+
+subprojects {
+    apply(plugin = rootProject.libs.plugins.detekt.get().pluginId)
+
+    extensions.configure<io.gitlab.arturbosch.detekt.extensions.DetektExtension> {
+        toolVersion = rootProject.libs.versions.detekt.get()
+        config.setFrom(rootProject.files("config/detekt/detekt.yml"))
+        buildUponDefaultConfig = true
+        autoCorrect = false
+        parallel = true
+    }
+
+    tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+        jvmTarget = "17"
+        reports {
+            html.required.set(true)
+            xml.required.set(true)
+            sarif.required.set(true)
+            md.required.set(false)
+            txt.required.set(false)
+        }
+    }
 }
