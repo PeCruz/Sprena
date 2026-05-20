@@ -18,33 +18,30 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -65,9 +62,17 @@ import br.com.sprena.presentation.core.theme.ThemeViewModel
 import kotlinx.coroutines.launch
 
 /**
- * Tela principal de Eventos — search input no topo, MD3 scrollable tabs
- * (Eventos, Aluguel, Day Use, Realizados), lista flat de cards ordenada por data,
- * FAB para criar, cards com cores (verde=ativo, vermelho/transparente=expirado).
+ * Cores por categoria de evento.
+ */
+private val AluguelColor = Color(0xFF6959CD)
+private val ReservaColor = Color(0xFF9370DB)
+private val DayUseColor = Color(0xFFEE82EE)
+private val CompletedColor = Color(0xFFFF0000)
+
+/**
+ * Tela principal de Eventos — duas tabs (Eventos, Eventos Realizados),
+ * search input no topo, filtro de categoria dropdown, navegador de mes,
+ * lista flat de cards com cores por categoria.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -146,16 +151,13 @@ fun EventosScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            // --- Date Filters: DatePicker + Month Navigator ---
-            DateFilterRow(
-                filterDateEpochDay = state.filterDateEpochDay,
+            // --- Filter Row: Category Dropdown + Month Navigator ---
+            FilterRow(
+                categoryFilter = state.categoryFilter,
                 filterMonth = state.filterMonth,
                 filterYear = state.filterYear,
-                onDatePickerSelected = { epochDay ->
-                    viewModel.handleIntent(EventosIntent.DatePickerFilterChanged(epochDay))
-                },
-                onClearDatePicker = {
-                    viewModel.handleIntent(EventosIntent.ClearDatePickerFilter)
+                onCategoryFilterChanged = { category ->
+                    viewModel.handleIntent(EventosIntent.CategoryFilterChanged(category))
                 },
                 onMonthBack = {
                     viewModel.handleIntent(EventosIntent.MonthNavigatedBack)
@@ -165,35 +167,33 @@ fun EventosScreen(
                 },
             )
 
-            // --- MD3 Scrollable Tabs with badge counts ---
+            // --- Two Tabs: Eventos (with counter) | Eventos Realizados ---
             val tabIndex = state.tabs.indexOf(state.selectedTab).coerceAtLeast(0)
 
-            ScrollableTabRow(
+            TabRow(
                 selectedTabIndex = tabIndex,
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.primary,
-                edgePadding = 16.dp,
             ) {
-                state.tabs.forEachIndexed { index, category ->
-                    val count = state.tabCounts[category] ?: 0
+                state.tabs.forEachIndexed { index, tab ->
                     Tab(
                         selected = tabIndex == index,
                         onClick = {
-                            viewModel.handleIntent(EventosIntent.TabSelected(category))
+                            viewModel.handleIntent(EventosIntent.TabSelected(tab))
                         },
                         text = {
-                            if (count > 0) {
+                            if (tab == EventTab.EVENTOS && state.eventCount > 0) {
                                 BadgedBox(
                                     badge = {
                                         Badge {
-                                            Text(count.toString())
+                                            Text(state.eventCount.toString())
                                         }
                                     },
                                 ) {
-                                    Text(category.label)
+                                    Text(tab.label)
                                 }
                             } else {
-                                Text(category.label)
+                                Text(tab.label)
                             }
                         },
                     )
@@ -232,7 +232,7 @@ fun EventosScreen(
                     items(state.filteredEvents, key = { it.id }) { event ->
                         EventCard(
                             event = event,
-                            todayEpochDay = state.todayEpochDay,
+                            isCompleted = state.selectedTab == EventTab.EVENTOS_REALIZADOS,
                             onClick = {
                                 viewModel.handleIntent(EventosIntent.EventClicked(event))
                             },
@@ -245,20 +245,19 @@ fun EventosScreen(
 }
 
 /**
- * Linha de filtros de data: date picker (esquerda) + navegador de mes (direita).
+ * Linha de filtros: dropdown de categoria (esquerda) + navegador de mes (direita).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DateFilterRow(
-    filterDateEpochDay: Long?,
+private fun FilterRow(
+    categoryFilter: EventCategory?,
     filterMonth: Int,
     filterYear: Int,
-    onDatePickerSelected: (Long) -> Unit,
-    onClearDatePicker: () -> Unit,
+    onCategoryFilterChanged: (EventCategory?) -> Unit,
     onMonthBack: () -> Unit,
     onMonthForward: () -> Unit,
 ) {
-    var showDatePicker by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
 
     Row(
         modifier = Modifier
@@ -267,54 +266,42 @@ private fun DateFilterRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // --- Date Picker Field (left) ---
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = if (filterDateEpochDay != null) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            },
-            modifier = Modifier
-                .weight(1f)
-                .clickable { showDatePicker = true },
+        // --- Category Dropdown (left) ---
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier.weight(1f),
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            OutlinedTextField(
+                value = categoryFilter?.label ?: "Todos",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Categoria") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(),
+                singleLine = true,
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
             ) {
-                Icon(
-                    imageVector = Icons.Default.DateRange,
-                    contentDescription = "Filtrar por data",
-                    modifier = Modifier.size(18.dp),
-                    tint = if (filterDateEpochDay != null) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                DropdownMenuItem(
+                    text = { Text("Todos") },
+                    onClick = {
+                        onCategoryFilterChanged(null)
+                        expanded = false
                     },
                 )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = filterDateEpochDay?.let { formatEpochDay(it) } ?: "Filtrar data",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (filterDateEpochDay != null) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
-                if (filterDateEpochDay != null) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    IconButton(
-                        onClick = onClearDatePicker,
-                        modifier = Modifier.size(18.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Limpar filtro de data",
-                            modifier = Modifier.size(14.dp),
-                        )
-                    }
+                EventCategory.entries.forEach { category ->
+                    DropdownMenuItem(
+                        text = { Text(category.label) },
+                        onClick = {
+                            onCategoryFilterChanged(category)
+                            expanded = false
+                        },
+                    )
                 }
             }
         }
@@ -340,36 +327,6 @@ private fun DateFilterRow(
             }
         }
     }
-
-    // --- DatePickerDialog ---
-    if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = filterDateEpochDay?.let { it * 86_400_000L },
-        )
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            val epochDay = millis / 86_400_000L
-                            onDatePickerSelected(epochDay)
-                        }
-                        showDatePicker = false
-                    },
-                ) {
-                    Text("Confirmar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancelar")
-                }
-            },
-        ) {
-            DatePicker(state = datePickerState)
-        }
-    }
 }
 
 /**
@@ -393,26 +350,22 @@ private fun monthName(month: Int): String = when (month) {
 
 /**
  * Card de evento — exibe nome, data e badge de categoria.
- * Verde para eventos ativos, vermelho/transparente para expirados.
+ * Cores definidas por categoria. Eventos realizados usam cor vermelha.
  */
 @Composable
 private fun EventCard(
     event: Event,
-    todayEpochDay: Long,
+    isCompleted: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val isExpired = event.dateEpochDay < todayEpochDay
-    val cardAlpha = if (isExpired) 0.55f else 1f
-    val borderColor = if (isExpired) {
-        MaterialTheme.colorScheme.error
+    val categoryColor = categoryColor(event.category)
+    val cardAlpha = if (isCompleted) 0.55f else 1f
+    val borderColor = if (isCompleted) CompletedColor else categoryColor
+    val containerColor = if (isCompleted) {
+        CompletedColor.copy(alpha = 0.08f)
     } else {
-        Color(0xFF2E7D32) // green
-    }
-    val containerColor = if (isExpired) {
-        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
-    } else {
-        Color(0xFF2E7D32).copy(alpha = 0.08f)
+        categoryColor.copy(alpha = 0.08f)
     }
 
     Card(
@@ -425,12 +378,10 @@ private fun EventCard(
             width = 1.dp,
             color = borderColor.copy(alpha = cardAlpha),
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isExpired) 0.dp else 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isCompleted) 0.dp else 2.dp),
     ) {
         Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .then(if (isExpired) Modifier else Modifier),
+            modifier = Modifier.padding(16.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -444,16 +395,16 @@ private fun EventCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
-                    color = if (isExpired) {
-                        MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                    color = if (isCompleted) {
+                        CompletedColor.copy(alpha = 0.7f)
                     } else {
                         MaterialTheme.colorScheme.onSurface
                     },
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 CategoryBadge(
-                    category = event.originalCategory ?: event.category,
-                    isExpired = isExpired,
+                    category = event.category,
+                    isCompleted = isCompleted,
                 )
             }
 
@@ -462,10 +413,10 @@ private fun EventCard(
             Text(
                 text = formatEpochDay(event.dateEpochDay),
                 style = MaterialTheme.typography.bodySmall,
-                color = if (isExpired) {
-                    MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                color = if (isCompleted) {
+                    CompletedColor.copy(alpha = 0.6f)
                 } else {
-                    Color(0xFF2E7D32).copy(alpha = 0.8f)
+                    categoryColor.copy(alpha = 0.8f)
                 },
             )
 
@@ -475,7 +426,7 @@ private fun EventCard(
                     text = event.contact,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                        alpha = if (isExpired) 0.5f else 0.8f,
+                        alpha = if (isCompleted) 0.5f else 0.8f,
                     ),
                 )
             }
@@ -484,20 +435,16 @@ private fun EventCard(
 }
 
 /**
- * Badge com o nome da categoria (tab) do evento.
+ * Badge com o nome da categoria do evento.
+ * Usa cores definidas por categoria; eventos realizados usam cor vermelha.
  */
 @Composable
 private fun CategoryBadge(
     category: EventCategory,
-    isExpired: Boolean = false,
+    isCompleted: Boolean = false,
 ) {
-    val color = when (category) {
-        EventCategory.EVENTOS -> MaterialTheme.colorScheme.primary
-        EventCategory.ALUGUEL -> MaterialTheme.colorScheme.tertiary
-        EventCategory.DAY_USE -> MaterialTheme.colorScheme.secondary
-        EventCategory.REALIZADOS -> MaterialTheme.colorScheme.outline
-    }
-    val alpha = if (isExpired) 0.5f else 1f
+    val color = if (isCompleted) CompletedColor else categoryColor(category)
+    val alpha = if (isCompleted) 0.5f else 1f
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = color.copy(alpha = alpha),
@@ -510,6 +457,15 @@ private fun CategoryBadge(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
         )
     }
+}
+
+/**
+ * Retorna a cor correspondente a categoria do evento.
+ */
+private fun categoryColor(category: EventCategory): Color = when (category) {
+    EventCategory.ALUGUEL -> AluguelColor
+    EventCategory.RESERVA -> ReservaColor
+    EventCategory.DAY_USE -> DayUseColor
 }
 
 /**

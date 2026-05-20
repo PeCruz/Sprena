@@ -290,7 +290,7 @@ private fun CategoryDropdown(
     onCategorySelected: (EventCategory) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectableCategories = EventCategory.entries.filter { it != EventCategory.REALIZADOS }
+    val selectableCategories = EventCategory.entries.toList()
 
     ExposedDropdownMenuBox(
         expanded = expanded,

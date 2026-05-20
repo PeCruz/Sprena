@@ -663,7 +663,7 @@ private fun HomeWithBottomNav(
                             ?.set("edit_event_name", event.name)
                         navController.currentBackStackEntry
                             ?.savedStateHandle
-                            ?.set("edit_event_category", (event.originalCategory ?: event.category).name)
+                            ?.set("edit_event_category", event.category.name)
                         navController.currentBackStackEntry
                             ?.savedStateHandle
                             ?.set("edit_event_date", event.dateEpochDay)

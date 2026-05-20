@@ -4,11 +4,14 @@ import br.com.sprena.shared.core.mvi.UiIntent
 
 sealed interface EventosIntent : UiIntent {
 
-    /** Seleciona uma tab (Eventos, Aluguel, Day Use, Realizados). */
-    data class TabSelected(val tab: EventCategory) : EventosIntent
+    /** Seleciona uma tab (Eventos ou Eventos Realizados). */
+    data class TabSelected(val tab: EventTab) : EventosIntent
 
-    /** Texto de busca alterado. */
+    /** Texto de busca alterado (filtra dentro da tab ativa). */
     data class SearchQueryChanged(val query: String) : EventosIntent
+
+    /** Filtro por categoria alterado (null = Todos). */
+    data class CategoryFilterChanged(val category: EventCategory?) : EventosIntent
 
     /** FAB clicado — navegar para tela de criacao. */
     data object AddEventClicked : EventosIntent
@@ -43,12 +46,6 @@ sealed interface EventosIntent : UiIntent {
 
     /** Erro ocorrido (para emissao de efeito). */
     data class ErrorOccurred(val message: String) : EventosIntent
-
-    /** Filtro por data especifica (date picker). */
-    data class DatePickerFilterChanged(val dateEpochDay: Long) : EventosIntent
-
-    /** Limpa o filtro por data especifica. */
-    data object ClearDatePickerFilter : EventosIntent
 
     /** Avanca o mes do navegador de meses. */
     data object MonthNavigatedForward : EventosIntent

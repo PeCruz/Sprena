@@ -5,32 +5,33 @@ import br.com.sprena.shared.core.mvi.UiState
 /**
  * State da tela Eventos.
  *
- * @property tabs lista ordenada das tabs disponiveis.
+ * @property tabs lista ordenada das tabs disponiveis (Eventos, Eventos Realizados).
  * @property selectedTab tab atualmente selecionada.
  * @property events todos os eventos (fonte da verdade).
- * @property searchQuery texto digitado na busca.
+ * @property searchQuery texto digitado na busca (filtra dentro da tab ativa).
  * @property isSearchActive true quando searchQuery nao esta vazia.
- * @property filteredEvents eventos filtrados (por tab ou por busca cross-tab), ordenados por data.
- * @property tabCounts contagem de eventos ativos por tab (exclui REALIZADOS).
- * @property todayEpochDay dia atual em epoch days (para comparar com event dates).
+ * @property categoryFilter filtro por categoria (null = Todos).
+ * @property filteredEvents eventos filtrados e ordenados conforme tab/busca/categoria/mes.
+ * @property eventCount contagem total de eventos na tab Eventos (futuros).
+ * @property todayEpochDay dia atual em epoch days (para separar futuros de realizados).
+ * @property filterMonth mes do navegador de meses.
+ * @property filterYear ano do navegador de meses.
  * @property isLoading indica carregamento de dados.
  * @property error mensagem de erro.
  */
 data class EventosState(
-    val tabs: List<EventCategory> = listOf(
-        EventCategory.EVENTOS,
-        EventCategory.ALUGUEL,
-        EventCategory.DAY_USE,
-        EventCategory.REALIZADOS,
+    val tabs: List<EventTab> = listOf(
+        EventTab.EVENTOS,
+        EventTab.EVENTOS_REALIZADOS,
     ),
-    val selectedTab: EventCategory = EventCategory.EVENTOS,
+    val selectedTab: EventTab = EventTab.EVENTOS,
     val events: List<Event> = emptyList(),
     val searchQuery: String = "",
     val isSearchActive: Boolean = false,
+    val categoryFilter: EventCategory? = null,
     val filteredEvents: List<Event> = emptyList(),
-    val tabCounts: Map<EventCategory, Int> = emptyMap(),
+    val eventCount: Int = 0,
     val todayEpochDay: Long = 0L,
-    val filterDateEpochDay: Long? = null,
     val filterMonth: Int = 0,
     val filterYear: Int = 0,
     val isLoading: Boolean = false,

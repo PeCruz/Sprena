@@ -46,6 +46,11 @@ class EventosViewModel(
                 recomputeFiltered()
             }
 
+            is EventosIntent.CategoryFilterChanged -> {
+                _state.value = _state.value.copy(categoryFilter = intent.category)
+                recomputeFiltered()
+            }
+
             is EventosIntent.AddEventClicked -> {
                 viewModelScope.launch {
                     _effects.emit(EventosEffect.NavigateToCreateEvent)
@@ -70,7 +75,6 @@ class EventosViewModel(
                 _state.value = _state.value.copy(
                     events = _state.value.events + newEvent,
                 )
-                moveExpiredToRealizados()
                 recomputeFiltered()
             }
 
@@ -83,14 +87,12 @@ class EventosViewModel(
                             dateEpochDay = intent.dateEpochDay,
                             contact = intent.contact,
                             description = intent.description,
-                            originalCategory = null,
                         )
                     } else {
                         event
                     }
                 }
                 _state.value = _state.value.copy(events = events)
-                moveExpiredToRealizados()
                 recomputeFiltered()
             }
 
@@ -103,7 +105,6 @@ class EventosViewModel(
 
             is EventosIntent.SetTodayEpochDay -> {
                 _state.value = _state.value.copy(todayEpochDay = intent.todayEpochDay)
-                moveExpiredToRealizados()
                 recomputeFiltered()
             }
 
@@ -111,16 +112,6 @@ class EventosViewModel(
                 viewModelScope.launch {
                     _effects.emit(EventosEffect.ShowError(intent.message))
                 }
-            }
-
-            is EventosIntent.DatePickerFilterChanged -> {
-                _state.value = _state.value.copy(filterDateEpochDay = intent.dateEpochDay)
-                recomputeFiltered()
-            }
-
-            is EventosIntent.ClearDatePickerFilter -> {
-                _state.value = _state.value.copy(filterDateEpochDay = null)
-                recomputeFiltered()
             }
 
             is EventosIntent.MonthNavigatedForward -> {
@@ -141,88 +132,65 @@ class EventosViewModel(
 
             is EventosIntent.AddTestEvents -> {
                 _state.value = _state.value.copy(events = intent.events)
-                moveExpiredToRealizados()
                 recomputeFiltered()
             }
         }
     }
 
     /**
-     * Move eventos expirados (dateEpochDay < todayEpochDay) para REALIZADOS.
-     * Preserva a categoria original em [Event.originalCategory].
-     */
-    private fun moveExpiredToRealizados() {
-        val s = _state.value
-        val today = s.todayEpochDay
-        if (today == 0L) return // today not set yet
-
-        val updated = s.events.map { event ->
-            if (event.category != EventCategory.REALIZADOS && event.dateEpochDay < today) {
-                event.copy(
-                    originalCategory = event.originalCategory ?: event.category,
-                    category = EventCategory.REALIZADOS,
-                )
-            } else {
-                event
-            }
-        }
-        _state.value = s.copy(events = updated)
-    }
-
-    /**
-     * Recomputa [EventosState.filteredEvents] e [EventosState.tabCounts].
+     * Recomputa [EventosState.filteredEvents] e [EventosState.eventCount].
      *
-     * Filtros aplicados em cadeia (intersecao):
-     * 1. Tab ou busca cross-tab
-     * 2. Filtro de mes (month navigator) — aplica globalmente
-     * 3. Filtro de data especifica (date picker) — aplica globalmente
+     * Logica:
+     * 1. Separa eventos em futuros (>= hoje) e realizados (< hoje) conforme tab selecionada.
+     * 2. Aplica filtro de categoria (se selecionado).
+     * 3. Aplica filtro de mes (month navigator).
+     * 4. Aplica busca por nome (dentro da tab ativa).
+     * 5. Ordena: EVENTOS ascendente, EVENTOS_REALIZADOS descendente.
      */
     private fun recomputeFiltered() {
         val s = _state.value
         val query = s.searchQuery.trim()
         val isSearchActive = query.isNotEmpty()
+        val today = s.todayEpochDay
 
-        val hasDateFilter = s.filterDateEpochDay != null
-
-        // Step 1: tab or search filter
-        // Search bypasses all date filters — only matches by name.
-        // Date picker overrides tab to show all tabs.
-        var filtered = if (isSearchActive) {
-            s.events.filter { it.name.contains(query, ignoreCase = true) }
-        } else if (hasDateFilter) {
-            s.events // date picker searches across all tabs
-        } else {
-            s.events.filter { it.category == s.selectedTab }
+        // Step 1: tab filter — separa futuros de realizados
+        var filtered = when (s.selectedTab) {
+            EventTab.EVENTOS -> s.events.filter { it.dateEpochDay >= today }
+            EventTab.EVENTOS_REALIZADOS -> s.events.filter { it.dateEpochDay < today }
         }
 
-        // Step 2 & 3: date filters only apply when NOT searching
-        if (!isSearchActive) {
-            // Month filter (always active when not searching)
-            if (s.filterMonth != 0 && s.filterYear != 0) {
-                filtered = filtered.filter { event ->
-                    val (year, month) = yearMonthFromEpochDay(event.dateEpochDay)
-                    year == s.filterYear && month == s.filterMonth
-                }
-            }
+        // Step 2: category filter
+        val categoryFilter = s.categoryFilter
+        if (categoryFilter != null) {
+            filtered = filtered.filter { it.category == categoryFilter }
+        }
 
-            // Date picker filter (when active)
-            if (hasDateFilter) {
-                filtered = filtered.filter { it.dateEpochDay == s.filterDateEpochDay }
+        // Step 3: month filter (always active)
+        if (s.filterMonth != 0 && s.filterYear != 0) {
+            filtered = filtered.filter { event ->
+                val (year, month) = yearMonthFromEpochDay(event.dateEpochDay)
+                year == s.filterYear && month == s.filterMonth
             }
         }
 
-        // Ordena por data (mais proximo do hoje primeiro)
-        val sorted = filtered.sortedBy { it.dateEpochDay }
+        // Step 4: search by name (within the tab)
+        if (isSearchActive) {
+            filtered = filtered.filter { it.name.contains(query, ignoreCase = true) }
+        }
 
-        // Conta eventos por tab (incluindo REALIZADOS)
-        val counts = s.events
-            .groupBy { it.category }
-            .mapValues { (_, events) -> events.size }
+        // Step 5: sort — EVENTOS ascending, EVENTOS_REALIZADOS descending
+        val sorted = when (s.selectedTab) {
+            EventTab.EVENTOS -> filtered.sortedBy { it.dateEpochDay }
+            EventTab.EVENTOS_REALIZADOS -> filtered.sortedByDescending { it.dateEpochDay }
+        }
+
+        // Event count: total upcoming events (unfiltered, for the badge)
+        val eventCount = s.events.count { it.dateEpochDay >= today }
 
         _state.value = s.copy(
             isSearchActive = isSearchActive,
             filteredEvents = sorted,
-            tabCounts = counts,
+            eventCount = eventCount,
         )
     }
 }

@@ -1,15 +1,15 @@
 package br.com.sprena.presentation.eventos
 
 /**
- * Categorias de evento — cada uma corresponde a uma tab na tela Eventos.
+ * Categorias de evento — tipo do evento (Reserva, Aluguel, Day Use).
  *
- * REALIZADOS é a tab especial que recebe eventos com data expirada automaticamente.
+ * Categorias são independentes das tabs (Eventos / Eventos Realizados).
+ * Usadas para filtro por tipo e para exibição de badge/cor no card.
  *
- * @property label texto exibido na UI (tab e badge).
+ * @property label texto exibido na UI (badge e filtro dropdown).
  */
 enum class EventCategory(val label: String) {
-    EVENTOS("Eventos"),
+    RESERVA("Reserva"),
     ALUGUEL("Aluguel"),
     DAY_USE("Day Use"),
-    REALIZADOS("Realizados"),
 }
