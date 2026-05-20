@@ -76,6 +76,9 @@ class LoginViewModel(
                     passwordError = pResult.errorMessage,
                     authError = null,
                 )
+            viewModelScope.launch {
+                _effects.emit(LoginEffect.ShowError("Dados inválidos"))
+            }
             return
         }
 
@@ -93,6 +96,7 @@ class LoginViewModel(
                             isLoading = false,
                             authError = result.message,
                         )
+                    _effects.emit(LoginEffect.ShowError(result.message))
                 }
             }
         }

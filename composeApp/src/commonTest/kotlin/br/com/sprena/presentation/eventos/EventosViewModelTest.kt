@@ -1126,13 +1126,13 @@ class EventosViewModelTest {
                     .filteredEvents.size,
             )
 
-            // Move to past date
+            // Move to past date (kept in Oct 2024 to stay within filterMonth=10)
             vm.handleIntent(
                 EventosIntent.EventUpdated(
                     eventId = "e1",
                     name = "Agora Passado",
                     category = EventCategory.RESERVA,
-                    dateEpochDay = 19990L,
+                    dateEpochDay = 19998L,
                     contact = null,
                     description = null,
                 ),
@@ -1477,7 +1477,7 @@ class EventosViewModelTest {
      * Creates a ViewModel with todayEpochDay = 20000 (Oct 4, 2024)
      * and 9 test events:
      * - 6 future: 2x RESERVA, 2x ALUGUEL, 2x DAY_USE (all in Oct 2024)
-     * - 3 past: 1x RESERVA, 1x ALUGUEL, 1x DAY_USE (all in Sep 2024)
+     * - 3 past: 1x RESERVA, 1x ALUGUEL, 1x DAY_USE (all in Oct 2024, before todayEpochDay=20000)
      */
     private fun createVmWithMixedEvents(): EventosViewModel {
         val vm = EventosViewModel(todayEpochDay = 20000L)
@@ -1533,12 +1533,12 @@ class EventosViewModelTest {
                         contact = null,
                         description = "Inclui area coberta",
                     ),
-                    // Past events (Eventos Realizados tab) — all in Sep 2024
+                    // Past events (Eventos Realizados tab) — all in Oct 2024 (matching todayEpochDay=20000 filter month)
                     Event(
                         id = "e7",
                         name = "Reserva Passado 1",
                         category = EventCategory.RESERVA,
-                        dateEpochDay = 19990L,
+                        dateEpochDay = 19997L,
                         contact = null,
                         description = null,
                     ),
@@ -1546,7 +1546,7 @@ class EventosViewModelTest {
                         id = "e8",
                         name = "Aluguel Passado Quadra",
                         category = EventCategory.ALUGUEL,
-                        dateEpochDay = 19985L,
+                        dateEpochDay = 19998L,
                         contact = null,
                         description = null,
                     ),
@@ -1554,7 +1554,7 @@ class EventosViewModelTest {
                         id = "e9",
                         name = "Day Use Passado",
                         category = EventCategory.DAY_USE,
-                        dateEpochDay = 19995L,
+                        dateEpochDay = 19999L,
                         contact = null,
                         description = null,
                     ),

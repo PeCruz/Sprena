@@ -273,8 +273,8 @@ internal fun applyPhoneMask(digits: String): String =
             when (i) {
                 0 -> append("($c")
                 1 -> append("$c) ")
-                6 -> if (digits.length > 10) append("-$c") else append(c)
-                7 -> if (digits.length <= 10) append("-$c") else append(c)
+                6 -> if (digits.length <= 10) append("-$c") else append(c)
+                7 -> if (digits.length > 10) append("-$c") else append(c)
                 else -> append(c)
             }
         }

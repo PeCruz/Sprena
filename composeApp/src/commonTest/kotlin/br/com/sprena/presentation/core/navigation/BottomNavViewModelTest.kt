@@ -62,7 +62,9 @@ class BottomNavViewModelTest {
     fun `selecting HOME tab emits NavigateTo effect`() =
         runTest {
             val vm = BottomNavViewModel()
-            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.EVENTOS))
+            // Initial tab is EVENTOS; switching to HOME from inside the effects subscription
+            // ensures the emission is observed (pre-subscription emissions are dropped by
+            // MutableSharedFlow with no replay buffer).
             vm.effects.test {
                 vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.HOME))
                 assertEquals(BottomNavEffect.NavigateTo(BottomTab.HOME), awaitItem())
