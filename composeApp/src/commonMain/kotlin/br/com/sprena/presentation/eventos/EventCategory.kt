@@ -8,7 +8,9 @@ package br.com.sprena.presentation.eventos
  *
  * @property label texto exibido na UI (badge e filtro dropdown).
  */
-enum class EventCategory(val label: String) {
+enum class EventCategory(
+    val label: String,
+) {
     RESERVA("Reserva"),
     ALUGUEL("Aluguel"),
     DAY_USE("Day Use"),

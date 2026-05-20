@@ -13,22 +13,24 @@ import kotlinx.coroutines.launch
 
 class EventosViewModel(
     todayEpochDay: Long = System.currentTimeMillis() / 86_400_000L,
-) : ViewModel(), MviViewModel<EventosState, EventosIntent, EventosEffect> {
-
+) : ViewModel(),
+    MviViewModel<EventosState, EventosIntent, EventosEffect> {
     private var eventIdCounter = 0L
 
     private val _state: MutableStateFlow<EventosState>
 
     init {
         val (year, month) = yearMonthFromEpochDay(todayEpochDay)
-        _state = MutableStateFlow(
-            EventosState(
-                todayEpochDay = todayEpochDay,
-                filterMonth = month,
-                filterYear = year,
-            ),
-        )
+        _state =
+            MutableStateFlow(
+                EventosState(
+                    todayEpochDay = todayEpochDay,
+                    filterMonth = month,
+                    filterYear = year,
+                ),
+            )
     }
+
     override val state: StateFlow<EventosState> = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<EventosEffect>()
@@ -64,42 +66,46 @@ class EventosViewModel(
             }
 
             is EventosIntent.EventCreated -> {
-                val newEvent = Event(
-                    id = "event_${++eventIdCounter}",
-                    name = intent.name,
-                    category = intent.category,
-                    dateEpochDay = intent.dateEpochDay,
-                    contact = intent.contact,
-                    description = intent.description,
-                )
-                _state.value = _state.value.copy(
-                    events = _state.value.events + newEvent,
-                )
+                val newEvent =
+                    Event(
+                        id = "event_${++eventIdCounter}",
+                        name = intent.name,
+                        category = intent.category,
+                        dateEpochDay = intent.dateEpochDay,
+                        contact = intent.contact,
+                        description = intent.description,
+                    )
+                _state.value =
+                    _state.value.copy(
+                        events = _state.value.events + newEvent,
+                    )
                 recomputeFiltered()
             }
 
             is EventosIntent.EventUpdated -> {
-                val events = _state.value.events.map { event ->
-                    if (event.id == intent.eventId) {
-                        event.copy(
-                            name = intent.name,
-                            category = intent.category,
-                            dateEpochDay = intent.dateEpochDay,
-                            contact = intent.contact,
-                            description = intent.description,
-                        )
-                    } else {
-                        event
+                val events =
+                    _state.value.events.map { event ->
+                        if (event.id == intent.eventId) {
+                            event.copy(
+                                name = intent.name,
+                                category = intent.category,
+                                dateEpochDay = intent.dateEpochDay,
+                                contact = intent.contact,
+                                description = intent.description,
+                            )
+                        } else {
+                            event
+                        }
                     }
-                }
                 _state.value = _state.value.copy(events = events)
                 recomputeFiltered()
             }
 
             is EventosIntent.EventDeleted -> {
-                _state.value = _state.value.copy(
-                    events = _state.value.events.filter { it.id != intent.eventId },
-                )
+                _state.value =
+                    _state.value.copy(
+                        events = _state.value.events.filter { it.id != intent.eventId },
+                    )
                 recomputeFiltered()
             }
 
@@ -154,10 +160,11 @@ class EventosViewModel(
         val today = s.todayEpochDay
 
         // Step 1: tab filter — separa futuros de realizados
-        var filtered = when (s.selectedTab) {
-            EventTab.EVENTOS -> s.events.filter { it.dateEpochDay >= today }
-            EventTab.EVENTOS_REALIZADOS -> s.events.filter { it.dateEpochDay < today }
-        }
+        var filtered =
+            when (s.selectedTab) {
+                EventTab.EVENTOS -> s.events.filter { it.dateEpochDay >= today }
+                EventTab.EVENTOS_REALIZADOS -> s.events.filter { it.dateEpochDay < today }
+            }
 
         // Step 2: category filter
         val categoryFilter = s.categoryFilter
@@ -167,10 +174,11 @@ class EventosViewModel(
 
         // Step 3: month filter (always active)
         if (s.filterMonth != 0 && s.filterYear != 0) {
-            filtered = filtered.filter { event ->
-                val (year, month) = yearMonthFromEpochDay(event.dateEpochDay)
-                year == s.filterYear && month == s.filterMonth
-            }
+            filtered =
+                filtered.filter { event ->
+                    val (year, month) = yearMonthFromEpochDay(event.dateEpochDay)
+                    year == s.filterYear && month == s.filterMonth
+                }
         }
 
         // Step 4: search by name (within the tab)
@@ -179,18 +187,20 @@ class EventosViewModel(
         }
 
         // Step 5: sort — EVENTOS ascending, EVENTOS_REALIZADOS descending
-        val sorted = when (s.selectedTab) {
-            EventTab.EVENTOS -> filtered.sortedBy { it.dateEpochDay }
-            EventTab.EVENTOS_REALIZADOS -> filtered.sortedByDescending { it.dateEpochDay }
-        }
+        val sorted =
+            when (s.selectedTab) {
+                EventTab.EVENTOS -> filtered.sortedBy { it.dateEpochDay }
+                EventTab.EVENTOS_REALIZADOS -> filtered.sortedByDescending { it.dateEpochDay }
+            }
 
         // Event count: total upcoming events (unfiltered, for the badge)
         val eventCount = s.events.count { it.dateEpochDay >= today }
 
-        _state.value = s.copy(
-            isSearchActive = isSearchActive,
-            filteredEvents = sorted,
-            eventCount = eventCount,
-        )
+        _state.value =
+            s.copy(
+                isSearchActive = isSearchActive,
+                filteredEvents = sorted,
+                eventCount = eventCount,
+            )
     }
 }

@@ -8,7 +8,9 @@ import br.com.sprena.shared.core.mvi.UiState
  * DAY = DD/MM/YYYY, MONTH = MM/YYYY, YEAR = YYYY.
  */
 enum class DateGranularity {
-    DAY, MONTH, YEAR,
+    DAY,
+    MONTH,
+    YEAR,
 }
 
 /**

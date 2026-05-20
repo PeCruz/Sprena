@@ -14,7 +14,6 @@ import kotlinx.coroutines.launch
 class CreateEventViewModel :
     ViewModel(),
     MviViewModel<CreateEventState, CreateEventIntent, CreateEventEffect> {
-
     private val _state = MutableStateFlow(CreateEventState())
     override val state: StateFlow<CreateEventState> = _state.asStateFlow()
 
@@ -52,18 +51,19 @@ class CreateEventViewModel :
             }
 
             is CreateEventIntent.LoadForEdit -> {
-                _state.value = _state.value.copy(
-                    editingEventId = intent.eventId,
-                    isEditMode = true,
-                    name = intent.name,
-                    category = intent.category,
-                    dateEpochDay = intent.dateEpochDay,
-                    contact = intent.contact?.filter { it.isDigit() } ?: "",
-                    description = intent.description ?: "",
-                    nameError = null,
-                    categoryError = null,
-                    dateError = null,
-                )
+                _state.value =
+                    _state.value.copy(
+                        editingEventId = intent.eventId,
+                        isEditMode = true,
+                        name = intent.name,
+                        category = intent.category,
+                        dateEpochDay = intent.dateEpochDay,
+                        contact = intent.contact?.filter { it.isDigit() } ?: "",
+                        description = intent.description ?: "",
+                        nameError = null,
+                        categoryError = null,
+                        dateError = null,
+                    )
                 recomputeCanSubmit()
             }
 
@@ -74,19 +74,21 @@ class CreateEventViewModel :
                 val dateError = if (s.dateEpochDay == null) "Data do evento e obrigatoria" else null
 
                 if (nameError != null || categoryError != null || dateError != null) {
-                    _state.value = s.copy(
-                        nameError = nameError,
-                        categoryError = categoryError,
-                        dateError = dateError,
-                    )
+                    _state.value =
+                        s.copy(
+                            nameError = nameError,
+                            categoryError = categoryError,
+                            dateError = dateError,
+                        )
                     return
                 }
 
-                _state.value = s.copy(
-                    nameError = null,
-                    categoryError = null,
-                    dateError = null,
-                )
+                _state.value =
+                    s.copy(
+                        nameError = null,
+                        categoryError = null,
+                        dateError = null,
+                    )
 
                 viewModelScope.launch {
                     _effects.emit(
@@ -119,11 +121,12 @@ class CreateEventViewModel :
     private fun markUnsaved() {
         val s = _state.value
         if (!s.hasUnsavedChanges) {
-            val hasChanges = s.name.isNotEmpty() ||
-                s.category != null ||
-                s.dateEpochDay != null ||
-                s.contact.isNotEmpty() ||
-                s.description.isNotEmpty()
+            val hasChanges =
+                s.name.isNotEmpty() ||
+                    s.category != null ||
+                    s.dateEpochDay != null ||
+                    s.contact.isNotEmpty() ||
+                    s.description.isNotEmpty()
             if (hasChanges) {
                 _state.value = _state.value.copy(hasUnsavedChanges = true)
             }

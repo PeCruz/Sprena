@@ -64,26 +64,29 @@ fun LoginScreen(
 
     Scaffold { innerPadding ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
         ) {
             // --- Theme toggle no canto superior direito ---
             Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp),
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
             ) {
                 ThemeToggleButton(themeViewModel = themeViewModel)
             }
 
             // --- Content central ---
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 32.dp)
-                    .imePadding()
-                    .verticalScroll(rememberScrollState()),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 32.dp)
+                        .imePadding()
+                        .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
@@ -108,10 +111,11 @@ fun LoginScreen(
                     singleLine = true,
                     isError = state.usernameError != null,
                     supportingText = state.usernameError?.let { error -> { Text(error) } },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Text,
-                        imeAction = ImeAction.Next,
-                    ),
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Next,
+                        ),
                     modifier = Modifier.fillMaxWidth(),
                 )
 
@@ -125,11 +129,12 @@ fun LoginScreen(
                     singleLine = true,
                     isError = state.passwordError != null,
                     supportingText = state.passwordError?.let { error -> { Text(error) } },
-                    visualTransformation = if (state.isPasswordVisible) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
-                    },
+                    visualTransformation =
+                        if (state.isPasswordVisible) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        },
                     trailingIcon = {
                         IconButton(
                             onClick = { viewModel.handleIntent(LoginIntent.TogglePasswordVisibility) },
@@ -140,13 +145,15 @@ fun LoginScreen(
                             )
                         }
                     },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.NumberPassword,
-                        imeAction = ImeAction.Done,
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = { viewModel.handleIntent(LoginIntent.Submit) },
-                    ),
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.NumberPassword,
+                            imeAction = ImeAction.Done,
+                        ),
+                    keyboardActions =
+                        KeyboardActions(
+                            onDone = { viewModel.handleIntent(LoginIntent.Submit) },
+                        ),
                     modifier = Modifier.fillMaxWidth(),
                 )
 

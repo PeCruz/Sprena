@@ -41,9 +41,7 @@ import org.koin.compose.viewmodel.koinViewModel
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(
-    viewModel: HomeViewModel = koinViewModel(),
-) {
+fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
 
     // Animação de entrada
@@ -63,17 +61,19 @@ fun HomeScreen(
                         fontWeight = FontWeight.Bold,
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                ),
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
             )
         },
     ) { paddingValues ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
             contentAlignment = Alignment.Center,
         ) {
             if (uiState.isLoading) {
@@ -143,8 +143,9 @@ fun HomeScreen(
     }
 }
 
-private fun roleEmoji(role: UserRole): String = when (role) {
-    UserRole.ADM -> "👑"
-    UserRole.MOD -> "🛡️"
-    UserRole.CLIENT -> "🛶"
-}
+private fun roleEmoji(role: UserRole): String =
+    when (role) {
+        UserRole.ADM -> "👑"
+        UserRole.MOD -> "🛡️"
+        UserRole.CLIENT -> "🛶"
+    }

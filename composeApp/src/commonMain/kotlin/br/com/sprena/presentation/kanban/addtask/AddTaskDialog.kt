@@ -62,14 +62,16 @@ fun AddTaskDialog(
     Dialog(onDismissRequest = { viewModel.handleIntent(AddTaskIntent.Dismiss) }) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-            ),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ),
         ) {
             Column(
-                modifier = Modifier
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState()),
+                modifier =
+                    Modifier
+                        .padding(20.dp)
+                        .verticalScroll(rememberScrollState()),
             ) {
                 Text(
                     text = "Nova Tarefa",
@@ -253,11 +255,12 @@ fun AddTaskDialog(
     }
 }
 
-private fun priorityLabel(priority: Int): String = when (priority) {
-    1 -> "1 — Muito Baixa"
-    2 -> "2 — Baixa"
-    3 -> "3 — Média"
-    4 -> "4 — Alta"
-    5 -> "5 — Urgente"
-    else -> "—"
-}
+private fun priorityLabel(priority: Int): String =
+    when (priority) {
+        1 -> "1 — Muito Baixa"
+        2 -> "2 — Baixa"
+        3 -> "3 — Média"
+        4 -> "4 — Alta"
+        5 -> "5 — Urgente"
+        else -> "—"
+    }

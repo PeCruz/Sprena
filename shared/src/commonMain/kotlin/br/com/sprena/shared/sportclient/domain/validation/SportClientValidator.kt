@@ -15,7 +15,6 @@ import br.com.sprena.shared.core.validation.ValidationResult
  * - Mês Pagamento: obrigatório, formato MM/YYYY
  */
 object SportClientValidator {
-
     const val NAME_MAX_LENGTH: Int = 100
     const val APELIDO_MAX_LENGTH: Int = 50
     const val CPF_LENGTH: Int = 11
@@ -64,23 +63,29 @@ object SportClientValidator {
         }
     }
 
-    fun validateModalidade(modalities: List<SportModality>?): ValidationResult = when {
-        modalities.isNullOrEmpty() -> ValidationResult.invalid("Selecione ao menos uma modalidade")
-        else -> ValidationResult.Valid
-    }
+    fun validateModalidade(modalities: List<SportModality>?): ValidationResult =
+        when {
+            modalities.isNullOrEmpty() -> ValidationResult.invalid("Selecione ao menos uma modalidade")
+            else -> ValidationResult.Valid
+        }
 
-    fun validateAttendance(attendance: Int?): ValidationResult = when {
-        attendance == null -> ValidationResult.invalid("Frequência é obrigatória")
-        attendance !in 1..4 -> ValidationResult.invalid("Frequência deve ser de 1 a 4")
-        else -> ValidationResult.Valid
-    }
+    fun validateAttendance(attendance: Int?): ValidationResult =
+        when {
+            attendance == null -> ValidationResult.invalid("Frequência é obrigatória")
+            attendance !in 1..4 -> ValidationResult.invalid("Frequência deve ser de 1 a 4")
+            else -> ValidationResult.Valid
+        }
 
-    fun validatePaymentMethod(method: PaymentMethod?): ValidationResult = when (method) {
-        null -> ValidationResult.invalid("Método de pagamento é obrigatório")
-        else -> ValidationResult.Valid
-    }
+    fun validatePaymentMethod(method: PaymentMethod?): ValidationResult =
+        when (method) {
+            null -> ValidationResult.invalid("Método de pagamento é obrigatório")
+            else -> ValidationResult.Valid
+        }
 
-    fun validateCashAmount(amountCents: Long?, method: PaymentMethod): ValidationResult {
+    fun validateCashAmount(
+        amountCents: Long?,
+        method: PaymentMethod,
+    ): ValidationResult {
         // Valor em dinheiro é obrigatório (>= 0) para TODOS os métodos de pagamento
         return when {
             amountCents == null ->
@@ -98,8 +103,9 @@ object SportClientValidator {
             return ValidationResult.invalid("Mês de pagamento é obrigatório")
         }
         val regex = Regex("""^(\d{2})/(\d{4})$""")
-        val match = regex.matchEntire(month)
-            ?: return ValidationResult.invalid("Formato inválido — use MM/AAAA")
+        val match =
+            regex.matchEntire(month)
+                ?: return ValidationResult.invalid("Formato inválido — use MM/AAAA")
         val mm = match.groupValues[1].toIntOrNull() ?: 0
         if (mm !in 1..12) {
             return ValidationResult.invalid("Formato inválido — use MM/AAAA")

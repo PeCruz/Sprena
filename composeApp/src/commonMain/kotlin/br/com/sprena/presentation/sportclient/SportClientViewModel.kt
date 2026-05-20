@@ -18,7 +18,6 @@ import kotlinx.coroutines.launch
 class SportClientViewModel :
     ViewModel(),
     MviViewModel<SportClientState, SportClientIntent, SportClientEffect> {
-
     private val _state = MutableStateFlow(SportClientState())
     override val state: StateFlow<SportClientState> = _state.asStateFlow()
 
@@ -42,10 +41,11 @@ class SportClientViewModel :
 
             is SportClientIntent.ClientAdded -> {
                 val updated = _state.value.clients + intent.client
-                _state.value = _state.value.copy(
-                    clients = updated,
-                    isAddDialogVisible = false,
-                )
+                _state.value =
+                    _state.value.copy(
+                        clients = updated,
+                        isAddDialogVisible = false,
+                    )
                 recomputeFiltered()
             }
 
@@ -65,26 +65,30 @@ class SportClientViewModel :
             }
 
             is SportClientIntent.ClientUpdated -> {
-                val updated = _state.value.clients.map { c ->
-                    if (c.id == intent.client.id) intent.client else c
-                }
-                _state.value = _state.value.copy(
-                    clients = updated,
-                    selectedClient = null,
-                )
+                val updated =
+                    _state.value.clients.map { c ->
+                        if (c.id == intent.client.id) intent.client else c
+                    }
+                _state.value =
+                    _state.value.copy(
+                        clients = updated,
+                        selectedClient = null,
+                    )
                 recomputeFiltered()
             }
 
             is SportClientIntent.ClientDeleted -> {
                 val updated = _state.value.clients.filter { it.id != intent.clientId }
-                _state.value = _state.value.copy(
-                    clients = updated,
-                    selectedClient = if (_state.value.selectedClient?.id == intent.clientId) {
-                        null
-                    } else {
-                        _state.value.selectedClient
-                    },
-                )
+                _state.value =
+                    _state.value.copy(
+                        clients = updated,
+                        selectedClient =
+                            if (_state.value.selectedClient?.id == intent.clientId) {
+                                null
+                            } else {
+                                _state.value.selectedClient
+                            },
+                    )
                 recomputeFiltered()
             }
         }
@@ -93,15 +97,16 @@ class SportClientViewModel :
     private fun recomputeFiltered() {
         val query = _state.value.searchQuery
         val clients = _state.value.clients
-        val filtered = if (query.isBlank()) {
-            clients
-        } else {
-            val lowerQuery = query.lowercase()
-            clients.filter {
-                it.name.lowercase().contains(lowerQuery) ||
-                    it.apelido.lowercase().contains(lowerQuery)
+        val filtered =
+            if (query.isBlank()) {
+                clients
+            } else {
+                val lowerQuery = query.lowercase()
+                clients.filter {
+                    it.name.lowercase().contains(lowerQuery) ||
+                        it.apelido.lowercase().contains(lowerQuery)
+                }
             }
-        }
         _state.value = _state.value.copy(filteredClients = filtered)
     }
 }

@@ -21,7 +21,6 @@ import kotlin.test.assertEquals
  *  - Offset mapping: original→transformed e transformed→original
  */
 class BrlVisualTransformationTest {
-
     private val transformation = BrlVisualTransformation()
 
     private fun transform(digits: String): String {

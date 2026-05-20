@@ -17,6 +17,4 @@ data class PickedFile(
  * [onFilePicked] é chamado com os dados do arquivo selecionado.
  */
 @Composable
-expect fun rememberFilePicker(
-    onFilePicked: (PickedFile) -> Unit,
-): () -> Unit
+expect fun rememberFilePicker(onFilePicked: (PickedFile) -> Unit): () -> Unit

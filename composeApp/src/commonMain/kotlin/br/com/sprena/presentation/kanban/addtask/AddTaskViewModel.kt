@@ -14,8 +14,8 @@ import kotlinx.coroutines.launch
 
 class AddTaskViewModel(
     private val today: () -> Long = { 0L },
-) : ViewModel(), MviViewModel<AddTaskState, AddTaskIntent, AddTaskEffect> {
-
+) : ViewModel(),
+    MviViewModel<AddTaskState, AddTaskIntent, AddTaskEffect> {
     private val _state = MutableStateFlow(AddTaskState(startEpochDay = today()))
     override val state: StateFlow<AddTaskState> = _state.asStateFlow()
 

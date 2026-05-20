@@ -24,5 +24,6 @@ import kotlinx.coroutines.flow.StateFlow
 interface MviViewModel<STATE : UiState, INTENT : UiIntent, EFFECT : UiEffect> {
     val state: StateFlow<STATE>
     val effects: SharedFlow<EFFECT>
+
     fun handleIntent(intent: INTENT)
 }

@@ -26,7 +26,6 @@ data class ClientDetailState(
     val itemsPerPage: Int = 4,
     val itemToDeleteId: String? = null,
 ) : UiState {
-
     /** Itens da página atual. */
     val paginatedItems: List<BarItem>
         get() = items.drop(itemsPage * itemsPerPage).take(itemsPerPage)

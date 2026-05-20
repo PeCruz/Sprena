@@ -8,7 +8,9 @@ package br.com.sprena.presentation.eventos
  *
  * @property label texto exibido na UI (tab).
  */
-enum class EventTab(val label: String) {
+enum class EventTab(
+    val label: String,
+) {
     EVENTOS("Eventos"),
     EVENTOS_REALIZADOS("Eventos Realizados"),
 }

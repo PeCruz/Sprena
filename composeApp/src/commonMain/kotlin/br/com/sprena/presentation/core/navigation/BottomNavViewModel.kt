@@ -14,7 +14,6 @@ import kotlinx.coroutines.launch
 class BottomNavViewModel :
     ViewModel(),
     MviViewModel<BottomNavState, BottomNavIntent, BottomNavEffect> {
-
     private val _state = MutableStateFlow(BottomNavState())
     override val state: StateFlow<BottomNavState> = _state.asStateFlow()
 

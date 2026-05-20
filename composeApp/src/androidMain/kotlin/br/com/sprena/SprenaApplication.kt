@@ -18,7 +18,6 @@ import org.koin.core.logger.Level
  *  3. [appModule]        → ViewModels da camada de apresentação
  */
 class SprenaApplication : Application() {
-
     override fun onCreate() {
         super.onCreate()
 

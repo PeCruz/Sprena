@@ -57,7 +57,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import br.com.sprena.core.ui.components.ThemeToggleButton
 import br.com.sprena.presentation.core.theme.ThemeViewModel
-import br.com.sprena.presentation.kanban.taskdetail.TaskDetailEffect
 import br.com.sprena.presentation.kanban.taskdetail.TaskDetailSheet
 import br.com.sprena.presentation.kanban.taskdetail.TaskDetailViewModel
 import kotlinx.coroutines.launch
@@ -129,9 +128,10 @@ fun KanbanScreen(
                     }
                     ThemeToggleButton(themeViewModel = themeViewModel)
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
             )
         },
     ) { innerPadding ->
@@ -148,9 +148,10 @@ fun KanbanScreen(
 
             LazyRow(
                 state = lazyRowState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -183,9 +184,10 @@ fun KanbanScreen(
     val selectedTask = state.selectedTask
     if (selectedTask != null) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        val taskDetailVm = remember(selectedTask.id) {
-            TaskDetailViewModel(task = selectedTask, columns = state.columns)
-        }
+        val taskDetailVm =
+            remember(selectedTask.id) {
+                TaskDetailViewModel(task = selectedTask, columns = state.columns)
+            }
 
         TaskDetailSheet(
             viewModel = taskDetailVm,
@@ -223,9 +225,10 @@ private fun KanbanColumnCard(
     Card(
         modifier = Modifier.width(240.dp),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            ),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
@@ -267,9 +270,10 @@ private fun KanbanColumnCard(
 
             if (tasks.isEmpty()) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(60.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -302,57 +306,60 @@ private fun DraggableTaskCard(
     var isDragging by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-            .graphicsLayer {
-                alpha = if (isDragging) 0.8f else 1f
-                scaleX = if (isDragging) 1.05f else 1f
-                scaleY = if (isDragging) 1.05f else 1f
-            }
-            .pointerInput(task.id) {
-                detectDragGesturesAfterLongPress(
-                    onDragStart = {
-                        isDragging = true
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        offsetX += dragAmount.x
-                        offsetY += dragAmount.y
-                    },
-                    onDragEnd = {
-                        isDragging = false
-                        // Determina a coluna alvo baseado no deslocamento horizontal
-                        val columnWidth = 252f // 240dp card + 12dp spacing (approx in px)
-                        val columnShift = (offsetX / columnWidth).roundToInt()
-                        val targetIndex = (columnIndex + columnShift)
-                            .coerceIn(0, allColumns.size - 1)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+                .graphicsLayer {
+                    alpha = if (isDragging) 0.8f else 1f
+                    scaleX = if (isDragging) 1.05f else 1f
+                    scaleY = if (isDragging) 1.05f else 1f
+                }.pointerInput(task.id) {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = {
+                            isDragging = true
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            offsetX += dragAmount.x
+                            offsetY += dragAmount.y
+                        },
+                        onDragEnd = {
+                            isDragging = false
+                            // Determina a coluna alvo baseado no deslocamento horizontal
+                            val columnWidth = 252f // 240dp card + 12dp spacing (approx in px)
+                            val columnShift = (offsetX / columnWidth).roundToInt()
+                            val targetIndex =
+                                (columnIndex + columnShift)
+                                    .coerceIn(0, allColumns.size - 1)
 
-                        if (targetIndex != columnIndex) {
-                            onDropToColumn(allColumns[targetIndex].id)
-                        }
-                        offsetX = 0f
-                        offsetY = 0f
-                    },
-                    onDragCancel = {
-                        isDragging = false
-                        offsetX = 0f
-                        offsetY = 0f
-                    },
-                )
-            }
-            .clickable(onClick = onClick),
+                            if (targetIndex != columnIndex) {
+                                onDropToColumn(allColumns[targetIndex].id)
+                            }
+                            offsetX = 0f
+                            offsetY = 0f
+                        },
+                        onDragCancel = {
+                            isDragging = false
+                            offsetX = 0f
+                            offsetY = 0f
+                        },
+                    )
+                }.clickable(onClick = onClick),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isDragging) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isDragging) 8.dp else 2.dp,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    if (isDragging) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    },
+            ),
+        elevation =
+            CardDefaults.cardElevation(
+                defaultElevation = if (isDragging) 8.dp else 2.dp,
+            ),
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
             Text(
@@ -370,14 +377,15 @@ private fun DraggableTaskCard(
 
 @Composable
 private fun PriorityBadge(priority: Int) {
-    val (label, color) = when (priority) {
-        1 -> "Muito Baixa" to MaterialTheme.colorScheme.outline
-        2 -> "Baixa" to MaterialTheme.colorScheme.tertiary.copy(alpha = 0.6f)
-        3 -> "Média" to MaterialTheme.colorScheme.tertiary
-        4 -> "Alta" to MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
-        5 -> "Urgente" to MaterialTheme.colorScheme.error
-        else -> "—" to MaterialTheme.colorScheme.outline
-    }
+    val (label, color) =
+        when (priority) {
+            1 -> "Muito Baixa" to MaterialTheme.colorScheme.outline
+            2 -> "Baixa" to MaterialTheme.colorScheme.tertiary.copy(alpha = 0.6f)
+            3 -> "Média" to MaterialTheme.colorScheme.tertiary
+            4 -> "Alta" to MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+            5 -> "Urgente" to MaterialTheme.colorScheme.error
+            else -> "—" to MaterialTheme.colorScheme.outline
+        }
     Text(
         text = label,
         style = MaterialTheme.typography.labelSmall,

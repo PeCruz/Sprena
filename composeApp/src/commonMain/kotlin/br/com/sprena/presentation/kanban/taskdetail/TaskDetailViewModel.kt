@@ -17,21 +17,22 @@ import kotlinx.coroutines.launch
 class TaskDetailViewModel(
     task: KanbanTask,
     columns: List<KanbanColumn>,
-) : ViewModel(), MviViewModel<TaskDetailState, TaskDetailIntent, TaskDetailEffect> {
-
-    private val _state = MutableStateFlow(
-        TaskDetailState(
-            taskId = task.id,
-            name = task.name,
-            priority = task.priority,
-            columnId = task.columnId,
-            availableColumns = columns,
-            // Snapshot originais
-            originalName = task.name,
-            originalPriority = task.priority,
-            originalColumnId = task.columnId,
-        ),
-    )
+) : ViewModel(),
+    MviViewModel<TaskDetailState, TaskDetailIntent, TaskDetailEffect> {
+    private val _state =
+        MutableStateFlow(
+            TaskDetailState(
+                taskId = task.id,
+                name = task.name,
+                priority = task.priority,
+                columnId = task.columnId,
+                availableColumns = columns,
+                // Snapshot originais
+                originalName = task.name,
+                originalPriority = task.priority,
+                originalColumnId = task.columnId,
+            ),
+        )
     override val state: StateFlow<TaskDetailState> = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<TaskDetailEffect>()

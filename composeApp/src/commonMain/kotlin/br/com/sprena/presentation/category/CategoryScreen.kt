@@ -73,9 +73,10 @@ fun CategoryScreen(
                 actions = {
                     ThemeToggleButton(themeViewModel = themeViewModel)
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
             )
         },
         floatingActionButton = {
@@ -101,10 +102,11 @@ fun CategoryScreen(
             }
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(16.dp),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(state.categories, key = { it }) { category ->
@@ -151,9 +153,10 @@ private fun CategoryCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+            ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Row(

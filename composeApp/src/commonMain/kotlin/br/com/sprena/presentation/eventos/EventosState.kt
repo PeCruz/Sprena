@@ -20,10 +20,11 @@ import br.com.sprena.shared.core.mvi.UiState
  * @property error mensagem de erro.
  */
 data class EventosState(
-    val tabs: List<EventTab> = listOf(
-        EventTab.EVENTOS,
-        EventTab.EVENTOS_REALIZADOS,
-    ),
+    val tabs: List<EventTab> =
+        listOf(
+            EventTab.EVENTOS,
+            EventTab.EVENTOS_REALIZADOS,
+        ),
     val selectedTab: EventTab = EventTab.EVENTOS,
     val events: List<Event> = emptyList(),
     val searchQuery: String = "",

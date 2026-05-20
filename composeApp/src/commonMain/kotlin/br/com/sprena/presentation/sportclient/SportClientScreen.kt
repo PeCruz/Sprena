@@ -3,6 +3,8 @@ package br.com.sprena.presentation.sportclient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,8 +44,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -93,17 +93,19 @@ fun SportClientScreen(
                 actions = {
                     ThemeToggleButton(themeViewModel = themeViewModel)
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
             )
         },
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp),
         ) {
             // --- Search Input + Add Button ---
             Row(
@@ -151,11 +153,12 @@ fun SportClientScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = if (state.clients.isEmpty()) {
-                            "Nenhum cliente registrado"
-                        } else {
-                            "Nenhum cliente encontrado"
-                        },
+                        text =
+                            if (state.clients.isEmpty()) {
+                                "Nenhum cliente registrado"
+                            } else {
+                                "Nenhum cliente encontrado"
+                            },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -207,10 +210,11 @@ fun SportClientScreen(
 @Composable
 private fun SportClientTableHeader() {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-            .padding(horizontal = 8.dp, vertical = 12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                .padding(horizontal = 8.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Coluna avatar (espaço fixo)
@@ -241,21 +245,27 @@ private fun SportClientTableHeader() {
  * Avatar circular com as iniciais do cliente.
  */
 @Composable
-private fun ClientAvatar(name: String, modifier: Modifier = Modifier) {
-    val initials = name.trim()
-        .split(" ")
-        .filter { it.isNotBlank() }
-        .take(2)
-        .joinToString("") { it.first().uppercase() }
-        .ifEmpty { "?" }
+private fun ClientAvatar(
+    name: String,
+    modifier: Modifier = Modifier,
+) {
+    val initials =
+        name
+            .trim()
+            .split(" ")
+            .filter { it.isNotBlank() }
+            .take(2)
+            .joinToString("") { it.first().uppercase() }
+            .ifEmpty { "?" }
 
     Box(
-        modifier = modifier
-            .size(40.dp)
-            .background(
-                color = MaterialTheme.colorScheme.primaryContainer,
-                shape = CircleShape,
-            ),
+        modifier =
+            modifier
+                .size(40.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = CircleShape,
+                ),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -273,10 +283,11 @@ private fun SportClientTableRow(
     onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 8.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ClientAvatar(name = client.name)
@@ -321,20 +332,24 @@ private fun SportClientTableRow(
 // Labels
 // =========================================================================
 
-private fun paymentMethodLabel(method: PaymentMethod): String = when (method) {
-    PaymentMethod.WELLHUB -> "Wellhub"
-    PaymentMethod.TOTALPASS -> "TotalPass"
-    PaymentMethod.CASH -> "Cash"
-}
+private fun paymentMethodLabel(method: PaymentMethod): String =
+    when (method) {
+        PaymentMethod.WELLHUB -> "Wellhub"
+        PaymentMethod.TOTALPASS -> "TotalPass"
+        PaymentMethod.CASH -> "Cash"
+    }
 
-private fun modalityLabel(modality: SportModality): String = when (modality) {
-    SportModality.FUTEVOLEI -> "Futevôlei"
-    SportModality.BEACH_TENNIS -> "Beach Tennis"
-    SportModality.VOLEI -> "Vôlei"
-}
+private fun modalityLabel(modality: SportModality): String =
+    when (modality) {
+        SportModality.FUTEVOLEI -> "Futevôlei"
+        SportModality.BEACH_TENNIS -> "Beach Tennis"
+        SportModality.VOLEI -> "Vôlei"
+    }
 
 private fun modalitiesLabel(modalities: List<SportModality>): String =
-    modalities.joinToString(", ") { modalityLabel(it) }
+    modalities.joinToString(", ") {
+        modalityLabel(it)
+    }
 
 // =========================================================================
 // Shared form fields composable
@@ -433,11 +448,12 @@ private fun SportClientFormFields(
         Text(
             text = "Modalidade *",
             style = MaterialTheme.typography.bodySmall,
-            color = if (modalityError != null) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            color =
+                if (modalityError != null) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
         )
         Spacer(modifier = Modifier.height(4.dp))
         Row(
@@ -466,11 +482,12 @@ private fun SportClientFormFields(
         Text(
             text = "Frequência *",
             style = MaterialTheme.typography.bodySmall,
-            color = if (attendanceError != null) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            color =
+                if (attendanceError != null) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
         )
         Spacer(modifier = Modifier.height(4.dp))
         Row(
@@ -498,11 +515,12 @@ private fun SportClientFormFields(
         Text(
             text = "Pagamento *",
             style = MaterialTheme.typography.bodySmall,
-            color = if (paymentError != null) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            color =
+                if (paymentError != null) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
         )
         Spacer(modifier = Modifier.height(4.dp))
         Row(
@@ -563,18 +581,20 @@ private fun SportClientFormFields(
                         contentDescription = "Selecionar mês",
                     )
                 },
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onLastPaymentMonthClick() },
-                interactionSource = remember { MutableInteractionSource() }.also { source ->
-                    LaunchedEffect(source) {
-                        source.interactions.collect { interaction ->
-                            if (interaction is PressInteraction.Release) {
-                                onLastPaymentMonthClick()
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .clickable { onLastPaymentMonthClick() },
+                interactionSource =
+                    remember { MutableInteractionSource() }.also { source ->
+                        LaunchedEffect(source) {
+                            source.interactions.collect { interaction ->
+                                if (interaction is PressInteraction.Release) {
+                                    onLastPaymentMonthClick()
+                                }
                             }
                         }
-                    }
-                },
+                    },
             )
         }
 
@@ -613,10 +633,21 @@ private fun SportClientFormFields(
 // Month/Year Picker Dialog
 // =========================================================================
 
-private val MONTH_NAMES = listOf(
-    "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-    "Jul", "Ago", "Set", "Out", "Nov", "Dez",
-)
+private val MONTH_NAMES =
+    listOf(
+        "Jan",
+        "Fev",
+        "Mar",
+        "Abr",
+        "Mai",
+        "Jun",
+        "Jul",
+        "Ago",
+        "Set",
+        "Out",
+        "Nov",
+        "Dez",
+    )
 
 @Composable
 private fun MonthYearPickerDialog(
@@ -727,16 +758,18 @@ private fun AddSportClientDialog(
 
     if (showMonthPicker) {
         val (defaultYear, defaultMonth) = currentYearMonth()
-        val initMonth = if (lastPaymentMonth.isNotBlank()) {
-            lastPaymentMonth.substringBefore("/").toIntOrNull() ?: defaultMonth
-        } else {
-            defaultMonth
-        }
-        val initYear = if (lastPaymentMonth.isNotBlank()) {
-            lastPaymentMonth.substringAfter("/").toIntOrNull() ?: defaultYear
-        } else {
-            defaultYear
-        }
+        val initMonth =
+            if (lastPaymentMonth.isNotBlank()) {
+                lastPaymentMonth.substringBefore("/").toIntOrNull() ?: defaultMonth
+            } else {
+                defaultMonth
+            }
+        val initYear =
+            if (lastPaymentMonth.isNotBlank()) {
+                lastPaymentMonth.substringAfter("/").toIntOrNull() ?: defaultYear
+            } else {
+                defaultYear
+            }
         MonthYearPickerDialog(
             initialMonth = initMonth,
             initialYear = initYear,
@@ -755,35 +788,58 @@ private fun AddSportClientDialog(
         text = {
             SportClientFormFields(
                 name = name,
-                onNameChange = { name = it; nameError = null },
+                onNameChange = {
+                    name = it
+                    nameError = null
+                },
                 nameError = nameError,
                 apelido = apelido,
-                onApelidoChange = { apelido = it; apelidoError = null },
+                onApelidoChange = {
+                    apelido = it
+                    apelidoError = null
+                },
                 apelidoError = apelidoError,
                 cpfDigits = cpfDigits,
-                onCpfChange = { cpfDigits = filterDigitsOnly(it, 11); cpfError = null },
+                onCpfChange = {
+                    cpfDigits = filterDigitsOnly(it, 11)
+                    cpfError = null
+                },
                 cpfError = cpfError,
                 phoneDigits = phoneDigits,
-                onPhoneChange = { phoneDigits = filterDigitsOnly(it, 11); phoneError = null },
+                onPhoneChange = {
+                    phoneDigits = filterDigitsOnly(it, 11)
+                    phoneError = null
+                },
                 phoneError = phoneError,
                 selectedModalities = selectedModalities,
                 onModalityToggle = { modality ->
-                    selectedModalities = if (modality in selectedModalities) {
-                        selectedModalities - modality
-                    } else {
-                        selectedModalities + modality
-                    }
+                    selectedModalities =
+                        if (modality in selectedModalities) {
+                            selectedModalities - modality
+                        } else {
+                            selectedModalities + modality
+                        }
                     modalityError = null
                 },
                 modalityError = modalityError,
                 selectedAttendance = selectedAttendance,
-                onAttendanceChange = { selectedAttendance = it; attendanceError = null },
+                onAttendanceChange = {
+                    selectedAttendance = it
+                    attendanceError = null
+                },
                 attendanceError = attendanceError,
                 selectedPayment = selectedPayment,
-                onPaymentChange = { selectedPayment = it; paymentError = null; cashError = null },
+                onPaymentChange = {
+                    selectedPayment = it
+                    paymentError = null
+                    cashError = null
+                },
                 paymentError = paymentError,
                 cashDigits = cashDigits,
-                onCashChange = { cashDigits = filterDigitsOnly(it, 10); cashError = null },
+                onCashChange = {
+                    cashDigits = filterDigitsOnly(it, 10)
+                    cashError = null
+                },
                 cashError = cashError,
                 lastPaymentMonthDisplay = lastPaymentMonth,
                 onLastPaymentMonthClick = { showMonthPicker = true },
@@ -812,35 +868,45 @@ private fun AddSportClientDialog(
 
                 val cashAmountCents = parseCurrencyDigits(cashDigits)
                 if (selectedPayment != null) {
-                    val cashResult = SportClientValidator.validateCashAmount(
-                        cashAmountCents,
-                        selectedPayment!!,
-                    )
+                    val cashResult =
+                        SportClientValidator.validateCashAmount(
+                            cashAmountCents,
+                            selectedPayment!!,
+                        )
                     cashError = cashResult.errorMessage
                     if (!cashResult.isValid) return@TextButton
                 }
 
-                if (!nameResult.isValid || !apelidoResult.isValid || !cpfResult.isValid ||
-                    !phoneResult.isValid || !modalityResult.isValid || !attendanceResult.isValid ||
-                    !paymentResult.isValid || !lastMonthResult.isValid
-                ) return@TextButton
+                if (!nameResult.isValid ||
+                    !apelidoResult.isValid ||
+                    !cpfResult.isValid ||
+                    !phoneResult.isValid ||
+                    !modalityResult.isValid ||
+                    !attendanceResult.isValid ||
+                    !paymentResult.isValid ||
+                    !lastMonthResult.isValid
+                ) {
+                    return@TextButton
+                }
 
-                val client = SportClient(
-                    id = "sport_${System.currentTimeMillis()}",
-                    name = name.trim(),
-                    apelido = apelido.trim(),
-                    cpf = cpfDigits,
-                    phone = phoneDigits,
-                    modalities = selectedModalities.toList(),
-                    attendance = selectedAttendance!!,
-                    paymentMethod = selectedPayment!!,
-                    cashAmountCents = cashAmountCents ?: 0L,
-                    paymentHistory = if (lastPaymentMonth.isNotBlank()) {
-                        listOf(lastPaymentMonth)
-                    } else {
-                        emptyList()
-                    },
-                )
+                val client =
+                    SportClient(
+                        id = "sport_${System.currentTimeMillis()}",
+                        name = name.trim(),
+                        apelido = apelido.trim(),
+                        cpf = cpfDigits,
+                        phone = phoneDigits,
+                        modalities = selectedModalities.toList(),
+                        attendance = selectedAttendance!!,
+                        paymentMethod = selectedPayment!!,
+                        cashAmountCents = cashAmountCents ?: 0L,
+                        paymentHistory =
+                            if (lastPaymentMonth.isNotBlank()) {
+                                listOf(lastPaymentMonth)
+                            } else {
+                                emptyList()
+                            },
+                    )
                 onConfirm(client)
             }) {
                 Text("Adicionar")
@@ -953,7 +1019,10 @@ private fun SportClientDetailDialog(
 }
 
 @Composable
-private fun DetailRow(label: String, value: String) {
+private fun DetailRow(
+    label: String,
+    value: String,
+) {
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Text(
             text = label,

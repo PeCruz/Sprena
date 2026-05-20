@@ -10,7 +10,8 @@ import org.koin.dsl.module
  * ⚠️ A binding concreta [SportClientRepository] → [SportClientRepositoryImpl]
  * é feita no platformModule (Android), pois a implementação depende de Firebase.
  */
-val sportClientModule = module {
-    // Repository binding é feito no platformModule (depende de Firebase)
-    // UseCases serão adicionados aqui conforme implementados via TDD
-}
+val sportClientModule =
+    module {
+        // Repository binding é feito no platformModule (depende de Firebase)
+        // UseCases serão adicionados aqui conforme implementados via TDD
+    }

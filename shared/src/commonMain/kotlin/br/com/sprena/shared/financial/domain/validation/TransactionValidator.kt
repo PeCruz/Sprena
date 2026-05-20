@@ -3,7 +3,6 @@ package br.com.sprena.shared.financial.domain.validation
 import br.com.sprena.shared.core.validation.ValidationResult
 
 object TransactionValidator {
-
     const val NAME_MAX_LENGTH: Int = 50
     const val PERSON_NAME_MAX_LENGTH: Int = 50
     const val DESCRIPTION_MAX_LENGTH: Int = 3000
@@ -28,10 +27,11 @@ object TransactionValidator {
         }
     }
 
-    fun validateDescription(description: String?): ValidationResult = when {
-        description == null || description.isEmpty() -> ValidationResult.Valid
-        description.length > DESCRIPTION_MAX_LENGTH ->
-            ValidationResult.invalid("Máximo de $DESCRIPTION_MAX_LENGTH caracteres")
-        else -> ValidationResult.Valid
-    }
+    fun validateDescription(description: String?): ValidationResult =
+        when {
+            description == null || description.isEmpty() -> ValidationResult.Valid
+            description.length > DESCRIPTION_MAX_LENGTH ->
+                ValidationResult.invalid("Máximo de $DESCRIPTION_MAX_LENGTH caracteres")
+            else -> ValidationResult.Valid
+        }
 }

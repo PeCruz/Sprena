@@ -1,7 +1,6 @@
 package br.com.sprena.presentation.bar
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import br.com.sprena.shared.core.mvi.MviViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -9,7 +8,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 
 /**
  * ViewModel da tela principal do Bar — gerencia lista de clientes,
@@ -18,7 +16,6 @@ import kotlinx.coroutines.launch
 class BarViewModel :
     ViewModel(),
     MviViewModel<BarState, BarIntent, BarEffect> {
-
     private val _state = MutableStateFlow(BarState())
     override val state: StateFlow<BarState> = _state.asStateFlow()
 
@@ -63,31 +60,35 @@ class BarViewModel :
             }
 
             is BarIntent.ClientUpdated -> {
-                val updated = _state.value.clients.map { c ->
-                    if (c.id == intent.client.id) intent.client else c
-                }
+                val updated =
+                    _state.value.clients.map { c ->
+                        if (c.id == intent.client.id) intent.client else c
+                    }
                 _state.value = _state.value.copy(clients = updated)
                 recomputeFiltered()
             }
 
             is BarIntent.TogglePaid -> {
-                val updated = _state.value.clients.map { c ->
-                    if (c.id == intent.clientId) c.copy(isPaid = !c.isPaid) else c
-                }
+                val updated =
+                    _state.value.clients.map { c ->
+                        if (c.id == intent.clientId) c.copy(isPaid = !c.isPaid) else c
+                    }
                 _state.value = _state.value.copy(clients = updated)
                 recomputeFiltered()
             }
 
             is BarIntent.ClientDeleted -> {
                 val updated = _state.value.clients.filter { it.id != intent.clientId }
-                _state.value = _state.value.copy(
-                    clients = updated,
-                    selectedClient = if (_state.value.selectedClient?.id == intent.clientId) {
-                        null
-                    } else {
-                        _state.value.selectedClient
-                    },
-                )
+                _state.value =
+                    _state.value.copy(
+                        clients = updated,
+                        selectedClient =
+                            if (_state.value.selectedClient?.id == intent.clientId) {
+                                null
+                            } else {
+                                _state.value.selectedClient
+                            },
+                    )
                 recomputeFiltered()
             }
         }
@@ -98,19 +99,29 @@ class BarViewModel :
         var result = s.clients
 
         // Payment filter
-        result = when (s.paymentFilter) {
-            PaymentFilter.ALL -> result
-            PaymentFilter.PAID -> result.filter { it.isPaid || it.items.sumOf { i -> i.priceCents * i.quantity } == 0L }
-            PaymentFilter.UNPAID -> result.filter { !it.isPaid && it.items.sumOf { i -> i.priceCents * i.quantity } > 0L }
-        }
+        result =
+            when (s.paymentFilter) {
+                PaymentFilter.ALL -> result
+                PaymentFilter.PAID ->
+                    result.filter {
+                        it.isPaid ||
+                            it.items.sumOf { i -> i.priceCents * i.quantity } == 0L
+                    }
+                PaymentFilter.UNPAID ->
+                    result.filter {
+                        !it.isPaid &&
+                            it.items.sumOf { i -> i.priceCents * i.quantity } > 0L
+                    }
+            }
 
         // Search filter
         if (s.searchQuery.isNotBlank()) {
             val lowerQuery = s.searchQuery.lowercase()
-            result = result.filter { client ->
-                client.name.lowercase().contains(lowerQuery) ||
-                    (client.nickname?.lowercase()?.contains(lowerQuery) == true)
-            }
+            result =
+                result.filter { client ->
+                    client.name.lowercase().contains(lowerQuery) ||
+                        (client.nickname?.lowercase()?.contains(lowerQuery) == true)
+                }
         }
 
         _state.value = s.copy(filteredClients = result)

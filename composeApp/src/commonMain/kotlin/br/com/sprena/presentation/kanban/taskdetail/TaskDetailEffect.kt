@@ -13,7 +13,13 @@ sealed interface TaskDetailEffect : UiEffect {
         val columnId: String,
     ) : TaskDetailEffect
 
-    data class TaskDeleted(val taskId: String) : TaskDetailEffect
-    data class ShowError(val message: String) : TaskDetailEffect
+    data class TaskDeleted(
+        val taskId: String,
+    ) : TaskDetailEffect
+
+    data class ShowError(
+        val message: String,
+    ) : TaskDetailEffect
+
     data object Dismissed : TaskDetailEffect
 }

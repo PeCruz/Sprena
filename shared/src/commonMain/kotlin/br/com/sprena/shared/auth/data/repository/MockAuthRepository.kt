@@ -17,45 +17,52 @@ import kotlinx.coroutines.delay
  * Simula um pequeno delay de rede (300ms) para testar loading states.
  */
 class MockAuthRepository : AuthRepository {
+    private val users =
+        listOf(
+            MockUser(
+                user =
+                    UserModel(
+                        id = "1",
+                        username = "admin",
+                        name = "Pedro Admin",
+                        role = UserRole.ADM,
+                    ),
+                password = "123456",
+            ),
+            MockUser(
+                user =
+                    UserModel(
+                        id = "2",
+                        username = "mod",
+                        name = "Maria Moderadora",
+                        role = UserRole.MOD,
+                    ),
+                password = "654321",
+            ),
+            MockUser(
+                user =
+                    UserModel(
+                        id = "3",
+                        username = "func",
+                        name = "João Funcionário",
+                        role = UserRole.CLIENT,
+                    ),
+                password = "111111",
+            ),
+        )
 
-    private val users = listOf(
-        MockUser(
-            user = UserModel(
-                id = "1",
-                username = "admin",
-                name = "Pedro Admin",
-                role = UserRole.ADM,
-            ),
-            password = "123456",
-        ),
-        MockUser(
-            user = UserModel(
-                id = "2",
-                username = "mod",
-                name = "Maria Moderadora",
-                role = UserRole.MOD,
-            ),
-            password = "654321",
-        ),
-        MockUser(
-            user = UserModel(
-                id = "3",
-                username = "func",
-                name = "João Funcionário",
-                role = UserRole.CLIENT,
-            ),
-            password = "111111",
-        ),
-    )
-
-    override suspend fun authenticate(username: String, password: String): AuthResult {
+    override suspend fun authenticate(
+        username: String,
+        password: String,
+    ): AuthResult {
         delay(FAKE_NETWORK_DELAY_MS)
 
         val trimmedUsername = username.trim().lowercase()
         val trimmedPassword = password.trim()
 
-        val found = users.find { it.user.username == trimmedUsername }
-            ?: return AuthResult.Error("Usuário não encontrado")
+        val found =
+            users.find { it.user.username == trimmedUsername }
+                ?: return AuthResult.Error("Usuário não encontrado")
 
         return if (found.password == trimmedPassword) {
             AuthResult.Success(found.user)

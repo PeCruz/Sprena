@@ -3,7 +3,6 @@ package br.com.sprena.shared.auth.domain.validation
 import br.com.sprena.shared.core.validation.ValidationResult
 
 object LoginValidator {
-
     const val USERNAME_MIN_LENGTH: Int = 3
     const val USERNAME_MAX_LENGTH: Int = 8
     const val PASSWORD_LENGTH: Int = 6

@@ -11,7 +11,6 @@ import kotlin.test.assertTrue
  * Valores internos em centavos (Long).
  */
 class BrlMonetaryFormatterTest {
-
     // ------------------------------------------------------------------
     // parseToCents — Negative
     // ------------------------------------------------------------------

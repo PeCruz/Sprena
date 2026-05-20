@@ -1,7 +1,6 @@
 package br.com.sprena.shared.kanban.domain.validation
 
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -20,7 +19,6 @@ import kotlin.test.assertTrue
  *  - End Date: obrigatório, >= hoje
  */
 class TaskValidatorTest {
-
     // ── Name — obrigatório, máx 50 ───────────────────────
 
     @Test

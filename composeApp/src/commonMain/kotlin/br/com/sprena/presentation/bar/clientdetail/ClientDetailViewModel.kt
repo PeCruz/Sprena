@@ -25,20 +25,20 @@ class ClientDetailViewModel(
     private val client: BarClient,
 ) : ViewModel(),
     MviViewModel<ClientDetailState, ClientDetailIntent, ClientDetailEffect> {
-
-    private val _state = MutableStateFlow(
-        ClientDetailState(
-            clientId = client.id,
-            clientName = client.name,
-            clientNickname = client.nickname,
-            clientPhone = client.phone,
-            clientCpf = client.cpf,
-            clientEmail = client.email,
-            items = client.items,
-            isPaid = client.isPaid,
-            totalCents = client.items.sumOf { it.priceCents * it.quantity },
-        ),
-    )
+    private val _state =
+        MutableStateFlow(
+            ClientDetailState(
+                clientId = client.id,
+                clientName = client.name,
+                clientNickname = client.nickname,
+                clientPhone = client.phone,
+                clientCpf = client.cpf,
+                clientEmail = client.email,
+                items = client.items,
+                isPaid = client.isPaid,
+                totalCents = client.items.sumOf { it.priceCents * it.quantity },
+            ),
+        )
     override val state: StateFlow<ClientDetailState> = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<ClientDetailEffect>()
@@ -51,40 +51,44 @@ class ClientDetailViewModel(
             }
 
             is ClientDetailIntent.DismissAddItem -> {
-                _state.value = _state.value.copy(
-                    isAddItemVisible = false,
-                    newItemName = "",
-                    newItemPriceCents = null,
-                    newItemNameError = null,
-                    newItemPriceError = null,
-                )
+                _state.value =
+                    _state.value.copy(
+                        isAddItemVisible = false,
+                        newItemName = "",
+                        newItemPriceCents = null,
+                        newItemNameError = null,
+                        newItemPriceError = null,
+                    )
             }
 
             is ClientDetailIntent.MenuItemSelected -> {
                 val nameResult = BarValidator.validateItemName(intent.menuItem.name)
                 val priceResult = BarValidator.validateItemPrice(intent.menuItem.priceCents)
-                _state.value = _state.value.copy(
-                    newItemName = intent.menuItem.name,
-                    newItemPriceCents = intent.menuItem.priceCents,
-                    newItemNameError = nameResult.errorMessage,
-                    newItemPriceError = priceResult.errorMessage,
-                )
+                _state.value =
+                    _state.value.copy(
+                        newItemName = intent.menuItem.name,
+                        newItemPriceCents = intent.menuItem.priceCents,
+                        newItemNameError = nameResult.errorMessage,
+                        newItemPriceError = priceResult.errorMessage,
+                    )
             }
 
             is ClientDetailIntent.NewItemNameChanged -> {
                 val result = BarValidator.validateItemName(intent.name)
-                _state.value = _state.value.copy(
-                    newItemName = intent.name,
-                    newItemNameError = result.errorMessage,
-                )
+                _state.value =
+                    _state.value.copy(
+                        newItemName = intent.name,
+                        newItemNameError = result.errorMessage,
+                    )
             }
 
             is ClientDetailIntent.NewItemPriceChanged -> {
                 val result = BarValidator.validateItemPrice(intent.priceCents)
-                _state.value = _state.value.copy(
-                    newItemPriceCents = intent.priceCents,
-                    newItemPriceError = result.errorMessage,
-                )
+                _state.value =
+                    _state.value.copy(
+                        newItemPriceCents = intent.priceCents,
+                        newItemPriceError = result.errorMessage,
+                    )
             }
 
             is ClientDetailIntent.SaveItem -> {
@@ -93,10 +97,11 @@ class ClientDetailViewModel(
                 val priceResult = BarValidator.validateItemPrice(s.newItemPriceCents)
 
                 if (!nameResult.isValid || !priceResult.isValid) {
-                    _state.value = s.copy(
-                        newItemNameError = nameResult.errorMessage,
-                        newItemPriceError = priceResult.errorMessage,
-                    )
+                    _state.value =
+                        s.copy(
+                            newItemNameError = nameResult.errorMessage,
+                            newItemPriceError = priceResult.errorMessage,
+                        )
                     return
                 }
 
@@ -104,35 +109,39 @@ class ClientDetailViewModel(
                 val price = s.newItemPriceCents!!
 
                 // Merge: se já existe item com mesmo nome e preço, incrementa quantity
-                val existingIndex = s.items.indexOfFirst {
-                    it.name == trimmedName && it.priceCents == price
-                }
-                val updatedItems = if (existingIndex >= 0) {
-                    s.items.mapIndexed { index, item ->
-                        if (index == existingIndex) {
-                            item.copy(quantity = item.quantity + 1)
-                        } else {
-                            item
-                        }
+                val existingIndex =
+                    s.items.indexOfFirst {
+                        it.name == trimmedName && it.priceCents == price
                     }
-                } else {
-                    val newItem = BarItem(
-                        id = "item_${Uuid.random()}",
-                        name = trimmedName,
-                        priceCents = price,
-                    )
-                    s.items + newItem
-                }
+                val updatedItems =
+                    if (existingIndex >= 0) {
+                        s.items.mapIndexed { index, item ->
+                            if (index == existingIndex) {
+                                item.copy(quantity = item.quantity + 1)
+                            } else {
+                                item
+                            }
+                        }
+                    } else {
+                        val newItem =
+                            BarItem(
+                                id = "item_${Uuid.random()}",
+                                name = trimmedName,
+                                priceCents = price,
+                            )
+                        s.items + newItem
+                    }
 
-                _state.value = s.copy(
-                    items = updatedItems,
-                    totalCents = updatedItems.sumOf { it.priceCents * it.quantity },
-                    isAddItemVisible = false,
-                    newItemName = "",
-                    newItemPriceCents = null,
-                    newItemNameError = null,
-                    newItemPriceError = null,
-                )
+                _state.value =
+                    s.copy(
+                        items = updatedItems,
+                        totalCents = updatedItems.sumOf { it.priceCents * it.quantity },
+                        isAddItemVisible = false,
+                        newItemName = "",
+                        newItemPriceCents = null,
+                        newItemNameError = null,
+                        newItemPriceError = null,
+                    )
                 viewModelScope.launch {
                     _effects.emit(ClientDetailEffect.ClientUpdated(buildClient()))
                 }
@@ -141,14 +150,19 @@ class ClientDetailViewModel(
             is ClientDetailIntent.RemoveItem -> {
                 val s = _state.value
                 val updatedItems = s.items.filter { it.id != intent.itemId }
-                val newTotalPages = if (updatedItems.isEmpty()) 1
-                    else ((updatedItems.size - 1) / s.itemsPerPage) + 1
+                val newTotalPages =
+                    if (updatedItems.isEmpty()) {
+                        1
+                    } else {
+                        ((updatedItems.size - 1) / s.itemsPerPage) + 1
+                    }
                 val adjustedPage = s.itemsPage.coerceAtMost(newTotalPages - 1)
-                _state.value = s.copy(
-                    items = updatedItems,
-                    totalCents = updatedItems.sumOf { it.priceCents * it.quantity },
-                    itemsPage = adjustedPage,
-                )
+                _state.value =
+                    s.copy(
+                        items = updatedItems,
+                        totalCents = updatedItems.sumOf { it.priceCents * it.quantity },
+                        itemsPage = adjustedPage,
+                    )
                 viewModelScope.launch {
                     _effects.emit(ClientDetailEffect.ClientUpdated(buildClient()))
                 }
@@ -156,13 +170,15 @@ class ClientDetailViewModel(
 
             is ClientDetailIntent.IncrementItem -> {
                 val s = _state.value
-                val updatedItems = s.items.map { item ->
-                    if (item.id == intent.itemId) item.copy(quantity = item.quantity + 1) else item
-                }
-                _state.value = s.copy(
-                    items = updatedItems,
-                    totalCents = updatedItems.sumOf { it.priceCents * it.quantity },
-                )
+                val updatedItems =
+                    s.items.map { item ->
+                        if (item.id == intent.itemId) item.copy(quantity = item.quantity + 1) else item
+                    }
+                _state.value =
+                    s.copy(
+                        items = updatedItems,
+                        totalCents = updatedItems.sumOf { it.priceCents * it.quantity },
+                    )
                 viewModelScope.launch {
                     _effects.emit(ClientDetailEffect.ClientUpdated(buildClient()))
                 }
@@ -172,13 +188,15 @@ class ClientDetailViewModel(
                 val s = _state.value
                 val item = s.items.firstOrNull { it.id == intent.itemId } ?: return
                 if (item.quantity > 1) {
-                    val updatedItems = s.items.map {
-                        if (it.id == intent.itemId) it.copy(quantity = it.quantity - 1) else it
-                    }
-                    _state.value = s.copy(
-                        items = updatedItems,
-                        totalCents = updatedItems.sumOf { it.priceCents * it.quantity },
-                    )
+                    val updatedItems =
+                        s.items.map {
+                            if (it.id == intent.itemId) it.copy(quantity = it.quantity - 1) else it
+                        }
+                    _state.value =
+                        s.copy(
+                            items = updatedItems,
+                            totalCents = updatedItems.sumOf { it.priceCents * it.quantity },
+                        )
                     viewModelScope.launch {
                         _effects.emit(ClientDetailEffect.ClientUpdated(buildClient()))
                     }
@@ -192,15 +210,20 @@ class ClientDetailViewModel(
                 val s = _state.value
                 val itemId = s.itemToDeleteId ?: return
                 val updatedItems = s.items.filter { it.id != itemId }
-                val newTotalPages = if (updatedItems.isEmpty()) 1
-                    else ((updatedItems.size - 1) / s.itemsPerPage) + 1
+                val newTotalPages =
+                    if (updatedItems.isEmpty()) {
+                        1
+                    } else {
+                        ((updatedItems.size - 1) / s.itemsPerPage) + 1
+                    }
                 val adjustedPage = s.itemsPage.coerceAtMost(newTotalPages - 1)
-                _state.value = s.copy(
-                    items = updatedItems,
-                    totalCents = updatedItems.sumOf { it.priceCents * it.quantity },
-                    itemToDeleteId = null,
-                    itemsPage = adjustedPage,
-                )
+                _state.value =
+                    s.copy(
+                        items = updatedItems,
+                        totalCents = updatedItems.sumOf { it.priceCents * it.quantity },
+                        itemToDeleteId = null,
+                        itemsPage = adjustedPage,
+                    )
                 viewModelScope.launch {
                     _effects.emit(ClientDetailEffect.ClientUpdated(buildClient()))
                 }

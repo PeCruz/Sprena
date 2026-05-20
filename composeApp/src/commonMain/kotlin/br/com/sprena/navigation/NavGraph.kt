@@ -1,5 +1,6 @@
 package br.com.sprena.navigation
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
@@ -8,27 +9,22 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.ui.Modifier
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import br.com.sprena.shared.auth.domain.model.UserModel
-import br.com.sprena.presentation.core.navigation.BottomNavIntent
-import br.com.sprena.presentation.core.navigation.BottomNavViewModel
-import br.com.sprena.presentation.core.navigation.BottomTab
-import br.com.sprena.presentation.core.theme.ThemeViewModel
+import br.com.sprena.core.platform.rememberFilePicker
 import br.com.sprena.presentation.bar.BarIntent
 import br.com.sprena.presentation.bar.BarScreen
 import br.com.sprena.presentation.bar.BarViewModel
@@ -36,31 +32,31 @@ import br.com.sprena.presentation.bar.addclient.AddClientDialog
 import br.com.sprena.presentation.bar.addclient.AddClientViewModel
 import br.com.sprena.presentation.bar.clientdetail.ClientDetailSheet
 import br.com.sprena.presentation.bar.clientdetail.ClientDetailViewModel
-import br.com.sprena.presentation.financial.FinancialScreen
-import br.com.sprena.presentation.financial.FinancialViewModel
-import br.com.sprena.presentation.financial.addtransaction.AddTransactionDialog
-import br.com.sprena.presentation.financial.addtransaction.AddTransactionViewModel
-import br.com.sprena.core.platform.rememberFilePicker
+import br.com.sprena.presentation.category.CategoryScreen
+import br.com.sprena.presentation.category.CategoryViewModel
+import br.com.sprena.presentation.core.navigation.BottomNavIntent
+import br.com.sprena.presentation.core.navigation.BottomNavViewModel
+import br.com.sprena.presentation.core.navigation.BottomTab
+import br.com.sprena.presentation.core.theme.ThemeViewModel
 import br.com.sprena.presentation.eventos.EventCategory
 import br.com.sprena.presentation.eventos.EventosIntent
 import br.com.sprena.presentation.eventos.EventosScreen
 import br.com.sprena.presentation.eventos.EventosViewModel
 import br.com.sprena.presentation.eventos.createevent.CreateEventScreen
 import br.com.sprena.presentation.eventos.createevent.CreateEventViewModel
+import br.com.sprena.presentation.financial.FinancialScreen
+import br.com.sprena.presentation.financial.FinancialViewModel
+import br.com.sprena.presentation.financial.addtransaction.AddTransactionDialog
+import br.com.sprena.presentation.financial.addtransaction.AddTransactionViewModel
+import br.com.sprena.presentation.home.HomeUiEvent
+import br.com.sprena.presentation.home.HomeViewModel
 import br.com.sprena.presentation.kanban.KanbanIntent
-import br.com.sprena.presentation.kanban.KanbanScreen
 import br.com.sprena.presentation.kanban.KanbanViewModel
 import br.com.sprena.presentation.kanban.createtask.CreateTaskIntent
 import br.com.sprena.presentation.kanban.createtask.CreateTaskScreen
 import br.com.sprena.presentation.kanban.createtask.CreateTaskViewModel
-import br.com.sprena.presentation.home.HomeUiEvent
-import br.com.sprena.presentation.home.HomeViewModel
 import br.com.sprena.presentation.login.LoginScreen
 import br.com.sprena.presentation.login.LoginViewModel
-import br.com.sprena.shared.auth.domain.model.UserRole
-import br.com.sprena.presentation.category.CategoryScreen
-import br.com.sprena.presentation.category.CategoryViewModel
-import br.com.sprena.presentation.menu.MenuItem
 import br.com.sprena.presentation.menu.MenuScreen
 import br.com.sprena.presentation.menu.MenuViewModel
 import br.com.sprena.presentation.settings.SettingsScreen
@@ -70,6 +66,8 @@ import br.com.sprena.presentation.sportclient.SportClientIntent
 import br.com.sprena.presentation.sportclient.SportClientScreen
 import br.com.sprena.presentation.sportclient.SportClientViewModel
 import br.com.sprena.presentation.sportclient.edit.SportClientEditScreen
+import br.com.sprena.shared.auth.domain.model.UserModel
+import br.com.sprena.shared.auth.domain.model.UserRole
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -120,24 +118,26 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
 
         composable(
             route = Routes.HOME_WITH_ARGS,
-            arguments = listOf(
-                navArgument("userId") { type = NavType.StringType },
-                navArgument("username") { type = NavType.StringType },
-                navArgument("userName") { type = NavType.StringType },
-                navArgument("userRole") { type = NavType.StringType },
-            ),
+            arguments =
+                listOf(
+                    navArgument("userId") { type = NavType.StringType },
+                    navArgument("username") { type = NavType.StringType },
+                    navArgument("userName") { type = NavType.StringType },
+                    navArgument("userRole") { type = NavType.StringType },
+                ),
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId") ?: ""
             val username = backStackEntry.arguments?.getString("username") ?: ""
             val userName = (backStackEntry.arguments?.getString("userName") ?: "").replace("+", " ")
             val userRoleStr = backStackEntry.arguments?.getString("userRole") ?: "CLIENT"
             val userRole = UserRole.valueOf(userRoleStr)
-            val authenticatedUser = UserModel(
-                id = userId,
-                username = username,
-                name = userName,
-                role = userRole,
-            )
+            val authenticatedUser =
+                UserModel(
+                    id = userId,
+                    username = username,
+                    name = userName,
+                    role = userRole,
+                )
 
             val savedStateHandle = backStackEntry.savedStateHandle
             val createdName = savedStateHandle.get<String>("created_task_name")
@@ -189,14 +189,15 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
         composable(route = Routes.CREATE_TASK) {
             val createTaskViewModel: CreateTaskViewModel = koinViewModel()
 
-            val launchFilePicker = rememberFilePicker { pickedFile ->
-                createTaskViewModel.handleIntent(
-                    CreateTaskIntent.AttachmentSelected(
-                        name = pickedFile.name,
-                        sizeBytes = pickedFile.sizeBytes,
-                    ),
-                )
-            }
+            val launchFilePicker =
+                rememberFilePicker { pickedFile ->
+                    createTaskViewModel.handleIntent(
+                        CreateTaskIntent.AttachmentSelected(
+                            name = pickedFile.name,
+                            sizeBytes = pickedFile.sizeBytes,
+                        ),
+                    )
+                }
 
             CreateTaskScreen(
                 viewModel = createTaskViewModel,
@@ -229,7 +230,11 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
             val editEventDescription = previousEntry?.savedStateHandle?.get<String?>("edit_event_description")
 
             LaunchedEffect(editEventId) {
-                if (editEventId != null && editEventName != null && editEventCategory != null && editEventDate != null) {
+                if (editEventId != null &&
+                    editEventName != null &&
+                    editEventCategory != null &&
+                    editEventDate != null
+                ) {
                     createEventViewModel.handleIntent(
                         br.com.sprena.presentation.eventos.createevent.CreateEventIntent.LoadForEdit(
                             eventId = editEventId,
@@ -287,31 +292,36 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
             val editClientAttendance = previousEntry?.savedStateHandle?.get<Int>("edit_client_attendance") ?: 1
             val editClientPayment = previousEntry?.savedStateHandle?.get<String>("edit_client_payment") ?: "CASH"
             val editClientCashCents = previousEntry?.savedStateHandle?.get<Long>("edit_client_cash_cents") ?: 0L
-            val editClientPaymentHistory = previousEntry?.savedStateHandle?.get<String>("edit_client_payment_history") ?: ""
+            val editClientPaymentHistory =
+                previousEntry?.savedStateHandle?.get<String>("edit_client_payment_history") ?: ""
 
-            val modalities = editClientModalities.split(",")
-                .filter { it.isNotBlank() }
-                .mapNotNull { name ->
-                    br.com.sprena.shared.sportclient.domain.validation.SportModality.entries
-                        .firstOrNull { it.name == name }
-                }
-            val paymentMethod = br.com.sprena.shared.sportclient.domain.validation.PaymentMethod.entries
-                .firstOrNull { it.name == editClientPayment }
-                ?: br.com.sprena.shared.sportclient.domain.validation.PaymentMethod.CASH
+            val modalities =
+                editClientModalities
+                    .split(",")
+                    .filter { it.isNotBlank() }
+                    .mapNotNull { name ->
+                        br.com.sprena.shared.sportclient.domain.validation.SportModality.entries
+                            .firstOrNull { it.name == name }
+                    }
+            val paymentMethod =
+                br.com.sprena.shared.sportclient.domain.validation.PaymentMethod.entries
+                    .firstOrNull { it.name == editClientPayment }
+                    ?: br.com.sprena.shared.sportclient.domain.validation.PaymentMethod.CASH
             val history = editClientPaymentHistory.split(",").filter { it.isNotBlank() }
 
-            val clientToEdit = SportClient(
-                id = editClientId,
-                name = editClientName,
-                apelido = editClientApelido,
-                cpf = editClientCpf,
-                phone = editClientPhone,
-                modalities = modalities,
-                attendance = editClientAttendance,
-                paymentMethod = paymentMethod,
-                cashAmountCents = editClientCashCents,
-                paymentHistory = history,
-            )
+            val clientToEdit =
+                SportClient(
+                    id = editClientId,
+                    name = editClientName,
+                    apelido = editClientApelido,
+                    cpf = editClientCpf,
+                    phone = editClientPhone,
+                    modalities = modalities,
+                    attendance = editClientAttendance,
+                    paymentMethod = paymentMethod,
+                    cashAmountCents = editClientCashCents,
+                    paymentHistory = history,
+                )
 
             SportClientEditScreen(
                 client = clientToEdit,
@@ -505,32 +515,38 @@ private fun HomeWithBottomNav(
             val updatedApelido = savedStateHandle.get<String>("updated_client_apelido") ?: ""
             val updatedCpf = savedStateHandle.get<String>("updated_client_cpf") ?: ""
             val updatedPhone = savedStateHandle.get<String>("updated_client_phone") ?: ""
-            val updatedModalities = (savedStateHandle.get<String>("updated_client_modalities") ?: "")
-                .split(",").filter { it.isNotBlank() }
-                .mapNotNull { name ->
-                    br.com.sprena.shared.sportclient.domain.validation.SportModality.entries
-                        .firstOrNull { it.name == name }
-                }
+            val updatedModalities =
+                (savedStateHandle.get<String>("updated_client_modalities") ?: "")
+                    .split(",")
+                    .filter { it.isNotBlank() }
+                    .mapNotNull { name ->
+                        br.com.sprena.shared.sportclient.domain.validation.SportModality.entries
+                            .firstOrNull { it.name == name }
+                    }
             val updatedAttendance = savedStateHandle.get<Int>("updated_client_attendance") ?: 1
-            val updatedPayment = br.com.sprena.shared.sportclient.domain.validation.PaymentMethod.entries
-                .firstOrNull { it.name == (savedStateHandle.get<String>("updated_client_payment") ?: "") }
-                ?: br.com.sprena.shared.sportclient.domain.validation.PaymentMethod.CASH
+            val updatedPayment =
+                br.com.sprena.shared.sportclient.domain.validation.PaymentMethod.entries
+                    .firstOrNull { it.name == (savedStateHandle.get<String>("updated_client_payment") ?: "") }
+                    ?: br.com.sprena.shared.sportclient.domain.validation.PaymentMethod.CASH
             val updatedCashCents = savedStateHandle.get<Long>("updated_client_cash_cents") ?: 0L
-            val updatedPaymentHistory = (savedStateHandle.get<String>("updated_client_payment_history") ?: "")
-                .split(",").filter { it.isNotBlank() }
+            val updatedPaymentHistory =
+                (savedStateHandle.get<String>("updated_client_payment_history") ?: "")
+                    .split(",")
+                    .filter { it.isNotBlank() }
 
-            val updatedClient = SportClient(
-                id = updatedClientId,
-                name = updatedName,
-                apelido = updatedApelido,
-                cpf = updatedCpf,
-                phone = updatedPhone,
-                modalities = updatedModalities,
-                attendance = updatedAttendance,
-                paymentMethod = updatedPayment,
-                cashAmountCents = updatedCashCents,
-                paymentHistory = updatedPaymentHistory,
-            )
+            val updatedClient =
+                SportClient(
+                    id = updatedClientId,
+                    name = updatedName,
+                    apelido = updatedApelido,
+                    cpf = updatedCpf,
+                    phone = updatedPhone,
+                    modalities = updatedModalities,
+                    attendance = updatedAttendance,
+                    paymentMethod = updatedPayment,
+                    cashAmountCents = updatedCashCents,
+                    paymentHistory = updatedPaymentHistory,
+                )
             sportClientViewModel.handleIntent(SportClientIntent.ClientUpdated(updatedClient))
 
             // Clean up
@@ -721,23 +737,27 @@ private fun HomeWithBottomNav(
             },
             onTransactionCreated = { transaction ->
                 financialViewModel.handleIntent(
-                    br.com.sprena.presentation.financial.FinancialIntent.TransactionAdded(transaction),
+                    br.com.sprena.presentation.financial.FinancialIntent
+                        .TransactionAdded(transaction),
                 )
             },
         )
     }
 
     if (financialState.isEditDialogVisible && financialState.editingTransactionId != null) {
-        val editingTx = financialState.transactions.find {
-            it.id == financialState.editingTransactionId
-        }
-        if (editingTx != null) {
-            val editTransactionViewModel = remember(editingTx.id) {
-                AddTransactionViewModel()
+        val editingTx =
+            financialState.transactions.find {
+                it.id == financialState.editingTransactionId
             }
+        if (editingTx != null) {
+            val editTransactionViewModel =
+                remember(editingTx.id) {
+                    AddTransactionViewModel()
+                }
             LaunchedEffect(editingTx.id) {
                 editTransactionViewModel.handleIntent(
-                    br.com.sprena.presentation.financial.addtransaction.AddTransactionIntent.LoadForEdit(editingTx),
+                    br.com.sprena.presentation.financial.addtransaction.AddTransactionIntent
+                        .LoadForEdit(editingTx),
                 )
             }
             AddTransactionDialog(
@@ -752,12 +772,14 @@ private fun HomeWithBottomNav(
                 onTransactionCreated = { },
                 onTransactionUpdated = { transaction ->
                     financialViewModel.handleIntent(
-                        br.com.sprena.presentation.financial.FinancialIntent.TransactionUpdated(transaction),
+                        br.com.sprena.presentation.financial.FinancialIntent
+                            .TransactionUpdated(transaction),
                     )
                 },
                 onTransactionDeleted = {
                     financialViewModel.handleIntent(
-                        br.com.sprena.presentation.financial.FinancialIntent.TransactionDeleted(editingTx.id),
+                        br.com.sprena.presentation.financial.FinancialIntent
+                            .TransactionDeleted(editingTx.id),
                     )
                 },
             )
@@ -781,9 +803,10 @@ private fun HomeWithBottomNav(
     if (barState.selectedClient != null) {
         val selectedClient = barState.selectedClient!!
         val clientDetailSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        val clientDetailViewModel = remember(selectedClient.id) {
-            ClientDetailViewModel(client = selectedClient)
-        }
+        val clientDetailViewModel =
+            remember(selectedClient.id) {
+                ClientDetailViewModel(client = selectedClient)
+            }
         ClientDetailSheet(
             viewModel = clientDetailViewModel,
             sheetState = clientDetailSheetState,

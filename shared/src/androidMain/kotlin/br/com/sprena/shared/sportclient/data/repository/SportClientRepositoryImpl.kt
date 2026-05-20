@@ -20,16 +20,14 @@ import kotlinx.coroutines.tasks.await
 class SportClientRepositoryImpl(
     private val firestore: FirebaseFirestore,
 ) : SportClientRepository {
-
     private val collection get() = firestore.collection(COLLECTION_NAME)
 
-    override fun observeAll(): Flow<List<SportClientModel>> {
-        return collection.snapshots().map { snapshot ->
+    override fun observeAll(): Flow<List<SportClientModel>> =
+        collection.snapshots().map { snapshot ->
             snapshot.documents.mapNotNull { doc ->
                 doc.toObject(SportClientDto::class.java)?.toDomain(doc.id)
             }
         }
-    }
 
     override suspend fun getById(id: String): SportClientModel? {
         val doc = collection.document(id).get().await()

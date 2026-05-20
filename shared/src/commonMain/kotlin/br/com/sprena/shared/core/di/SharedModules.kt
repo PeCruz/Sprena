@@ -18,9 +18,10 @@ import br.com.sprena.shared.sportclient.di.sportClientModule
  * Firebase Firestore é inicializado no platformModule (Android)
  * e injetado via Koin nas implementações de Repository.
  */
-fun sharedModules() = listOf(
-    authModule(),
-    kanbanModule,
-    financialModule,
-    sportClientModule,
-)
+fun sharedModules() =
+    listOf(
+        authModule(),
+        kanbanModule,
+        financialModule,
+        sportClientModule,
+    )

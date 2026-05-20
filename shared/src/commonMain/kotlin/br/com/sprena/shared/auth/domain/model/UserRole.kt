@@ -5,7 +5,9 @@ package br.com.sprena.shared.auth.domain.model
  *
  * @property displayName Nome legível para exibição na UI.
  */
-enum class UserRole(val displayName: String) {
+enum class UserRole(
+    val displayName: String,
+) {
     /** Acesso total ao sistema. */
     ADM("Administrador"),
 

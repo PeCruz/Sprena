@@ -23,7 +23,6 @@ import kotlin.uuid.Uuid
 class AddClientViewModel :
     ViewModel(),
     MviViewModel<AddClientState, AddClientIntent, AddClientEffect> {
-
     private val _state = MutableStateFlow(AddClientState())
     override val state: StateFlow<AddClientState> = _state.asStateFlow()
 
@@ -34,10 +33,11 @@ class AddClientViewModel :
         when (intent) {
             is AddClientIntent.NameChanged -> {
                 val result = BarValidator.validateClientName(intent.name)
-                _state.value = _state.value.copy(
-                    name = intent.name,
-                    nameError = result.errorMessage,
-                )
+                _state.value =
+                    _state.value.copy(
+                        name = intent.name,
+                        nameError = result.errorMessage,
+                    )
             }
 
             is AddClientIntent.NicknameChanged -> {
@@ -46,28 +46,32 @@ class AddClientViewModel :
 
             is AddClientIntent.PhoneChanged -> {
                 val result = BarValidator.validatePhone(intent.phone)
-                _state.value = _state.value.copy(
-                    phone = intent.phone,
-                    phoneError = result.errorMessage,
-                )
+                _state.value =
+                    _state.value.copy(
+                        phone = intent.phone,
+                        phoneError = result.errorMessage,
+                    )
             }
 
             is AddClientIntent.CpfChanged -> {
                 val result = BarValidator.validateCpf(intent.cpf)
-                _state.value = _state.value.copy(
-                    cpf = intent.cpf,
-                    cpfError = result.errorMessage,
-                )
+                _state.value =
+                    _state.value.copy(
+                        cpf = intent.cpf,
+                        cpfError = result.errorMessage,
+                    )
             }
 
             is AddClientIntent.EmailChanged -> {
-                val result = BarValidator.validateEmail(
-                    intent.email.ifEmpty { null },
-                )
-                _state.value = _state.value.copy(
-                    email = intent.email,
-                    emailError = result.errorMessage,
-                )
+                val result =
+                    BarValidator.validateEmail(
+                        intent.email.ifEmpty { null },
+                    )
+                _state.value =
+                    _state.value.copy(
+                        email = intent.email,
+                        emailError = result.errorMessage,
+                    )
             }
 
             is AddClientIntent.Save -> {
@@ -77,26 +81,31 @@ class AddClientViewModel :
                 val cpfResult = BarValidator.validateCpf(s.cpf)
                 val emailResult = BarValidator.validateEmail(s.email.ifEmpty { null })
 
-                _state.value = s.copy(
-                    nameError = nameResult.errorMessage,
-                    phoneError = phoneResult.errorMessage,
-                    cpfError = cpfResult.errorMessage,
-                    emailError = emailResult.errorMessage,
-                )
+                _state.value =
+                    s.copy(
+                        nameError = nameResult.errorMessage,
+                        phoneError = phoneResult.errorMessage,
+                        cpfError = cpfResult.errorMessage,
+                        emailError = emailResult.errorMessage,
+                    )
 
-                val allValid = nameResult.isValid && phoneResult.isValid &&
-                    cpfResult.isValid && emailResult.isValid
+                val allValid =
+                    nameResult.isValid &&
+                        phoneResult.isValid &&
+                        cpfResult.isValid &&
+                        emailResult.isValid
 
                 viewModelScope.launch {
                     if (allValid) {
-                        val client = BarClient(
-                            id = "bar_client_${Uuid.random()}",
-                            name = s.name.trim(),
-                            nickname = s.nickname.ifBlank { null },
-                            phone = s.phone,
-                            cpf = s.cpf,
-                            email = s.email.ifBlank { null },
-                        )
+                        val client =
+                            BarClient(
+                                id = "bar_client_${Uuid.random()}",
+                                name = s.name.trim(),
+                                nickname = s.nickname.ifBlank { null },
+                                phone = s.phone,
+                                cpf = s.cpf,
+                                email = s.email.ifBlank { null },
+                            )
                         _effects.emit(AddClientEffect.ClientCreated(client))
                     } else {
                         _effects.emit(

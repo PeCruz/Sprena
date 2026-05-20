@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.google.services) apply false
     alias(libs.plugins.detekt)
+    alias(libs.plugins.ktlint)
 }
 
 subprojects {
@@ -29,6 +30,25 @@ subprojects {
             sarif.required.set(true)
             md.required.set(false)
             txt.required.set(false)
+        }
+    }
+}
+
+subprojects {
+    apply(plugin = rootProject.libs.plugins.ktlint.get().pluginId)
+
+    extensions.configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
+        version.set("1.4.1")
+        android.set(true)
+        ignoreFailures.set(false)
+        reporters {
+            reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.PLAIN)
+            reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.CHECKSTYLE)
+            reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.SARIF)
+        }
+        filter {
+            exclude("**/generated/**")
+            exclude("**/build/**")
         }
     }
 }

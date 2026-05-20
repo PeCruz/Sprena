@@ -3,7 +3,6 @@ package br.com.sprena.presentation.financial.addtransaction
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.sprena.presentation.financial.FinancialTransactionSummary
-import br.com.sprena.presentation.financial.TransactionType
 import br.com.sprena.shared.core.mvi.MviViewModel
 import br.com.sprena.shared.financial.domain.validation.TransactionValidator
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -16,8 +15,8 @@ import kotlinx.coroutines.launch
 
 class AddTransactionViewModel(
     private val today: () -> Long = { 0L },
-) : ViewModel(), MviViewModel<AddTransactionState, AddTransactionIntent, AddTransactionEffect> {
-
+) : ViewModel(),
+    MviViewModel<AddTransactionState, AddTransactionIntent, AddTransactionEffect> {
     private val _state = MutableStateFlow(AddTransactionState(inputEpochDay = today()))
     override val state: StateFlow<AddTransactionState> = _state.asStateFlow()
 
@@ -59,11 +58,12 @@ class AddTransactionViewModel(
             is AddTransactionIntent.AmountChanged -> {
                 val digits = intent.raw.filter { it.isDigit() }
                 val cents = digits.toLongOrNull() ?: 0L
-                val error = when {
-                    digits.isEmpty() -> "Valor é obrigatório"
-                    cents <= 0L -> "Valor deve ser maior que zero"
-                    else -> null
-                }
+                val error =
+                    when {
+                        digits.isEmpty() -> "Valor é obrigatório"
+                        cents <= 0L -> "Valor deve ser maior que zero"
+                        else -> null
+                    }
                 updateState {
                     copy(
                         amountRaw = digits,
@@ -121,35 +121,46 @@ class AddTransactionViewModel(
             is AddTransactionIntent.DatePickerConfirmed -> {
                 val components = dateComponentsFromMillis(intent.millis)
                 val g = _state.value.dateGranularity
-                val dateIntent = when (g) {
-                    DateGranularity.DAY -> AddTransactionIntent.DateSelected(
-                        day = components.day, month = components.month, year = components.year,
-                    )
-                    DateGranularity.MONTH -> AddTransactionIntent.DateSelected(
-                        day = null, month = components.month, year = components.year,
-                    )
-                    DateGranularity.YEAR -> AddTransactionIntent.DateSelected(
-                        day = null, month = null, year = components.year,
-                    )
-                }
+                val dateIntent =
+                    when (g) {
+                        DateGranularity.DAY ->
+                            AddTransactionIntent.DateSelected(
+                                day = components.day,
+                                month = components.month,
+                                year = components.year,
+                            )
+                        DateGranularity.MONTH ->
+                            AddTransactionIntent.DateSelected(
+                                day = null,
+                                month = components.month,
+                                year = components.year,
+                            )
+                        DateGranularity.YEAR ->
+                            AddTransactionIntent.DateSelected(
+                                day = null,
+                                month = null,
+                                year = components.year,
+                            )
+                    }
                 handleIntent(dateIntent)
             }
 
             is AddTransactionIntent.Submit -> {
                 val s = _state.value
                 if (s.canSubmit) {
-                    val tx = FinancialTransactionSummary(
-                        id = s.editingId ?: generateId(),
-                        description = s.name,
-                        cents = s.amountCents,
-                        type = s.type,
-                        day = s.selectedDay,
-                        month = s.selectedMonth ?: 1,
-                        year = s.selectedYear ?: 2026,
-                        personName = s.personName,
-                        category = s.category,
-                        notes = s.description,
-                    )
+                    val tx =
+                        FinancialTransactionSummary(
+                            id = s.editingId ?: generateId(),
+                            description = s.name,
+                            cents = s.amountCents,
+                            type = s.type,
+                            day = s.selectedDay,
+                            month = s.selectedMonth ?: 1,
+                            year = s.selectedYear ?: 2026,
+                            personName = s.personName,
+                            category = s.category,
+                            notes = s.description,
+                        )
                     viewModelScope.launch {
                         if (s.editingId != null) {
                             _effects.emit(AddTransactionEffect.TransactionUpdated(tx))
@@ -175,26 +186,26 @@ class AddTransactionViewModel(
         _state.value = newState.copy(canSubmit = computeCanSubmit(newState))
     }
 
-    private fun generateId(): String =
-        "tx-${kotlin.random.Random.nextLong(0, Long.MAX_VALUE)}"
+    private fun generateId(): String = "tx-${kotlin.random.Random.nextLong(0, Long.MAX_VALUE)}"
 
     private fun formatDateDisplay(
         granularity: DateGranularity,
         day: Int?,
         month: Int?,
         year: Int?,
-    ): String = when (granularity) {
-        DateGranularity.DAY -> {
-            val d = (day ?: 0).toString().padStart(2, '0')
-            val m = (month ?: 0).toString().padStart(2, '0')
-            "$d/$m/$year"
+    ): String =
+        when (granularity) {
+            DateGranularity.DAY -> {
+                val d = (day ?: 0).toString().padStart(2, '0')
+                val m = (month ?: 0).toString().padStart(2, '0')
+                "$d/$m/$year"
+            }
+            DateGranularity.MONTH -> {
+                val m = (month ?: 0).toString().padStart(2, '0')
+                "$m/$year"
+            }
+            DateGranularity.YEAR -> "$year"
         }
-        DateGranularity.MONTH -> {
-            val m = (month ?: 0).toString().padStart(2, '0')
-            "$m/$year"
-        }
-        DateGranularity.YEAR -> "$year"
-    }
 
     private fun computeCanSubmit(s: AddTransactionState): Boolean {
         val cents = s.amountRaw.toLongOrNull() ?: 0L

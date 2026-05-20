@@ -15,7 +15,7 @@ data class ValidationResult(
 ) {
     companion object {
         val Valid = ValidationResult(isValid = true)
-        fun invalid(message: String): ValidationResult =
-            ValidationResult(isValid = false, errorMessage = message)
+
+        fun invalid(message: String): ValidationResult = ValidationResult(isValid = false, errorMessage = message)
     }
 }
