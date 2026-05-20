@@ -4,7 +4,7 @@
   <CurrentIssues>
     <ID>MagicNumber:BrlMonetaryFormatter.kt$BrlMonetaryFormatter$3</ID>
     <ID>ReturnCount:BrlMonetaryFormatter.kt$BrlMonetaryFormatter$fun parseToCents(raw: String): Long?</ID>
-    <ID>ReturnCount:LoginUseCase.kt$LoginUseCase$suspend operator fun invoke(username: String, password: String): AuthResult</ID>
+    <ID>ReturnCount:LoginUseCase.kt$LoginUseCase$suspend operator fun invoke( username: String, password: String, ): AuthResult</ID>
     <ID>ReturnCount:SportClientValidator.kt$SportClientValidator$fun validateLastPaymentMonth(month: String?): ValidationResult</ID>
     <ID>UnusedParameter:SportClientValidator.kt$SportClientValidator$method: PaymentMethod</ID>
   </CurrentIssues>
