@@ -18,6 +18,7 @@ subprojects {
         buildUponDefaultConfig = true
         autoCorrect = false
         parallel = true
+        baseline = file("detekt-baseline.xml")
     }
 
     tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {

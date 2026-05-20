@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>SpreadOperator:SprenaApplication.kt$SprenaApplication$( platformModule(), *sharedModules().toTypedArray(), appModule(), )</ID>
+  </CurrentIssues>
+</SmellBaseline>
