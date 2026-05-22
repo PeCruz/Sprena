@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    F1.1 — Regras de extração de dados (Android 12+).
+    Mesmo com allowBackup=false, declarar explicitamente para D2D transfer.
+    cloud-backup="false" + device-transfer="false" => nada sai do device.
+
+    Quando F1.3 adicionar DataStore com sessão criptografada, este arquivo
+    continua válido — DataStore fica em files/datastore/, já bloqueado.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>
