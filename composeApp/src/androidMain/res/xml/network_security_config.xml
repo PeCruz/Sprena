@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    F1.1 — Sprena network security baseline.
+    - cleartextTrafficPermitted=false: bloqueia HTTP em runtime.
+    - Sem domain-config: aplica a tudo (Firestore já é HTTPS por padrão).
+    - Quando F1.3 adicionar OAuth (Google Sign-In), `accounts.google.com`
+      continua HTTPS, não precisa override.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
