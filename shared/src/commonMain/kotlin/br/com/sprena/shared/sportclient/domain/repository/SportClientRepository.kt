@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.Flow
  * e é injetada via Koin no platformModule / shared DI.
  */
 interface SportClientRepository {
-
     /**
      * Observa todos os clientes em tempo real.
      * Emite uma nova lista sempre que houver mudanças no Firestore.

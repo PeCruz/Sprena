@@ -23,7 +23,10 @@ data class HomeUiState(
  * Eventos que a UI pode disparar.
  */
 sealed interface HomeUiEvent {
-    data class UserLoaded(val user: UserModel) : HomeUiEvent
+    data class UserLoaded(
+        val user: UserModel,
+    ) : HomeUiEvent
+
     data object OnRefresh : HomeUiEvent
 }
 
@@ -34,7 +37,6 @@ sealed interface HomeUiEvent {
  * UI observa [uiState] e emite eventos via [onEvent].
  */
 class HomeViewModel : ViewModel() {
-
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
@@ -46,25 +48,31 @@ class HomeViewModel : ViewModel() {
     }
 
     private fun handleUserLoaded(user: UserModel) {
-        _uiState.value = _uiState.value.copy(
-            userName = user.name,
-            userRole = user.role,
-            title = buildTitle(user.role),
-            subtitle = buildSubtitle(user.name, user.role),
-        )
+        _uiState.value =
+            _uiState.value.copy(
+                userName = user.name,
+                userRole = user.role,
+                title = buildTitle(user.role),
+                subtitle = buildSubtitle(user.name, user.role),
+            )
     }
 
-    private fun buildTitle(role: UserRole): String = when (role) {
-        UserRole.ADM -> "Painel Admin"
-        UserRole.MOD -> "Painel Moderador"
-        UserRole.CLIENT -> "Sprena"
-    }
+    private fun buildTitle(role: UserRole): String =
+        when (role) {
+            UserRole.ADM -> "Painel Admin"
+            UserRole.MOD -> "Painel Moderador"
+            UserRole.CLIENT -> "Sprena"
+        }
 
-    private fun buildSubtitle(name: String, role: UserRole): String = when (role) {
-        UserRole.ADM -> "Olá, $name! Acesso total ao sistema."
-        UserRole.MOD -> "Olá, $name! Gestão de eventos e visualizações."
-        UserRole.CLIENT -> "Olá, $name! Acompanhe suas atividades."
-    }
+    private fun buildSubtitle(
+        name: String,
+        role: UserRole,
+    ): String =
+        when (role) {
+            UserRole.ADM -> "Olá, $name! Acesso total ao sistema."
+            UserRole.MOD -> "Olá, $name! Gestão de eventos e visualizações."
+            UserRole.CLIENT -> "Olá, $name! Acompanhe suas atividades."
+        }
 
     private fun handleRefresh() {
         _uiState.value = _uiState.value.copy(isLoading = false)

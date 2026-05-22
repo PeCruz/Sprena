@@ -19,10 +19,11 @@ import org.koin.dsl.module
  *  2. O plugin `google-services` lê as credenciais automaticamente
  *  3. O applicationId deve ser `br.com.sprena` (registrado no Firebase Console)
  */
-fun platformModule() = module {
-    // Firebase Firestore instance
-    single<FirebaseFirestore> { Firebase.firestore }
+fun platformModule() =
+    module {
+        // Firebase Firestore instance
+        single<FirebaseFirestore> { Firebase.firestore }
 
-    // Repository bindings (interface → Firestore implementation)
-    single<SportClientRepository> { SportClientRepositoryImpl(firestore = get()) }
-}
+        // Repository bindings (interface → Firestore implementation)
+        single<SportClientRepository> { SportClientRepositoryImpl(firestore = get()) }
+    }

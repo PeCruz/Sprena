@@ -94,24 +94,23 @@ fun CreateTaskScreen(
     }
 
     // DatePicker state: bloqueia datas antes de hoje
-    val todayMillis = remember {
-        // epoch day 0 → usar o valor correto do dia atual em millis
-        val now = System.currentTimeMillis()
-        // Início do dia UTC de hoje
-        (now / 86_400_000L) * 86_400_000L
-    }
+    val todayMillis =
+        remember {
+            // epoch day 0 → usar o valor correto do dia atual em millis
+            val now = System.currentTimeMillis()
+            // Início do dia UTC de hoje
+            (now / 86_400_000L) * 86_400_000L
+        }
 
-    val datePickerState = rememberDatePickerState(
-        selectableDates = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                return utcTimeMillis >= todayMillis
-            }
+    val datePickerState =
+        rememberDatePickerState(
+            selectableDates =
+                object : SelectableDates {
+                    override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis >= todayMillis
 
-            override fun isSelectableYear(year: Int): Boolean {
-                return year >= 2024
-            }
-        },
-    )
+                    override fun isSelectableYear(year: Int): Boolean = year >= 2024
+                },
+        )
 
     Scaffold(
         topBar = {
@@ -140,19 +139,21 @@ fun CreateTaskScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
             )
         },
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .imePadding()
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .imePadding()
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState()),
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -262,9 +263,10 @@ fun CreateTaskScreen(
                         contentDescription = "Selecionar data",
                     )
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showDatePicker = true },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { showDatePicker = true },
                 enabled = false, // Disable typing; click opens picker
             )
 
@@ -375,14 +377,15 @@ fun CreateTaskScreen(
     }
 }
 
-private fun priorityLabel(priority: Int): String = when (priority) {
-    1 -> "1 — Muito Baixa"
-    2 -> "2 — Baixa"
-    3 -> "3 — Média"
-    4 -> "4 — Alta"
-    5 -> "5 — Urgente"
-    else -> "—"
-}
+private fun priorityLabel(priority: Int): String =
+    when (priority) {
+        1 -> "1 — Muito Baixa"
+        2 -> "2 — Baixa"
+        3 -> "3 — Média"
+        4 -> "4 — Alta"
+        5 -> "5 — Urgente"
+        else -> "—"
+    }
 
 /**
  * Converte epoch day (dias desde 1970-01-01) para uma string dd/MM/yyyy.

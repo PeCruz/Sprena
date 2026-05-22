@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.dp
 import br.com.sprena.core.ui.mask.CurrencyMaskTransformation
 import br.com.sprena.core.ui.mask.centsToDigitString
 import br.com.sprena.core.ui.mask.filterDigitsOnly
-import br.com.sprena.core.ui.mask.formatCurrencyDigits
 import br.com.sprena.core.ui.mask.parseCurrencyDigits
 import br.com.sprena.presentation.bar.BarClient
 import br.com.sprena.presentation.bar.BarItem
@@ -88,10 +87,11 @@ fun ClientDetailSheet(
         sheetState = sheetState,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .imePadding()
-                .padding(horizontal = 16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .imePadding()
+                    .padding(horizontal = 16.dp),
         ) {
             // --- Header: name + delete icon ---
             Row(
@@ -352,9 +352,10 @@ private fun AddItemForm(
 
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+            ),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             // --- Menu Dropdown ---
@@ -403,10 +404,11 @@ private fun AddItemForm(
                                     }
                                 },
                                 onClick = {
-                                    val selected = MenuItem(
-                                        name = cardapioItem.name,
-                                        priceCents = cardapioItem.priceCents,
-                                    )
+                                    val selected =
+                                        MenuItem(
+                                            name = cardapioItem.name,
+                                            priceCents = cardapioItem.priceCents,
+                                        )
                                     onMenuItemSelected(selected)
                                     priceDigits = centsToDigitString(cardapioItem.priceCents)
                                     menuExpanded = false
@@ -474,9 +476,10 @@ private fun ItemRow(
     onDecrement: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {

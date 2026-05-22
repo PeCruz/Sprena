@@ -14,7 +14,6 @@ import kotlin.test.assertTrue
  *  - Password: obrigatório, exatamente 6 dígitos numéricos
  */
 class LoginValidatorTest {
-
     // ── Username ─────────────────────────────────────────
 
     @Test

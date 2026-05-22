@@ -5,8 +5,12 @@ package br.com.sprena.shared.auth.domain.model
  */
 sealed interface AuthResult {
     /** Login bem-sucedido com dados do usuário. */
-    data class Success(val user: UserModel) : AuthResult
+    data class Success(
+        val user: UserModel,
+    ) : AuthResult
 
     /** Falha na autenticação. */
-    data class Error(val message: String) : AuthResult
+    data class Error(
+        val message: String,
+    ) : AuthResult
 }

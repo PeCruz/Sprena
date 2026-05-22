@@ -36,10 +36,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import br.com.sprena.core.ui.components.ThemeToggleButton
 import br.com.sprena.presentation.core.theme.ThemeViewModel
@@ -66,17 +66,19 @@ fun BarScreen(
                 actions = {
                     ThemeToggleButton(themeViewModel = themeViewModel)
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
             )
         },
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp),
         ) {
             // --- Search Input + Add Button ---
             Row(
@@ -142,11 +144,12 @@ fun BarScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = if (state.clients.isEmpty()) {
-                            "Nenhum cliente registrado"
-                        } else {
-                            "Nenhum cliente encontrado"
-                        },
+                        text =
+                            if (state.clients.isEmpty()) {
+                                "Nenhum cliente registrado"
+                            } else {
+                                "Nenhum cliente encontrado"
+                            },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -173,10 +176,11 @@ fun BarScreen(
 @Composable
 private fun ClientTableHeader() {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-            .padding(horizontal = 8.dp, vertical = 12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                .padding(horizontal = 8.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -219,10 +223,11 @@ private fun ClientTableRow(
     val isPaidOrZero = client.isPaid || totalCents == 0L
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 8.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(2f)) {
@@ -263,11 +268,12 @@ private fun ClientTableRow(
             Icon(
                 imageVector = if (isPaidOrZero) Icons.Default.Check else Icons.Default.Close,
                 contentDescription = if (isPaidOrZero) "Pago" else "Não pago",
-                tint = if (isPaidOrZero) {
-                    Color(0xFF4CAF50) // green
-                } else {
-                    Color(0xFFF44336) // red
-                },
+                tint =
+                    if (isPaidOrZero) {
+                        Color(0xFF4CAF50) // green
+                    } else {
+                        Color(0xFFF44336) // red
+                    },
             )
         }
     }

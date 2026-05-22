@@ -11,8 +11,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class KanbanViewModel : ViewModel(), MviViewModel<KanbanState, KanbanIntent, KanbanEffect> {
-
+class KanbanViewModel :
+    ViewModel(),
+    MviViewModel<KanbanState, KanbanIntent, KanbanEffect> {
     private var taskIdCounter = 0L
 
     private val _state = MutableStateFlow(KanbanState())
@@ -24,17 +25,19 @@ class KanbanViewModel : ViewModel(), MviViewModel<KanbanState, KanbanIntent, Kan
     override fun handleIntent(intent: KanbanIntent) {
         when (intent) {
             is KanbanIntent.LoadBoard -> {
-                val defaultColumns = listOf(
-                    KanbanColumn(id = "col_backlog", title = "Backlog"),
-                    KanbanColumn(id = "col_todo", title = "A Fazer"),
-                    KanbanColumn(id = "col_progress", title = "Em Progresso"),
-                    KanbanColumn(id = "col_done", title = "Concluido"),
-                )
-                _state.value = _state.value.copy(
-                    boardId = "board_default",
-                    columns = defaultColumns,
-                    isLoading = false,
-                )
+                val defaultColumns =
+                    listOf(
+                        KanbanColumn(id = "col_backlog", title = "Backlog"),
+                        KanbanColumn(id = "col_todo", title = "A Fazer"),
+                        KanbanColumn(id = "col_progress", title = "Em Progresso"),
+                        KanbanColumn(id = "col_done", title = "Concluido"),
+                    )
+                _state.value =
+                    _state.value.copy(
+                        boardId = "board_default",
+                        columns = defaultColumns,
+                        isLoading = false,
+                    )
                 recomputeFiltered()
             }
 
@@ -80,12 +83,13 @@ class KanbanViewModel : ViewModel(), MviViewModel<KanbanState, KanbanIntent, Kan
             }
 
             is KanbanIntent.TaskCreated -> {
-                val newTask = KanbanTask(
-                    id = "task_${++taskIdCounter}",
-                    columnId = "col_backlog",
-                    name = intent.name,
-                    priority = intent.priority,
-                )
+                val newTask =
+                    KanbanTask(
+                        id = "task_${++taskIdCounter}",
+                        columnId = "col_backlog",
+                        name = intent.name,
+                        priority = intent.priority,
+                    )
                 val tasks = _state.value.tasksByColumn.toMutableMap()
                 val backlogTasks = tasks["col_backlog"].orEmpty()
                 tasks["col_backlog"] = backlogTasks + newTask
@@ -112,18 +116,20 @@ class KanbanViewModel : ViewModel(), MviViewModel<KanbanState, KanbanIntent, Kan
                     }
                 }
                 // Add to target column with updated data
-                val updatedTask = KanbanTask(
-                    id = intent.taskId,
-                    columnId = intent.columnId,
-                    name = intent.name,
-                    priority = intent.priority,
-                )
+                val updatedTask =
+                    KanbanTask(
+                        id = intent.taskId,
+                        columnId = intent.columnId,
+                        name = intent.name,
+                        priority = intent.priority,
+                    )
                 val targetTasks = tasks[intent.columnId].orEmpty()
                 tasks[intent.columnId] = targetTasks + updatedTask
-                _state.value = _state.value.copy(
-                    tasksByColumn = tasks,
-                    selectedTask = null,
-                )
+                _state.value =
+                    _state.value.copy(
+                        tasksByColumn = tasks,
+                        selectedTask = null,
+                    )
                 recomputeFiltered()
             }
 
@@ -136,10 +142,11 @@ class KanbanViewModel : ViewModel(), MviViewModel<KanbanState, KanbanIntent, Kan
                         break
                     }
                 }
-                _state.value = _state.value.copy(
-                    tasksByColumn = tasks,
-                    selectedTask = null,
-                )
+                _state.value =
+                    _state.value.copy(
+                        tasksByColumn = tasks,
+                        selectedTask = null,
+                    )
                 recomputeFiltered()
             }
 
@@ -157,13 +164,14 @@ class KanbanViewModel : ViewModel(), MviViewModel<KanbanState, KanbanIntent, Kan
     private fun recomputeFiltered() {
         val s = _state.value
         val query = s.searchQuery.trim()
-        val filtered = if (query.isEmpty()) {
-            s.tasksByColumn
-        } else {
-            s.tasksByColumn.mapValues { (_, tasks) ->
-                tasks.filter { it.name.contains(query, ignoreCase = true) }
+        val filtered =
+            if (query.isEmpty()) {
+                s.tasksByColumn
+            } else {
+                s.tasksByColumn.mapValues { (_, tasks) ->
+                    tasks.filter { it.name.contains(query, ignoreCase = true) }
+                }
             }
-        }
         _state.value = s.copy(filteredTasksByColumn = filtered)
     }
 }

@@ -19,7 +19,6 @@ import kotlin.test.assertTrue
  * - Mês Pagamento: obrigatório, formato MM/YYYY
  */
 class SportClientValidatorTest {
-
     // =========================================================================
     // validateName — obrigatório, max 100 chars
     // =========================================================================
@@ -179,9 +178,10 @@ class SportClientValidatorTest {
     @Test
     fun `modalidade multiple modalities returns Valid`() {
         assertTrue(
-            SportClientValidator.validateModalidade(
-                listOf(SportModality.FUTEVOLEI, SportModality.BEACH_TENNIS, SportModality.VOLEI),
-            ).isValid,
+            SportClientValidator
+                .validateModalidade(
+                    listOf(SportModality.FUTEVOLEI, SportModality.BEACH_TENNIS, SportModality.VOLEI),
+                ).isValid,
         )
     }
 
@@ -333,29 +333,32 @@ class SportClientValidatorTest {
 
     @Test
     fun `cashAmount exceeds max returns invalid`() {
-        val result = SportClientValidator.validateCashAmount(
-            SportClientValidator.MAX_CASH_CENTS + 1,
-            PaymentMethod.WELLHUB,
-        )
+        val result =
+            SportClientValidator.validateCashAmount(
+                SportClientValidator.MAX_CASH_CENTS + 1,
+                PaymentMethod.WELLHUB,
+            )
         assertFalse(result.isValid)
         assertTrue(result.errorMessage!!.contains("100.000"))
     }
 
     @Test
     fun `cashAmount at max returns Valid`() {
-        val result = SportClientValidator.validateCashAmount(
-            SportClientValidator.MAX_CASH_CENTS,
-            PaymentMethod.WELLHUB,
-        )
+        val result =
+            SportClientValidator.validateCashAmount(
+                SportClientValidator.MAX_CASH_CENTS,
+                PaymentMethod.WELLHUB,
+            )
         assertTrue(result.isValid)
     }
 
     @Test
     fun `cashAmount exceeds max for CASH returns invalid`() {
-        val result = SportClientValidator.validateCashAmount(
-            SportClientValidator.MAX_CASH_CENTS + 1,
-            PaymentMethod.CASH,
-        )
+        val result =
+            SportClientValidator.validateCashAmount(
+                SportClientValidator.MAX_CASH_CENTS + 1,
+                PaymentMethod.CASH,
+            )
         assertFalse(result.isValid)
         assertTrue(result.errorMessage!!.contains("100.000"))
     }

@@ -12,7 +12,8 @@ import org.koin.dsl.module
  * - [AuthRepository] → [MockAuthRepository] (substituir por Firebase Auth futuramente)
  * - [LoginUseCase]
  */
-fun authModule() = module {
-    single<AuthRepository> { MockAuthRepository() }
-    factory { LoginUseCase(get()) }
-}
+fun authModule() =
+    module {
+        single<AuthRepository> { MockAuthRepository() }
+        factory { LoginUseCase(get()) }
+    }

@@ -14,7 +14,10 @@ import kotlinx.coroutines.launch
 /**
  * Minimal year+month pair to avoid adding kotlinx-datetime dependency.
  */
-data class YearMonth(val year: Int, val month: Int)
+data class YearMonth(
+    val year: Int,
+    val month: Int,
+)
 
 expect fun currentYearMonth(): YearMonth
 
@@ -22,7 +25,6 @@ class FinancialViewModel(
     private val clock: () -> YearMonth = { currentYearMonth() },
 ) : ViewModel(),
     MviViewModel<FinancialState, FinancialIntent, FinancialEffect> {
-
     private val _state = MutableStateFlow(FinancialState())
     override val state: StateFlow<FinancialState> = _state.asStateFlow()
 
@@ -30,9 +32,10 @@ class FinancialViewModel(
     override val effects: SharedFlow<FinancialEffect> = _effects.asSharedFlow()
 
     init {
-        _state.value = _state.value.copy(
-            periodLabel = computePeriodLabel(PeriodFilter.MONTHLY, 0),
-        )
+        _state.value =
+            _state.value.copy(
+                periodLabel = computePeriodLabel(PeriodFilter.MONTHLY, 0),
+            )
     }
 
     override fun handleIntent(intent: FinancialIntent) {
@@ -58,94 +61,108 @@ class FinancialViewModel(
                 val tx = intent.transaction
                 val s = _state.value
                 val newTransactions = listOf(tx) + s.transactions
-                recalculateAndUpdate(s.copy(
-                    transactions = newTransactions,
-                    isAddDialogVisible = false,
-                ))
+                recalculateAndUpdate(
+                    s.copy(
+                        transactions = newTransactions,
+                        isAddDialogVisible = false,
+                    ),
+                )
             }
 
             is FinancialIntent.EditTransactionClicked -> {
-                _state.value = _state.value.copy(
-                    isEditDialogVisible = true,
-                    editingTransactionId = intent.transactionId,
-                )
+                _state.value =
+                    _state.value.copy(
+                        isEditDialogVisible = true,
+                        editingTransactionId = intent.transactionId,
+                    )
             }
 
             is FinancialIntent.DismissEditDialog -> {
-                _state.value = _state.value.copy(
-                    isEditDialogVisible = false,
-                    editingTransactionId = null,
-                )
+                _state.value =
+                    _state.value.copy(
+                        isEditDialogVisible = false,
+                        editingTransactionId = null,
+                    )
             }
 
             is FinancialIntent.TransactionUpdated -> {
                 val updated = intent.transaction
                 val s = _state.value
-                val newTransactions = s.transactions.map { tx ->
-                    if (tx.id == updated.id) updated else tx
-                }
-                recalculateAndUpdate(s.copy(
-                    transactions = newTransactions,
-                    isEditDialogVisible = false,
-                    editingTransactionId = null,
-                ))
+                val newTransactions =
+                    s.transactions.map { tx ->
+                        if (tx.id == updated.id) updated else tx
+                    }
+                recalculateAndUpdate(
+                    s.copy(
+                        transactions = newTransactions,
+                        isEditDialogVisible = false,
+                        editingTransactionId = null,
+                    ),
+                )
             }
 
             is FinancialIntent.TransactionDeleted -> {
                 val s = _state.value
                 val newTransactions = s.transactions.filter { it.id != intent.transactionId }
-                recalculateAndUpdate(s.copy(
-                    transactions = newTransactions,
-                    isEditDialogVisible = false,
-                    editingTransactionId = null,
-                ))
+                recalculateAndUpdate(
+                    s.copy(
+                        transactions = newTransactions,
+                        isEditDialogVisible = false,
+                        editingTransactionId = null,
+                    ),
+                )
             }
 
             is FinancialIntent.PeriodFilterChanged -> {
                 val newFilter = intent.filter
-                val s = _state.value.copy(
-                    periodFilter = newFilter,
-                    periodOffset = 0,
-                    periodLabel = computePeriodLabel(newFilter, 0),
-                )
+                val s =
+                    _state.value.copy(
+                        periodFilter = newFilter,
+                        periodOffset = 0,
+                        periodLabel = computePeriodLabel(newFilter, 0),
+                    )
                 recalculateAndUpdate(s)
             }
 
             is FinancialIntent.PreviousPeriod -> {
                 val s = _state.value
                 val newOffset = s.periodOffset - 1
-                val updated = s.copy(
-                    periodOffset = newOffset,
-                    periodLabel = computePeriodLabel(s.periodFilter, newOffset),
-                )
+                val updated =
+                    s.copy(
+                        periodOffset = newOffset,
+                        periodLabel = computePeriodLabel(s.periodFilter, newOffset),
+                    )
                 recalculateAndUpdate(updated)
             }
 
             is FinancialIntent.NextPeriod -> {
                 val s = _state.value
                 val newOffset = s.periodOffset + 1
-                val updated = s.copy(
-                    periodOffset = newOffset,
-                    periodLabel = computePeriodLabel(s.periodFilter, newOffset),
-                )
+                val updated =
+                    s.copy(
+                        periodOffset = newOffset,
+                        periodLabel = computePeriodLabel(s.periodFilter, newOffset),
+                    )
                 recalculateAndUpdate(updated)
             }
 
             is FinancialIntent.JumpToDate -> {
                 val s = _state.value
                 val offset = computeOffsetForDate(s.periodFilter, intent.month, intent.year)
-                val updated = s.copy(
-                    periodOffset = offset,
-                    periodLabel = computePeriodLabel(s.periodFilter, offset),
-                )
+                val updated =
+                    s.copy(
+                        periodOffset = offset,
+                        periodLabel = computePeriodLabel(s.periodFilter, offset),
+                    )
                 recalculateAndUpdate(updated)
             }
 
             is FinancialIntent.LoadMoreTransactions -> {
                 val s = _state.value
-                _state.value = s.copy(
-                    visibleTransactionCount = s.visibleTransactionCount + FinancialState.PAGE_SIZE,
-                )
+                _state.value =
+                    s.copy(
+                        visibleTransactionCount = s.visibleTransactionCount + FinancialState.PAGE_SIZE,
+                    )
             }
         }
     }
@@ -157,22 +174,24 @@ class FinancialViewModel(
         val allIncome = s.transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.cents }
         val allExpense = s.transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.cents }
 
-        val filtered = s.transactions.filter { tx ->
-            transactionMatchesPeriod(tx, s.periodFilter, s.periodOffset)
-        }
+        val filtered =
+            s.transactions.filter { tx ->
+                transactionMatchesPeriod(tx, s.periodFilter, s.periodOffset)
+            }
         val filteredIncome = filtered.filter { it.type == TransactionType.INCOME }.sumOf { it.cents }
         val filteredExpense = filtered.filter { it.type == TransactionType.EXPENSE }.sumOf { it.cents }
 
-        _state.value = s.copy(
-            incomeCents = allIncome,
-            expenseCents = allExpense,
-            balanceCents = allIncome - allExpense,
-            filteredTransactions = filtered,
-            filteredIncomeCents = filteredIncome,
-            filteredExpenseCents = filteredExpense,
-            filteredBalanceCents = filteredIncome - filteredExpense,
-            visibleTransactionCount = FinancialState.PAGE_SIZE,
-        )
+        _state.value =
+            s.copy(
+                incomeCents = allIncome,
+                expenseCents = allExpense,
+                balanceCents = allIncome - allExpense,
+                filteredTransactions = filtered,
+                filteredIncomeCents = filteredIncome,
+                filteredExpenseCents = filteredExpense,
+                filteredBalanceCents = filteredIncome - filteredExpense,
+                visibleTransactionCount = FinancialState.PAGE_SIZE,
+            )
     }
 
     /**
@@ -217,7 +236,11 @@ class FinancialViewModel(
     /**
      * Computes the period offset needed to navigate to the given month/year.
      */
-    private fun computeOffsetForDate(filter: PeriodFilter, targetMonth: Int, targetYear: Int): Int {
+    private fun computeOffsetForDate(
+        filter: PeriodFilter,
+        targetMonth: Int,
+        targetYear: Int,
+    ): Int {
         val ym = clock()
         return when (filter) {
             PeriodFilter.MONTHLY -> {
@@ -241,12 +264,26 @@ class FinancialViewModel(
         }
     }
 
-    internal fun computePeriodLabel(filter: PeriodFilter, offset: Int): String {
+    internal fun computePeriodLabel(
+        filter: PeriodFilter,
+        offset: Int,
+    ): String {
         val ym = clock()
-        val monthNames = listOf(
-            "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-            "Jul", "Ago", "Set", "Out", "Nov", "Dez",
-        )
+        val monthNames =
+            listOf(
+                "Jan",
+                "Fev",
+                "Mar",
+                "Abr",
+                "Mai",
+                "Jun",
+                "Jul",
+                "Ago",
+                "Set",
+                "Out",
+                "Nov",
+                "Dez",
+            )
         return when (filter) {
             PeriodFilter.MONTHLY -> {
                 val totalMonths = ym.year * 12 + (ym.month - 1) + offset

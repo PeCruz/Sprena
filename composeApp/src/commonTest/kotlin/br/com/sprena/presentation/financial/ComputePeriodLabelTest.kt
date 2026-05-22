@@ -21,15 +21,17 @@ import kotlin.test.assertEquals
  *  - Meses-limite de cada trimestre/semestre
  */
 class ComputePeriodLabelTest {
-
     private val env = MainDispatcherEnv()
 
     @BeforeTest fun setUp() = env.install()
+
     @AfterTest fun tearDown() = env.uninstall()
 
     // Helper: cria VM com clock fixo para testar computePeriodLabel
-    private fun vmAt(year: Int, month: Int) =
-        FinancialViewModel(clock = { YearMonth(year, month) })
+    private fun vmAt(
+        year: Int,
+        month: Int,
+    ) = FinancialViewModel(clock = { YearMonth(year, month) })
 
     // ── MONTHLY ─────────────────────────────────────────
 
@@ -76,11 +78,21 @@ class ComputePeriodLabelTest {
     @Test
     fun `monthly all 12 months produce correct labels`() {
         val vm = vmAt(2026, 1)
-        val expected = listOf(
-            "Jan 2026", "Fev 2026", "Mar 2026", "Abr 2026",
-            "Mai 2026", "Jun 2026", "Jul 2026", "Ago 2026",
-            "Set 2026", "Out 2026", "Nov 2026", "Dez 2026",
-        )
+        val expected =
+            listOf(
+                "Jan 2026",
+                "Fev 2026",
+                "Mar 2026",
+                "Abr 2026",
+                "Mai 2026",
+                "Jun 2026",
+                "Jul 2026",
+                "Ago 2026",
+                "Set 2026",
+                "Out 2026",
+                "Nov 2026",
+                "Dez 2026",
+            )
         expected.forEachIndexed { index, label ->
             assertEquals(label, vm.computePeriodLabel(PeriodFilter.MONTHLY, index))
         }

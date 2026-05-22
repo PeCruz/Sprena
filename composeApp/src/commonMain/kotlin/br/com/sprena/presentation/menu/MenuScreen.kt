@@ -104,17 +104,19 @@ fun MenuScreen(
                 actions = {
                     ThemeToggleButton(themeViewModel = themeViewModel)
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
             )
         },
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp),
         ) {
             // --- Search Input + Add Button ---
             Row(
@@ -157,11 +159,12 @@ fun MenuScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = if (state.items.isEmpty()) {
-                            "Nenhum item no cardápio"
-                        } else {
-                            "Nenhum item encontrado"
-                        },
+                        text =
+                            if (state.items.isEmpty()) {
+                                "Nenhum item no cardápio"
+                            } else {
+                                "Nenhum item encontrado"
+                            },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -216,10 +219,11 @@ private fun MenuItemRow(
     onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 8.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -317,12 +321,13 @@ private fun AddMenuItemDialog(
                 priceError = priceResult.errorMessage
 
                 if (nameResult.isValid && priceResult.isValid && priceCents != null) {
-                    val item = MenuItem(
-                        id = generateId(),
-                        name = name.trim(),
-                        priceCents = priceCents,
-                        description = description.trim().ifBlank { null },
-                    )
+                    val item =
+                        MenuItem(
+                            id = generateId(),
+                            name = name.trim(),
+                            priceCents = priceCents,
+                            description = description.trim().ifBlank { null },
+                        )
                     onConfirm(item)
                 }
             }) {
@@ -447,11 +452,12 @@ private fun EditMenuItemDialog(
                 priceError = priceResult.errorMessage
 
                 if (nameResult.isValid && priceResult.isValid && priceCents != null) {
-                    val updated = item.copy(
-                        name = name.trim(),
-                        priceCents = priceCents,
-                        description = description.trim().ifBlank { null },
-                    )
+                    val updated =
+                        item.copy(
+                            name = name.trim(),
+                            priceCents = priceCents,
+                            description = description.trim().ifBlank { null },
+                        )
                     onUpdate(updated)
                 }
             }) {

@@ -13,7 +13,6 @@ import br.com.sprena.shared.auth.domain.validation.LoginValidator
 class LoginUseCase(
     private val authRepository: AuthRepository,
 ) {
-
     /**
      * Executa o login com [username] e [password].
      *
@@ -21,7 +20,10 @@ class LoginUseCase(
      * 2. Se válido, delega ao repositório
      * 3. Se inválido, retorna [AuthResult.Error] imediatamente
      */
-    suspend operator fun invoke(username: String, password: String): AuthResult {
+    suspend operator fun invoke(
+        username: String,
+        password: String,
+    ): AuthResult {
         val usernameResult = LoginValidator.validateUsername(username)
         if (!usernameResult.isValid) {
             return AuthResult.Error(usernameResult.errorMessage ?: "Usuário inválido")

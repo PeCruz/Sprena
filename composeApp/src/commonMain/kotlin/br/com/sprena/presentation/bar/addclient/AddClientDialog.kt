@@ -55,9 +55,10 @@ fun AddClientDialog(
         title = { Text("Novo Cliente") },
         text = {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
             ) {
                 // Name (obrigatório)
                 OutlinedTextField(

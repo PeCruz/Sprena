@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-and-test:
+    name: Build, Test, Static Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' && github.head_ref != 'master' }}
+
+      - name: Stub google-services.json
+        # google-services.json is not committed. CI creates a stub that satisfies
+        # the gms plugin during build — APIs are not exercised at compile time.
+        run: |
+          cat > composeApp/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "sprena-ci",
+              "storage_bucket": "sprena-ci.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+                  "android_client_info": { "package_name": "br.com.sprena" }
+                },
+                "oauth_client": [],
+                "api_key": [{ "current_key": "AIzaSy_CI_STUB_KEY_NOT_REAL_0000000000" }],
+                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+
+      - name: ktlint check
+        run: ./gradlew ktlintCheck --no-daemon
+
+      - name: detekt
+        # KMP root :detekt is NO-SOURCE — invoke per-source-set variant tasks
+        run: ./gradlew detektMetadataMain :composeApp:detektAndroidDebug :shared:detektAndroidDebug --no-daemon
+
+      - name: Unit tests
+        run: ./gradlew :composeApp:testDebugUnitTest :shared:testDebugUnitTest --no-daemon
+
+      - name: Android lint
+        run: ./gradlew :composeApp:lint --no-daemon
+
+      - name: Assemble debug
+        run: ./gradlew :composeApp:assembleDebug --no-daemon
+
+      - name: Upload reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-${{ github.run_id }}
+          path: |
+            **/build/reports/
+            **/build/test-results/
+          retention-days: 7

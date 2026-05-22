@@ -14,7 +14,6 @@ import kotlinx.coroutines.launch
 class ThemeViewModel :
     ViewModel(),
     MviViewModel<ThemeState, ThemeIntent, ThemeEffect> {
-
     private val _state = MutableStateFlow(ThemeState())
     override val state: StateFlow<ThemeState> = _state.asStateFlow()
 
@@ -31,11 +30,12 @@ class ThemeViewModel :
             }
 
             is ThemeIntent.Toggle -> {
-                val newMode = when (_state.value.mode) {
-                    ThemeMode.LIGHT -> ThemeMode.DARK
-                    ThemeMode.DARK -> ThemeMode.LIGHT
-                    ThemeMode.SYSTEM -> ThemeMode.DARK
-                }
+                val newMode =
+                    when (_state.value.mode) {
+                        ThemeMode.LIGHT -> ThemeMode.DARK
+                        ThemeMode.DARK -> ThemeMode.LIGHT
+                        ThemeMode.SYSTEM -> ThemeMode.DARK
+                    }
                 _state.value = _state.value.copy(mode = newMode)
                 viewModelScope.launch {
                     _effects.emit(ThemeEffect.ThemeChanged(newMode))

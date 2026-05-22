@@ -1,0 +1,10 @@
+# Sprena CODEOWNERS
+# Linha abaixo: tudo é revisado por @PeCruz
+*       @PeCruz
+
+# Configurações sensíveis exigem revisão extra (placeholder para quando o time crescer)
+/composeApp/build.gradle.kts        @PeCruz
+/shared/build.gradle.kts            @PeCruz
+/gradle/libs.versions.toml          @PeCruz
+/.github/                           @PeCruz
+/firestore.rules                    @PeCruz

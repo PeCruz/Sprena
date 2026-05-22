@@ -21,41 +21,44 @@ data class SportClientDto(
     val cashAmountCents: Long = 0L,
     val paymentHistory: List<String> = emptyList(),
 ) {
-
     /**
      * Converte o DTO para o modelo de domínio.
      *
      * @param id O ID do documento Firestore.
      */
-    fun toDomain(id: String): SportClientModel = SportClientModel(
-        id = id,
-        name = name,
-        apelido = apelido,
-        cpf = cpf,
-        phone = phone,
-        modalities = modalities.mapNotNull { name ->
-            runCatching { SportModality.valueOf(name) }.getOrNull()
-        }.ifEmpty { listOf(SportModality.FUTEVOLEI) },
-        attendance = attendance,
-        paymentMethod = PaymentMethod.valueOf(paymentMethod.ifBlank { PaymentMethod.CASH.name }),
-        cashAmountCents = cashAmountCents,
-        paymentHistory = paymentHistory,
-    )
+    fun toDomain(id: String): SportClientModel =
+        SportClientModel(
+            id = id,
+            name = name,
+            apelido = apelido,
+            cpf = cpf,
+            phone = phone,
+            modalities =
+                modalities
+                    .mapNotNull { name ->
+                        runCatching { SportModality.valueOf(name) }.getOrNull()
+                    }.ifEmpty { listOf(SportModality.FUTEVOLEI) },
+            attendance = attendance,
+            paymentMethod = PaymentMethod.valueOf(paymentMethod.ifBlank { PaymentMethod.CASH.name }),
+            cashAmountCents = cashAmountCents,
+            paymentHistory = paymentHistory,
+        )
 
     companion object {
         /**
          * Converte o modelo de domínio para DTO.
          */
-        fun fromDomain(model: SportClientModel): SportClientDto = SportClientDto(
-            name = model.name,
-            apelido = model.apelido,
-            cpf = model.cpf,
-            phone = model.phone,
-            modalities = model.modalities.map { it.name },
-            attendance = model.attendance,
-            paymentMethod = model.paymentMethod.name,
-            cashAmountCents = model.cashAmountCents,
-            paymentHistory = model.paymentHistory,
-        )
+        fun fromDomain(model: SportClientModel): SportClientDto =
+            SportClientDto(
+                name = model.name,
+                apelido = model.apelido,
+                cpf = model.cpf,
+                phone = model.phone,
+                modalities = model.modalities.map { it.name },
+                attendance = model.attendance,
+                paymentMethod = model.paymentMethod.name,
+                cashAmountCents = model.cashAmountCents,
+                paymentHistory = model.paymentHistory,
+            )
     }
 }

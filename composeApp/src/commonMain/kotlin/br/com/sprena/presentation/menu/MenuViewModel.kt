@@ -14,7 +14,6 @@ import kotlinx.coroutines.launch
 class MenuViewModel :
     ViewModel(),
     MviViewModel<MenuState, MenuIntent, MenuEffect> {
-
     private val _state = MutableStateFlow(MenuState())
     override val state: StateFlow<MenuState> = _state.asStateFlow()
 
@@ -38,10 +37,11 @@ class MenuViewModel :
 
             is MenuIntent.ItemAdded -> {
                 val updatedItems = _state.value.items + intent.item
-                _state.value = _state.value.copy(
-                    items = updatedItems,
-                    isAddDialogVisible = false,
-                )
+                _state.value =
+                    _state.value.copy(
+                        items = updatedItems,
+                        isAddDialogVisible = false,
+                    )
                 recomputeFiltered()
             }
 
@@ -54,22 +54,25 @@ class MenuViewModel :
             }
 
             is MenuIntent.ItemUpdated -> {
-                val updatedItems = _state.value.items.map { existing ->
-                    if (existing.id == intent.item.id) intent.item else existing
-                }
-                _state.value = _state.value.copy(
-                    items = updatedItems,
-                    selectedItem = null,
-                )
+                val updatedItems =
+                    _state.value.items.map { existing ->
+                        if (existing.id == intent.item.id) intent.item else existing
+                    }
+                _state.value =
+                    _state.value.copy(
+                        items = updatedItems,
+                        selectedItem = null,
+                    )
                 recomputeFiltered()
             }
 
             is MenuIntent.ItemDeleted -> {
                 val updatedItems = _state.value.items.filter { it.id != intent.itemId }
-                _state.value = _state.value.copy(
-                    items = updatedItems,
-                    selectedItem = null,
-                )
+                _state.value =
+                    _state.value.copy(
+                        items = updatedItems,
+                        selectedItem = null,
+                    )
                 recomputeFiltered()
             }
 
@@ -84,11 +87,12 @@ class MenuViewModel :
     private fun recomputeFiltered() {
         val query = _state.value.searchQuery
         val items = _state.value.items
-        val filtered = if (query.isBlank()) {
-            items
-        } else {
-            items.filter { it.name.contains(query, ignoreCase = true) }
-        }
+        val filtered =
+            if (query.isBlank()) {
+                items
+            } else {
+                items.filter { it.name.contains(query, ignoreCase = true) }
+            }
         _state.value = _state.value.copy(filteredItems = filtered)
     }
 }

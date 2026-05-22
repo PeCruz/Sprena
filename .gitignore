@@ -26,6 +26,11 @@ captures/
 
 # --- Kotlin ---
 *.class
+.kotlin/
+
+# --- Static Analysis ---
+# Configs and baselines are versioned. Only ignore generated reports.
+**/build/reports/
 
 # --- OS ---
 .DS_Store

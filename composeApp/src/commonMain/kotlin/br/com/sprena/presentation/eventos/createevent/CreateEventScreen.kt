@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -44,7 +45,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import br.com.sprena.presentation.eventos.EventCategory
 import br.com.sprena.presentation.eventos.formatEpochDay
@@ -113,19 +113,21 @@ fun CreateEventScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
             )
         },
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp)
-                .imePadding()
-                .verticalScroll(rememberScrollState()),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp)
+                    .imePadding()
+                    .verticalScroll(rememberScrollState()),
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -137,9 +139,10 @@ fun CreateEventScreen(
                 },
                 label = { Text("Nome do Evento *") },
                 isError = state.nameError != null,
-                supportingText = state.nameError?.let { error ->
-                    { Text(error, color = MaterialTheme.colorScheme.error) }
-                },
+                supportingText =
+                    state.nameError?.let { error ->
+                        { Text(error, color = MaterialTheme.colorScheme.error) }
+                    },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -264,19 +267,18 @@ private class PhoneOffsetMapping(
 /**
  * Aplica mascara de telefone brasileiro: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX.
  */
-internal fun applyPhoneMask(digits: String): String {
-    return buildString {
+internal fun applyPhoneMask(digits: String): String =
+    buildString {
         digits.forEachIndexed { i, c ->
             when (i) {
                 0 -> append("($c")
                 1 -> append("$c) ")
-                6 -> if (digits.length > 10) append("-$c") else append(c)
-                7 -> if (digits.length <= 10) append("-$c") else append(c)
+                6 -> if (digits.length <= 10) append("-$c") else append(c)
+                7 -> if (digits.length > 10) append("-$c") else append(c)
                 else -> append(c)
             }
         }
     }
-}
 
 /**
  * Dropdown para selecao de categoria (exclui REALIZADOS).
@@ -302,13 +304,15 @@ private fun CategoryDropdown(
             readOnly = true,
             label = { Text("Categoria *") },
             isError = isError,
-            supportingText = errorText?.let { error ->
-                { Text(error, color = MaterialTheme.colorScheme.error) }
-            },
+            supportingText =
+                errorText?.let { error ->
+                    { Text(error, color = MaterialTheme.colorScheme.error) }
+                },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(),
         )
         ExposedDropdownMenu(
             expanded = expanded,
@@ -342,9 +346,10 @@ private fun EventDateField(
 
     // Box with clickable overlay so tapping anywhere opens the picker
     androidx.compose.foundation.layout.Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { showDatePicker = true },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable { showDatePicker = true },
     ) {
         OutlinedTextField(
             value = dateEpochDay?.let { formatEpochDay(it) } ?: "",
@@ -353,9 +358,10 @@ private fun EventDateField(
             enabled = false,
             label = { Text("Data do Evento *") },
             isError = isError,
-            supportingText = errorText?.let { error ->
-                { Text(error, color = MaterialTheme.colorScheme.error) }
-            },
+            supportingText =
+                errorText?.let { error ->
+                    { Text(error, color = MaterialTheme.colorScheme.error) }
+                },
             trailingIcon = {
                 Icon(
                     imageVector = Icons.Default.DateRange,
@@ -363,26 +369,30 @@ private fun EventDateField(
                 )
             },
             modifier = Modifier.fillMaxWidth(),
-            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                disabledBorderColor = if (isError) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.outline
-                },
-                disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
+            colors =
+                androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledBorderColor =
+                        if (isError) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.outline
+                        },
+                    disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
         )
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = dateEpochDay?.let { it * 86_400_000L },
-            selectableDates = object : SelectableDates {
-                override fun isSelectableDate(utcTimeMillis: Long): Boolean = true
-            },
-        )
+        val datePickerState =
+            rememberDatePickerState(
+                initialSelectedDateMillis = dateEpochDay?.let { it * 86_400_000L },
+                selectableDates =
+                    object : SelectableDates {
+                        override fun isSelectableDate(utcTimeMillis: Long): Boolean = true
+                    },
+            )
 
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },

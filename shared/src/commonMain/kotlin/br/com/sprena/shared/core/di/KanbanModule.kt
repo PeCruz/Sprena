@@ -23,6 +23,7 @@ import org.koin.dsl.module
  * }
  * ```
  */
-val kanbanModule = module {
-    // TODO (Day 3+): adicionar dependências conforme features forem implementadas com TDD
-}
+val kanbanModule =
+    module {
+        // TODO (Day 3+): adicionar dependências conforme features forem implementadas com TDD
+    }

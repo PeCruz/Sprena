@@ -14,7 +14,6 @@ import kotlin.test.assertTrue
  *  - Description: opcional, máx 3000
  */
 class TransactionValidatorTest {
-
     // ── Name — obrigatório, máx 50 ──────────────────────
 
     @Test

@@ -10,7 +10,6 @@ import androidx.activity.enableEdgeToEdge
  * Delega toda a UI para o Compose via [App].
  */
 class MainActivity : ComponentActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

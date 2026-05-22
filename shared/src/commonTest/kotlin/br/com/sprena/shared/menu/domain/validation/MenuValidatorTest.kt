@@ -14,7 +14,6 @@ import kotlin.test.assertTrue
  * - validateMenuItemDescription: opcional, max 500 chars
  */
 class MenuValidatorTest {
-
     // =========================================================================
     // validateMenuItemName — obrigatório, max 100 chars
     // =========================================================================

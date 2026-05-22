@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -81,11 +80,12 @@ fun TaskDetailSheet(
         sheetState = sheetState,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .imePadding()
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .imePadding()
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState()),
         ) {
             // --- Header: title + delete icon ---
             Row(
@@ -228,14 +228,15 @@ fun TaskDetailSheet(
             // --- End Date (DatePicker) ---
             var showDatePicker by remember { mutableStateOf(false) }
             val todayMillis = remember { (System.currentTimeMillis() / 86_400_000L) * 86_400_000L }
-            val datePickerState = rememberDatePickerState(
-                selectableDates = object : SelectableDates {
-                    override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                        return utcTimeMillis >= todayMillis
-                    }
-                    override fun isSelectableYear(year: Int): Boolean = year >= 2024
-                },
-            )
+            val datePickerState =
+                rememberDatePickerState(
+                    selectableDates =
+                        object : SelectableDates {
+                            override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis >= todayMillis
+
+                            override fun isSelectableYear(year: Int): Boolean = year >= 2024
+                        },
+                )
 
             OutlinedTextField(
                 value = state.endEpochDay?.let { epochDayToDateString(it) } ?: "",
@@ -322,14 +323,15 @@ fun TaskDetailSheet(
 
 private val PRIORITY_OPTIONS = listOf(1, 2, 3, 4, 5)
 
-private fun priorityLabel(priority: Int): String = when (priority) {
-    1 -> "1 — Muito Baixa"
-    2 -> "2 — Baixa"
-    3 -> "3 — Média"
-    4 -> "4 — Alta"
-    5 -> "5 — Urgente"
-    else -> "—"
-}
+private fun priorityLabel(priority: Int): String =
+    when (priority) {
+        1 -> "1 — Muito Baixa"
+        2 -> "2 — Baixa"
+        3 -> "3 — Média"
+        4 -> "4 — Alta"
+        5 -> "5 — Urgente"
+        else -> "—"
+    }
 
 /**
  * Converte epoch day (dias desde 1970-01-01) para string dd/MM/yyyy.

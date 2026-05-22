@@ -16,8 +16,8 @@ import kotlinx.coroutines.launch
 
 class LoginViewModel(
     private val loginUseCase: LoginUseCase,
-) : ViewModel(), MviViewModel<LoginState, LoginIntent, LoginEffect> {
-
+) : ViewModel(),
+    MviViewModel<LoginState, LoginIntent, LoginEffect> {
     private val _state = MutableStateFlow(LoginState())
     override val state: StateFlow<LoginState> = _state.asStateFlow()
 
@@ -29,30 +29,35 @@ class LoginViewModel(
             is LoginIntent.UsernameChanged -> {
                 val clamped = intent.value.take(LoginValidator.USERNAME_MAX_LENGTH)
                 val validation = LoginValidator.validateUsername(clamped)
-                _state.value = _state.value.copy(
-                    username = clamped,
-                    usernameError = if (clamped.isEmpty()) null else validation.errorMessage,
-                    canSubmit = canSubmit(clamped, _state.value.password),
-                    authError = null,
-                )
+                _state.value =
+                    _state.value.copy(
+                        username = clamped,
+                        usernameError = if (clamped.isEmpty()) null else validation.errorMessage,
+                        canSubmit = canSubmit(clamped, _state.value.password),
+                        authError = null,
+                    )
             }
 
             is LoginIntent.PasswordChanged -> {
-                val digitsOnly = intent.value.filter { it.isDigit() }
-                    .take(LoginValidator.PASSWORD_LENGTH)
+                val digitsOnly =
+                    intent.value
+                        .filter { it.isDigit() }
+                        .take(LoginValidator.PASSWORD_LENGTH)
                 val validation = LoginValidator.validatePassword(digitsOnly)
-                _state.value = _state.value.copy(
-                    password = digitsOnly,
-                    passwordError = if (digitsOnly.isEmpty()) null else validation.errorMessage,
-                    canSubmit = canSubmit(_state.value.username, digitsOnly),
-                    authError = null,
-                )
+                _state.value =
+                    _state.value.copy(
+                        password = digitsOnly,
+                        passwordError = if (digitsOnly.isEmpty()) null else validation.errorMessage,
+                        canSubmit = canSubmit(_state.value.username, digitsOnly),
+                        authError = null,
+                    )
             }
 
             is LoginIntent.TogglePasswordVisibility -> {
-                _state.value = _state.value.copy(
-                    isPasswordVisible = !_state.value.isPasswordVisible,
-                )
+                _state.value =
+                    _state.value.copy(
+                        isPasswordVisible = !_state.value.isPasswordVisible,
+                    )
             }
 
             is LoginIntent.Submit -> handleSubmit()
@@ -65,11 +70,15 @@ class LoginViewModel(
         val pResult = LoginValidator.validatePassword(currentState.password)
 
         if (!uResult.isValid || !pResult.isValid) {
-            _state.value = currentState.copy(
-                usernameError = uResult.errorMessage,
-                passwordError = pResult.errorMessage,
-                authError = null,
-            )
+            _state.value =
+                currentState.copy(
+                    usernameError = uResult.errorMessage,
+                    passwordError = pResult.errorMessage,
+                    authError = null,
+                )
+            viewModelScope.launch {
+                _effects.emit(LoginEffect.ShowError("Dados inválidos"))
+            }
             return
         }
 
@@ -82,16 +91,21 @@ class LoginViewModel(
                     _effects.emit(LoginEffect.NavigateHome(result.user))
                 }
                 is AuthResult.Error -> {
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        authError = result.message,
-                    )
+                    _state.value =
+                        _state.value.copy(
+                            isLoading = false,
+                            authError = result.message,
+                        )
+                    _effects.emit(LoginEffect.ShowError(result.message))
                 }
             }
         }
     }
 
-    private fun canSubmit(username: String, password: String): Boolean =
+    private fun canSubmit(
+        username: String,
+        password: String,
+    ): Boolean =
         LoginValidator.validateUsername(username).isValid &&
             LoginValidator.validatePassword(password).isValid
 }

@@ -14,8 +14,8 @@ import kotlinx.coroutines.launch
 
 class CreateTaskViewModel(
     private val today: () -> Long = { 0L },
-) : ViewModel(), MviViewModel<CreateTaskState, CreateTaskIntent, CreateTaskEffect> {
-
+) : ViewModel(),
+    MviViewModel<CreateTaskState, CreateTaskIntent, CreateTaskEffect> {
     private val _state = MutableStateFlow(CreateTaskState(startEpochDay = today()))
     override val state: StateFlow<CreateTaskState> = _state.asStateFlow()
 
@@ -90,10 +90,11 @@ class CreateTaskViewModel(
 
     private fun updateState(transform: CreateTaskState.() -> CreateTaskState) {
         val newState = _state.value.transform()
-        _state.value = newState.copy(
-            canSubmit = computeCanSubmit(newState),
-            hasUnsavedChanges = computeHasUnsavedChanges(newState),
-        )
+        _state.value =
+            newState.copy(
+                canSubmit = computeCanSubmit(newState),
+                hasUnsavedChanges = computeHasUnsavedChanges(newState),
+            )
     }
 
     private fun computeCanSubmit(s: CreateTaskState): Boolean =

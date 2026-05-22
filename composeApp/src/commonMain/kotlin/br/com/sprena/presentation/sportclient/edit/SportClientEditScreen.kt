@@ -38,7 +38,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -78,28 +77,41 @@ import br.com.sprena.shared.sportclient.domain.validation.SportModality
 // =========================================================================
 
 private val GradientStart = Color(0xFF0077B6) // Primary
-private val GradientEnd = Color(0xFF0353A4)   // Secondary
+private val GradientEnd = Color(0xFF0353A4) // Secondary
 
 // =========================================================================
 // Label helpers
 // =========================================================================
 
-private fun paymentMethodLabel(method: PaymentMethod): String = when (method) {
-    PaymentMethod.WELLHUB -> "Wellhub"
-    PaymentMethod.TOTALPASS -> "TotalPass"
-    PaymentMethod.CASH -> "Cash"
-}
+private fun paymentMethodLabel(method: PaymentMethod): String =
+    when (method) {
+        PaymentMethod.WELLHUB -> "Wellhub"
+        PaymentMethod.TOTALPASS -> "TotalPass"
+        PaymentMethod.CASH -> "Cash"
+    }
 
-private fun modalityLabel(modality: SportModality): String = when (modality) {
-    SportModality.FUTEVOLEI -> "Futevôlei"
-    SportModality.BEACH_TENNIS -> "Beach Tennis"
-    SportModality.VOLEI -> "Vôlei"
-}
+private fun modalityLabel(modality: SportModality): String =
+    when (modality) {
+        SportModality.FUTEVOLEI -> "Futevôlei"
+        SportModality.BEACH_TENNIS -> "Beach Tennis"
+        SportModality.VOLEI -> "Vôlei"
+    }
 
-private val MONTH_NAMES = listOf(
-    "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-    "Jul", "Ago", "Set", "Out", "Nov", "Dez",
-)
+private val MONTH_NAMES =
+    listOf(
+        "Jan",
+        "Fev",
+        "Mar",
+        "Abr",
+        "Mai",
+        "Jun",
+        "Jul",
+        "Ago",
+        "Set",
+        "Out",
+        "Nov",
+        "Dez",
+    )
 
 // =========================================================================
 // Edit Screen
@@ -138,16 +150,18 @@ fun SportClientEditScreen(
 
     if (showMonthPicker) {
         val (defaultYear, defaultMonth) = currentYearMonth()
-        val initMonth = if (lastPaymentMonth.isNotBlank()) {
-            lastPaymentMonth.substringBefore("/").toIntOrNull() ?: defaultMonth
-        } else {
-            defaultMonth
-        }
-        val initYear = if (lastPaymentMonth.isNotBlank()) {
-            lastPaymentMonth.substringAfter("/").toIntOrNull() ?: defaultYear
-        } else {
-            defaultYear
-        }
+        val initMonth =
+            if (lastPaymentMonth.isNotBlank()) {
+                lastPaymentMonth.substringBefore("/").toIntOrNull() ?: defaultMonth
+            } else {
+                defaultMonth
+            }
+        val initYear =
+            if (lastPaymentMonth.isNotBlank()) {
+                lastPaymentMonth.substringAfter("/").toIntOrNull() ?: defaultYear
+            } else {
+                defaultYear
+            }
         MonthYearPickerDialog(
             initialMonth = initMonth,
             initialYear = initYear,
@@ -190,17 +204,24 @@ fun SportClientEditScreen(
         val cashAmountCents = parseCurrencyDigits(cashDigits)
         var cashValid = true
         if (selectedPayment != null) {
-            val cashResult = SportClientValidator.validateCashAmount(
-                cashAmountCents,
-                selectedPayment!!,
-            )
+            val cashResult =
+                SportClientValidator.validateCashAmount(
+                    cashAmountCents,
+                    selectedPayment!!,
+                )
             cashError = cashResult.errorMessage
             cashValid = cashResult.isValid
         }
 
-        if (nameResult.isValid && apelidoResult.isValid && cpfResult.isValid &&
-            phoneResult.isValid && modalityResult.isValid && attendanceResult.isValid &&
-            paymentResult.isValid && paymentHistory.isNotEmpty() && cashValid
+        if (nameResult.isValid &&
+            apelidoResult.isValid &&
+            cpfResult.isValid &&
+            phoneResult.isValid &&
+            modalityResult.isValid &&
+            attendanceResult.isValid &&
+            paymentResult.isValid &&
+            paymentHistory.isNotEmpty() &&
+            cashValid
         ) {
             onSave(
                 client.copy(
@@ -231,44 +252,51 @@ fun SportClientEditScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                ),
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                    ),
             )
         },
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .imePadding(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .imePadding(),
         ) {
             // --- Gradient header with avatar ---
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(GradientStart, GradientEnd),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .background(
+                            brush =
+                                Brush.verticalGradient(
+                                    colors = listOf(GradientStart, GradientEnd),
+                                ),
                         ),
-                    ),
                 contentAlignment = Alignment.BottomCenter,
             ) {
                 // Avatar
                 Box(
-                    modifier = Modifier
-                        .offset(y = 36.dp)
-                        .size(72.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    modifier =
+                        Modifier
+                            .offset(y = 36.dp)
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center,
                 ) {
-                    val initials = name.trim()
-                        .split(" ")
-                        .filter { it.isNotBlank() }
-                        .take(2)
-                        .joinToString("") { it.first().uppercase() }
-                        .ifEmpty { "?" }
+                    val initials =
+                        name
+                            .trim()
+                            .split(" ")
+                            .filter { it.isNotBlank() }
+                            .take(2)
+                            .joinToString("") { it.first().uppercase() }
+                            .ifEmpty { "?" }
                     Text(
                         text = initials,
                         style = MaterialTheme.typography.headlineSmall,
@@ -282,16 +310,20 @@ fun SportClientEditScreen(
 
             // --- Form content ---
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp),
             ) {
                 // --- Nome ---
                 EditField(
                     value = name,
-                    onValueChange = { name = it; nameError = null },
+                    onValueChange = {
+                        name = it
+                        nameError = null
+                    },
                     label = "Nome completo *",
                     icon = Icons.Default.Person,
                     error = nameError,
@@ -300,7 +332,10 @@ fun SportClientEditScreen(
                 // --- Apelido ---
                 EditField(
                     value = apelido,
-                    onValueChange = { apelido = it; apelidoError = null },
+                    onValueChange = {
+                        apelido = it
+                        apelidoError = null
+                    },
                     label = "Apelido",
                     icon = Icons.Default.Person,
                     error = apelidoError,
@@ -309,7 +344,10 @@ fun SportClientEditScreen(
                 // --- CPF ---
                 EditField(
                     value = cpfDigits,
-                    onValueChange = { cpfDigits = filterDigitsOnly(it, 11); cpfError = null },
+                    onValueChange = {
+                        cpfDigits = filterDigitsOnly(it, 11)
+                        cpfError = null
+                    },
                     label = "CPF *",
                     icon = Icons.Default.Person,
                     error = cpfError,
@@ -320,7 +358,10 @@ fun SportClientEditScreen(
                 // --- Telefone ---
                 EditField(
                     value = phoneDigits,
-                    onValueChange = { phoneDigits = filterDigitsOnly(it, 11); phoneError = null },
+                    onValueChange = {
+                        phoneDigits = filterDigitsOnly(it, 11)
+                        phoneError = null
+                    },
                     label = "Telefone *",
                     icon = Icons.Default.Phone,
                     error = phoneError,
@@ -339,11 +380,12 @@ fun SportClientEditScreen(
                         FilterChip(
                             selected = modality in selectedModalities,
                             onClick = {
-                                selectedModalities = if (modality in selectedModalities) {
-                                    selectedModalities - modality
-                                } else {
-                                    selectedModalities + modality
-                                }
+                                selectedModalities =
+                                    if (modality in selectedModalities) {
+                                        selectedModalities - modality
+                                    } else {
+                                        selectedModalities + modality
+                                    }
                                 modalityError = null
                             },
                             label = { Text(modalityLabel(modality)) },
@@ -361,7 +403,10 @@ fun SportClientEditScreen(
                     (1..4).forEach { freq ->
                         FilterChip(
                             selected = selectedAttendance == freq,
-                            onClick = { selectedAttendance = freq; attendanceError = null },
+                            onClick = {
+                                selectedAttendance = freq
+                                attendanceError = null
+                            },
                             label = { Text("${freq}x") },
                         )
                     }
@@ -392,7 +437,10 @@ fun SportClientEditScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = cashDigits,
-                        onValueChange = { cashDigits = filterDigitsOnly(it, 10); cashError = null },
+                        onValueChange = {
+                            cashDigits = filterDigitsOnly(it, 10)
+                            cashError = null
+                        },
                         label = { Text("Valor (R$) *") },
                         leadingIcon = {
                             Text(
@@ -437,18 +485,20 @@ fun SportClientEditScreen(
                             )
                         },
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showMonthPicker = true },
-                        interactionSource = remember { MutableInteractionSource() }.also { source ->
-                            LaunchedEffect(source) {
-                                source.interactions.collect { interaction ->
-                                    if (interaction is PressInteraction.Release) {
-                                        showMonthPicker = true
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { showMonthPicker = true },
+                        interactionSource =
+                            remember { MutableInteractionSource() }.also { source ->
+                                LaunchedEffect(source) {
+                                    source.interactions.collect { interaction ->
+                                        if (interaction is PressInteraction.Release) {
+                                            showMonthPicker = true
+                                        }
                                     }
                                 }
-                            }
-                        },
+                            },
                     )
                 }
 
@@ -487,14 +537,16 @@ fun SportClientEditScreen(
             // --- Save button (fixed at bottom) ---
             Button(
                 onClick = onSaveClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
-                    .height(48.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                        .height(48.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = GradientStart,
-                ),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = GradientStart,
+                    ),
             ) {
                 Text(
                     text = "Salvar",
@@ -555,11 +607,12 @@ private fun ChipSection(
     Text(
         text = label,
         style = MaterialTheme.typography.bodySmall,
-        color = if (error != null) {
-            MaterialTheme.colorScheme.error
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        },
+        color =
+            if (error != null) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
     )
     Spacer(modifier = Modifier.height(4.dp))
     Row(

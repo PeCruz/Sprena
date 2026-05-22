@@ -18,11 +18,12 @@ fun App() {
         val themeState by themeViewModel.state.collectAsState()
         val systemDark = isSystemInDarkTheme()
 
-        val isDark = when (themeState.mode) {
-            ThemeMode.LIGHT -> false
-            ThemeMode.DARK -> true
-            ThemeMode.SYSTEM -> systemDark
-        }
+        val isDark =
+            when (themeState.mode) {
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+                ThemeMode.SYSTEM -> systemDark
+            }
 
         SprenaTheme(darkTheme = isDark) {
             NavGraph(themeViewModel = themeViewModel)

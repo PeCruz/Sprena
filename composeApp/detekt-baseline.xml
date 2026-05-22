@@ -1,0 +1,270 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>ComplexCondition:NavGraph.kt$editEventId != null &amp;&amp; editEventName != null &amp;&amp; editEventCategory != null &amp;&amp; editEventDate != null</ID>
+    <ID>ComplexCondition:SportClientEditScreen.kt$nameResult.isValid &amp;&amp; apelidoResult.isValid &amp;&amp; cpfResult.isValid &amp;&amp; phoneResult.isValid &amp;&amp; modalityResult.isValid &amp;&amp; attendanceResult.isValid &amp;&amp; paymentResult.isValid &amp;&amp; paymentHistory.isNotEmpty() &amp;&amp; cashValid</ID>
+    <ID>ComplexCondition:SportClientScreen.kt$!nameResult.isValid || !apelidoResult.isValid || !cpfResult.isValid || !phoneResult.isValid || !modalityResult.isValid || !attendanceResult.isValid || !paymentResult.isValid || !lastMonthResult.isValid</ID>
+    <ID>ComplexCondition:TaskDetailViewModel.kt$TaskDetailViewModel$nameValid &amp;&amp; priorityValid &amp;&amp; descValid &amp;&amp; commentValid</ID>
+    <ID>CyclomaticComplexMethod:AddTaskDialog.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AddTaskDialog( viewModel: AddTaskViewModel, onDismiss: () -&gt; Unit, onTaskCreated: () -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:AddTransactionDialog.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AddTransactionDialog( viewModel: AddTransactionViewModel, categories: List&lt;String&gt; = emptyList(), isEditMode: Boolean = false, onDismiss: () -&gt; Unit, onTransactionCreated: (FinancialTransactionSummary) -&gt; Unit, onTransactionUpdated: (FinancialTransactionSummary) -&gt; Unit = {}, onTransactionDeleted: () -&gt; Unit = {}, )</ID>
+    <ID>CyclomaticComplexMethod:AddTransactionViewModel.kt$AddTransactionViewModel$override fun handleIntent(intent: AddTransactionIntent)</ID>
+    <ID>CyclomaticComplexMethod:BarViewModel.kt$BarViewModel$override fun handleIntent(intent: BarIntent)</ID>
+    <ID>CyclomaticComplexMethod:ClientDetailViewModel.kt$ClientDetailViewModel$override fun handleIntent(intent: ClientDetailIntent)</ID>
+    <ID>CyclomaticComplexMethod:CreateEventViewModel.kt$CreateEventViewModel$override fun handleIntent(intent: CreateEventIntent)</ID>
+    <ID>CyclomaticComplexMethod:CreateTaskScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun CreateTaskScreen( viewModel: CreateTaskViewModel, themeViewModel: ThemeViewModel, onNavigateBack: () -&gt; Unit, onNavigateSettings: () -&gt; Unit, onTaskCreated: (name: String, priority: Int) -&gt; Unit = { _, _ -&gt; }, onPickFile: (() -&gt; Unit)? = null, )</ID>
+    <ID>CyclomaticComplexMethod:EventosViewModel.kt$EventosViewModel$override fun handleIntent(intent: EventosIntent)</ID>
+    <ID>CyclomaticComplexMethod:FinancialViewModel.kt$FinancialViewModel$override fun handleIntent(intent: FinancialIntent)</ID>
+    <ID>CyclomaticComplexMethod:KanbanViewModel.kt$KanbanViewModel$override fun handleIntent(intent: KanbanIntent)</ID>
+    <ID>CyclomaticComplexMethod:NavGraph.kt$@Composable fun NavGraph(themeViewModel: ThemeViewModel)</ID>
+    <ID>CyclomaticComplexMethod:NavGraph.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable private fun HomeWithBottomNav( navController: NavHostController, themeViewModel: ThemeViewModel, menuViewModel: MenuViewModel, categoryViewModel: CategoryViewModel, authenticatedUser: UserModel? = null, createdTaskName: String? = null, createdTaskPriority: Int? = null, onTaskConsumed: () -&gt; Unit = {}, createdEventId: String? = null, createdEventName: String? = null, createdEventCategory: String? = null, createdEventDate: Long? = null, createdEventContact: String? = null, createdEventDescription: String? = null, onEventConsumed: () -&gt; Unit = {}, )</ID>
+    <ID>CyclomaticComplexMethod:SportClientEditScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SportClientEditScreen( client: SportClient, onNavigateBack: () -&gt; Unit, onSave: (SportClient) -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:SportClientScreen.kt$@Composable private fun AddSportClientDialog( onDismiss: () -&gt; Unit, onConfirm: (SportClient) -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:SportClientScreen.kt$@Composable private fun SportClientFormFields( name: String, onNameChange: (String) -&gt; Unit, nameError: String?, apelido: String, onApelidoChange: (String) -&gt; Unit, apelidoError: String?, cpfDigits: String, onCpfChange: (String) -&gt; Unit, cpfError: String?, phoneDigits: String, onPhoneChange: (String) -&gt; Unit, phoneError: String?, selectedModalities: Set&lt;SportModality&gt;, onModalityToggle: (SportModality) -&gt; Unit, modalityError: String?, selectedAttendance: Int?, onAttendanceChange: (Int) -&gt; Unit, attendanceError: String?, selectedPayment: PaymentMethod?, onPaymentChange: (PaymentMethod) -&gt; Unit, paymentError: String?, cashDigits: String, onCashChange: (String) -&gt; Unit, cashError: String?, lastPaymentMonthDisplay: String, onLastPaymentMonthClick: () -&gt; Unit, lastPaymentMonthError: String?, paymentHistory: List&lt;String&gt; = emptyList(), onRemovePaymentMonth: (String) -&gt; Unit = {}, )</ID>
+    <ID>CyclomaticComplexMethod:TaskDetailSheet.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun TaskDetailSheet( viewModel: TaskDetailViewModel, sheetState: SheetState, onDismiss: () -&gt; Unit, onTaskUpdated: (TaskDetailEffect.TaskUpdated) -&gt; Unit, onTaskDeleted: (String) -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:TaskDetailViewModel.kt$TaskDetailViewModel$override fun handleIntent(intent: TaskDetailIntent)</ID>
+    <ID>ForEachOnRange:SportClientEditScreen.kt$1..4</ID>
+    <ID>ForEachOnRange:SportClientScreen.kt$1..4</ID>
+    <ID>ForbiddenComment:AddTaskDialog.kt$// TODO: integrar com DatePicker nativo (platform-specific)</ID>
+    <ID>ForbiddenComment:AddTaskDialog.kt$// TODO: integrar com file picker nativo</ID>
+    <ID>ForbiddenComment:FinancialScreen.kt$/* TODO: snackbar */</ID>
+    <ID>ForbiddenComment:FinancialViewModel.kt$FinancialViewModel$// TODO: integrar com Firebase Firestore para carregar transações reais</ID>
+    <ID>FunctionNaming:AddClientDialog.kt$@Composable fun AddClientDialog( viewModel: AddClientViewModel, onDismiss: () -&gt; Unit, onClientCreated: (BarClient) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:AddTaskDialog.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AddTaskDialog( viewModel: AddTaskViewModel, onDismiss: () -&gt; Unit, onTaskCreated: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:AddTransactionDialog.kt$@Composable private fun MonthPickerDialog( initialMonth: Int, initialYear: Int, onDismiss: () -&gt; Unit, onConfirm: (month: Int, year: Int) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:AddTransactionDialog.kt$@Composable private fun YearPickerDialog( initialYear: Int, onDismiss: () -&gt; Unit, onConfirm: (year: Int) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:AddTransactionDialog.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AddTransactionDialog( viewModel: AddTransactionViewModel, categories: List&lt;String&gt; = emptyList(), isEditMode: Boolean = false, onDismiss: () -&gt; Unit, onTransactionCreated: (FinancialTransactionSummary) -&gt; Unit, onTransactionUpdated: (FinancialTransactionSummary) -&gt; Unit = {}, onTransactionDeleted: () -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:App.kt$@Composable fun App()</ID>
+    <ID>FunctionNaming:BarScreen.kt$@Composable private fun ClientTableHeader()</ID>
+    <ID>FunctionNaming:BarScreen.kt$@Composable private fun ClientTableRow( client: BarClient, onClick: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:BarScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun BarScreen( viewModel: BarViewModel, themeViewModel: ThemeViewModel, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:CategoryScreen.kt$@Composable private fun AddCategoryDialog( onDismiss: () -&gt; Unit, onConfirm: (String) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:CategoryScreen.kt$@Composable private fun CategoryCard( name: String, onClick: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:CategoryScreen.kt$@Composable private fun EditCategoryDialog( currentName: String, onDismiss: () -&gt; Unit, onRename: (String, String) -&gt; Unit, onDelete: (String) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:CategoryScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun CategoryScreen( viewModel: CategoryViewModel, themeViewModel: ThemeViewModel, modifier: Modifier = Modifier, onNavigateBack: () -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:ClientDetailSheet.kt$@Composable private fun ItemRow( item: BarItem, onIncrement: () -&gt; Unit, onDecrement: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:ClientDetailSheet.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun ClientDetailSheet( viewModel: ClientDetailViewModel, sheetState: SheetState, menuItems: List&lt;CardapioItem&gt; = emptyList(), onDismiss: () -&gt; Unit, onClientUpdated: (BarClient) -&gt; Unit, onClientDeleted: (String) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:ClientDetailSheet.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable private fun AddItemForm( state: ClientDetailState, menuItems: List&lt;CardapioItem&gt; = emptyList(), onMenuItemSelected: (MenuItem) -&gt; Unit, onNameChanged: (String) -&gt; Unit, onPriceChanged: (Long?) -&gt; Unit, onSave: () -&gt; Unit, onCancel: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:CreateEventScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun CreateEventScreen( viewModel: CreateEventViewModel, modifier: Modifier = Modifier, onNavigateBack: () -&gt; Unit = {}, onEventSaved: ( eventId: String?, name: String, category: EventCategory, dateEpochDay: Long, contact: String?, description: String?, ) -&gt; Unit = { _, _, _, _, _, _ -&gt; }, )</ID>
+    <ID>FunctionNaming:CreateEventScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable private fun CategoryDropdown( selected: EventCategory?, isError: Boolean, errorText: String?, onCategorySelected: (EventCategory) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:CreateEventScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable private fun EventDateField( dateEpochDay: Long?, isError: Boolean, errorText: String?, onDateSelected: (Long) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:CreateTaskScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun CreateTaskScreen( viewModel: CreateTaskViewModel, themeViewModel: ThemeViewModel, onNavigateBack: () -&gt; Unit, onNavigateSettings: () -&gt; Unit, onTaskCreated: (name: String, priority: Int) -&gt; Unit = { _, _ -&gt; }, onPickFile: (() -&gt; Unit)? = null, )</ID>
+    <ID>FunctionNaming:EventosScreen.kt$@Composable private fun CategoryBadge( category: EventCategory, isCompleted: Boolean = false, )</ID>
+    <ID>FunctionNaming:EventosScreen.kt$@Composable private fun EventCard( event: Event, isCompleted: Boolean, onClick: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:EventosScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun EventosScreen( viewModel: EventosViewModel, themeViewModel: ThemeViewModel, modifier: Modifier = Modifier, onNavigateCreateEvent: () -&gt; Unit = {}, onNavigateEditEvent: (Event) -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:EventosScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable private fun FilterRow( categoryFilter: EventCategory?, filterMonth: Int, filterYear: Int, onCategoryFilterChanged: (EventCategory?) -&gt; Unit, onMonthBack: () -&gt; Unit, onMonthForward: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:FinancialScreen.kt$@Composable private fun DashboardCard( label: String, valueCents: Long, color: Color, backgroundColor: Color, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:FinancialScreen.kt$@Composable private fun PeriodFilterRow( selected: PeriodFilter, onFilterChanged: (PeriodFilter) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:FinancialScreen.kt$@Composable private fun PeriodNavigator( label: String, onPrevious: () -&gt; Unit, onNext: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:FinancialScreen.kt$@Composable private fun TotalItem( label: String, valueCents: Long, color: Color, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:FinancialScreen.kt$@Composable private fun TotalsRow( incomeCents: Long, expenseCents: Long, )</ID>
+    <ID>FunctionNaming:FinancialScreen.kt$@Composable private fun TransactionCard( tx: FinancialTransactionSummary, onClick: () -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:FinancialScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun FinancialScreen( viewModel: FinancialViewModel, themeViewModel: ThemeViewModel, modifier: Modifier = Modifier, onAddTransactionDialog: () -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:HomeScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun HomeScreen(viewModel: HomeViewModel = koinViewModel())</ID>
+    <ID>FunctionNaming:KanbanScreen.kt$@Composable private fun DraggableTaskCard( task: KanbanTask, columnIndex: Int, allColumns: List&lt;KanbanColumn&gt;, onClick: () -&gt; Unit, onDropToColumn: (String) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:KanbanScreen.kt$@Composable private fun KanbanColumnCard( column: KanbanColumn, allColumns: List&lt;KanbanColumn&gt;, tasks: List&lt;KanbanTask&gt;, onTaskClick: (KanbanTask) -&gt; Unit, onTaskDroppedToColumn: (KanbanTask, String) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:KanbanScreen.kt$@Composable private fun PriorityBadge(priority: Int)</ID>
+    <ID>FunctionNaming:KanbanScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun KanbanScreen( viewModel: KanbanViewModel, themeViewModel: ThemeViewModel, modifier: Modifier = Modifier, onNavigateCreateTask: () -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:LoginScreen.kt$@Composable fun LoginScreen( viewModel: LoginViewModel, themeViewModel: ThemeViewModel, onNavigateHome: (UserModel) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:MenuScreen.kt$@Composable private fun AddMenuItemDialog( onDismiss: () -&gt; Unit, onConfirm: (MenuItem) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:MenuScreen.kt$@Composable private fun EditMenuItemDialog( item: MenuItem, onDismiss: () -&gt; Unit, onUpdate: (MenuItem) -&gt; Unit, onDelete: (String) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:MenuScreen.kt$@Composable private fun MenuItemRow( item: MenuItem, onClick: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:MenuScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun MenuScreen( viewModel: MenuViewModel, themeViewModel: ThemeViewModel, modifier: Modifier = Modifier, onNavigateBack: () -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:NavGraph.kt$@Composable fun NavGraph(themeViewModel: ThemeViewModel)</ID>
+    <ID>FunctionNaming:NavGraph.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable private fun HomeWithBottomNav( navController: NavHostController, themeViewModel: ThemeViewModel, menuViewModel: MenuViewModel, categoryViewModel: CategoryViewModel, authenticatedUser: UserModel? = null, createdTaskName: String? = null, createdTaskPriority: Int? = null, onTaskConsumed: () -&gt; Unit = {}, createdEventId: String? = null, createdEventName: String? = null, createdEventCategory: String? = null, createdEventDate: Long? = null, createdEventContact: String? = null, createdEventDescription: String? = null, onEventConsumed: () -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:SettingsScreen.kt$@Composable private fun SectionTitle(title: String)</ID>
+    <ID>FunctionNaming:SettingsScreen.kt$@Composable private fun SettingsItem( icon: @Composable () -&gt; Unit, title: String, subtitle: String, onClick: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( themeViewModel: ThemeViewModel, modifier: Modifier = Modifier, onNavigateBack: (() -&gt; Unit)? = null, onNavigateMenu: () -&gt; Unit = {}, onNavigateCategory: () -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:SportClientEditScreen.kt$@Composable private fun ChipSection( label: String, error: String?, content: @Composable () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:SportClientEditScreen.kt$@Composable private fun EditField( value: String, onValueChange: (String) -&gt; Unit, label: String, icon: ImageVector, error: String?, keyboardType: KeyboardType = KeyboardType.Text, visualTransformation: androidx.compose.ui.text.input.VisualTransformation = androidx.compose.ui.text.input.VisualTransformation.None, )</ID>
+    <ID>FunctionNaming:SportClientEditScreen.kt$@Composable private fun MonthYearPickerDialog( initialMonth: Int, initialYear: Int, onDismiss: () -&gt; Unit, onConfirm: (month: Int, year: Int) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:SportClientEditScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SportClientEditScreen( client: SportClient, onNavigateBack: () -&gt; Unit, onSave: (SportClient) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:SportClientScreen.kt$@Composable private fun AddSportClientDialog( onDismiss: () -&gt; Unit, onConfirm: (SportClient) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:SportClientScreen.kt$@Composable private fun ClientAvatar( name: String, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:SportClientScreen.kt$@Composable private fun DetailRow( label: String, value: String, )</ID>
+    <ID>FunctionNaming:SportClientScreen.kt$@Composable private fun MonthYearPickerDialog( initialMonth: Int, initialYear: Int, onDismiss: () -&gt; Unit, onConfirm: (month: Int, year: Int) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:SportClientScreen.kt$@Composable private fun SportClientDetailDialog( client: SportClient, onDismiss: () -&gt; Unit, onEdit: (SportClient) -&gt; Unit, onDelete: (String) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:SportClientScreen.kt$@Composable private fun SportClientFormFields( name: String, onNameChange: (String) -&gt; Unit, nameError: String?, apelido: String, onApelidoChange: (String) -&gt; Unit, apelidoError: String?, cpfDigits: String, onCpfChange: (String) -&gt; Unit, cpfError: String?, phoneDigits: String, onPhoneChange: (String) -&gt; Unit, phoneError: String?, selectedModalities: Set&lt;SportModality&gt;, onModalityToggle: (SportModality) -&gt; Unit, modalityError: String?, selectedAttendance: Int?, onAttendanceChange: (Int) -&gt; Unit, attendanceError: String?, selectedPayment: PaymentMethod?, onPaymentChange: (PaymentMethod) -&gt; Unit, paymentError: String?, cashDigits: String, onCashChange: (String) -&gt; Unit, cashError: String?, lastPaymentMonthDisplay: String, onLastPaymentMonthClick: () -&gt; Unit, lastPaymentMonthError: String?, paymentHistory: List&lt;String&gt; = emptyList(), onRemovePaymentMonth: (String) -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:SportClientScreen.kt$@Composable private fun SportClientTableHeader()</ID>
+    <ID>FunctionNaming:SportClientScreen.kt$@Composable private fun SportClientTableRow( client: SportClient, onClick: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:SportClientScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SportClientScreen( viewModel: SportClientViewModel, themeViewModel: ThemeViewModel, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:SprenaLogo.kt$@Composable fun SprenaLogo( modifier: Modifier = Modifier, size: Dp = 120.dp, )</ID>
+    <ID>FunctionNaming:TaskDetailSheet.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun TaskDetailSheet( viewModel: TaskDetailViewModel, sheetState: SheetState, onDismiss: () -&gt; Unit, onTaskUpdated: (TaskDetailEffect.TaskUpdated) -&gt; Unit, onTaskDeleted: (String) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:Theme.kt$@Composable fun SprenaTheme( darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:ThemeToggleButton.kt$@Composable fun ThemeToggleButton(themeViewModel: ThemeViewModel)</ID>
+    <ID>LongMethod:AddClientDialog.kt$@Composable fun AddClientDialog( viewModel: AddClientViewModel, onDismiss: () -&gt; Unit, onClientCreated: (BarClient) -&gt; Unit, )</ID>
+    <ID>LongMethod:AddClientViewModel.kt$AddClientViewModel$override fun handleIntent(intent: AddClientIntent)</ID>
+    <ID>LongMethod:AddTaskDialog.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AddTaskDialog( viewModel: AddTaskViewModel, onDismiss: () -&gt; Unit, onTaskCreated: () -&gt; Unit, )</ID>
+    <ID>LongMethod:AddTransactionDialog.kt$@Composable private fun MonthPickerDialog( initialMonth: Int, initialYear: Int, onDismiss: () -&gt; Unit, onConfirm: (month: Int, year: Int) -&gt; Unit, )</ID>
+    <ID>LongMethod:AddTransactionDialog.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AddTransactionDialog( viewModel: AddTransactionViewModel, categories: List&lt;String&gt; = emptyList(), isEditMode: Boolean = false, onDismiss: () -&gt; Unit, onTransactionCreated: (FinancialTransactionSummary) -&gt; Unit, onTransactionUpdated: (FinancialTransactionSummary) -&gt; Unit = {}, onTransactionDeleted: () -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:AddTransactionViewModel.kt$AddTransactionViewModel$override fun handleIntent(intent: AddTransactionIntent)</ID>
+    <ID>LongMethod:BarScreen.kt$@Composable private fun ClientTableRow( client: BarClient, onClick: () -&gt; Unit, )</ID>
+    <ID>LongMethod:BarScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun BarScreen( viewModel: BarViewModel, themeViewModel: ThemeViewModel, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:BarViewModel.kt$BarViewModel$override fun handleIntent(intent: BarIntent)</ID>
+    <ID>LongMethod:CategoryScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun CategoryScreen( viewModel: CategoryViewModel, themeViewModel: ThemeViewModel, modifier: Modifier = Modifier, onNavigateBack: () -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:ClientDetailSheet.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun ClientDetailSheet( viewModel: ClientDetailViewModel, sheetState: SheetState, menuItems: List&lt;CardapioItem&gt; = emptyList(), onDismiss: () -&gt; Unit, onClientUpdated: (BarClient) -&gt; Unit, onClientDeleted: (String) -&gt; Unit, )</ID>
+    <ID>LongMethod:ClientDetailSheet.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable private fun AddItemForm( state: ClientDetailState, menuItems: List&lt;CardapioItem&gt; = emptyList(), onMenuItemSelected: (MenuItem) -&gt; Unit, onNameChanged: (String) -&gt; Unit, onPriceChanged: (Long?) -&gt; Unit, onSave: () -&gt; Unit, onCancel: () -&gt; Unit, )</ID>
+    <ID>LongMethod:ClientDetailViewModel.kt$ClientDetailViewModel$override fun handleIntent(intent: ClientDetailIntent)</ID>
+    <ID>LongMethod:CreateEventScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun CreateEventScreen( viewModel: CreateEventViewModel, modifier: Modifier = Modifier, onNavigateBack: () -&gt; Unit = {}, onEventSaved: ( eventId: String?, name: String, category: EventCategory, dateEpochDay: Long, contact: String?, description: String?, ) -&gt; Unit = { _, _, _, _, _, _ -&gt; }, )</ID>
+    <ID>LongMethod:CreateEventScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable private fun EventDateField( dateEpochDay: Long?, isError: Boolean, errorText: String?, onDateSelected: (Long) -&gt; Unit, )</ID>
+    <ID>LongMethod:CreateEventViewModel.kt$CreateEventViewModel$override fun handleIntent(intent: CreateEventIntent)</ID>
+    <ID>LongMethod:CreateTaskScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun CreateTaskScreen( viewModel: CreateTaskViewModel, themeViewModel: ThemeViewModel, onNavigateBack: () -&gt; Unit, onNavigateSettings: () -&gt; Unit, onTaskCreated: (name: String, priority: Int) -&gt; Unit = { _, _ -&gt; }, onPickFile: (() -&gt; Unit)? = null, )</ID>
+    <ID>LongMethod:EventosScreen.kt$@Composable private fun EventCard( event: Event, isCompleted: Boolean, onClick: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:EventosScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun EventosScreen( viewModel: EventosViewModel, themeViewModel: ThemeViewModel, modifier: Modifier = Modifier, onNavigateCreateEvent: () -&gt; Unit = {}, onNavigateEditEvent: (Event) -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:EventosScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable private fun FilterRow( categoryFilter: EventCategory?, filterMonth: Int, filterYear: Int, onCategoryFilterChanged: (EventCategory?) -&gt; Unit, onMonthBack: () -&gt; Unit, onMonthForward: () -&gt; Unit, )</ID>
+    <ID>LongMethod:EventosViewModel.kt$EventosViewModel$override fun handleIntent(intent: EventosIntent)</ID>
+    <ID>LongMethod:FinancialScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun FinancialScreen( viewModel: FinancialViewModel, themeViewModel: ThemeViewModel, modifier: Modifier = Modifier, onAddTransactionDialog: () -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:FinancialViewModel.kt$FinancialViewModel$override fun handleIntent(intent: FinancialIntent)</ID>
+    <ID>LongMethod:HomeScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun HomeScreen(viewModel: HomeViewModel = koinViewModel())</ID>
+    <ID>LongMethod:KanbanScreen.kt$@Composable private fun DraggableTaskCard( task: KanbanTask, columnIndex: Int, allColumns: List&lt;KanbanColumn&gt;, onClick: () -&gt; Unit, onDropToColumn: (String) -&gt; Unit, )</ID>
+    <ID>LongMethod:KanbanScreen.kt$@Composable private fun KanbanColumnCard( column: KanbanColumn, allColumns: List&lt;KanbanColumn&gt;, tasks: List&lt;KanbanTask&gt;, onTaskClick: (KanbanTask) -&gt; Unit, onTaskDroppedToColumn: (KanbanTask, String) -&gt; Unit, )</ID>
+    <ID>LongMethod:KanbanScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun KanbanScreen( viewModel: KanbanViewModel, themeViewModel: ThemeViewModel, modifier: Modifier = Modifier, onNavigateCreateTask: () -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:KanbanViewModel.kt$KanbanViewModel$override fun handleIntent(intent: KanbanIntent)</ID>
+    <ID>LongMethod:LoginScreen.kt$@Composable fun LoginScreen( viewModel: LoginViewModel, themeViewModel: ThemeViewModel, onNavigateHome: (UserModel) -&gt; Unit, )</ID>
+    <ID>LongMethod:MenuScreen.kt$@Composable private fun AddMenuItemDialog( onDismiss: () -&gt; Unit, onConfirm: (MenuItem) -&gt; Unit, )</ID>
+    <ID>LongMethod:MenuScreen.kt$@Composable private fun EditMenuItemDialog( item: MenuItem, onDismiss: () -&gt; Unit, onUpdate: (MenuItem) -&gt; Unit, onDelete: (String) -&gt; Unit, )</ID>
+    <ID>LongMethod:MenuScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun MenuScreen( viewModel: MenuViewModel, themeViewModel: ThemeViewModel, modifier: Modifier = Modifier, onNavigateBack: () -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:NavGraph.kt$@Composable fun NavGraph(themeViewModel: ThemeViewModel)</ID>
+    <ID>LongMethod:NavGraph.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable private fun HomeWithBottomNav( navController: NavHostController, themeViewModel: ThemeViewModel, menuViewModel: MenuViewModel, categoryViewModel: CategoryViewModel, authenticatedUser: UserModel? = null, createdTaskName: String? = null, createdTaskPriority: Int? = null, onTaskConsumed: () -&gt; Unit = {}, createdEventId: String? = null, createdEventName: String? = null, createdEventCategory: String? = null, createdEventDate: Long? = null, createdEventContact: String? = null, createdEventDescription: String? = null, onEventConsumed: () -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( themeViewModel: ThemeViewModel, modifier: Modifier = Modifier, onNavigateBack: (() -&gt; Unit)? = null, onNavigateMenu: () -&gt; Unit = {}, onNavigateCategory: () -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:SportClientEditScreen.kt$@Composable private fun MonthYearPickerDialog( initialMonth: Int, initialYear: Int, onDismiss: () -&gt; Unit, onConfirm: (month: Int, year: Int) -&gt; Unit, )</ID>
+    <ID>LongMethod:SportClientEditScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SportClientEditScreen( client: SportClient, onNavigateBack: () -&gt; Unit, onSave: (SportClient) -&gt; Unit, )</ID>
+    <ID>LongMethod:SportClientScreen.kt$@Composable private fun AddSportClientDialog( onDismiss: () -&gt; Unit, onConfirm: (SportClient) -&gt; Unit, )</ID>
+    <ID>LongMethod:SportClientScreen.kt$@Composable private fun MonthYearPickerDialog( initialMonth: Int, initialYear: Int, onDismiss: () -&gt; Unit, onConfirm: (month: Int, year: Int) -&gt; Unit, )</ID>
+    <ID>LongMethod:SportClientScreen.kt$@Composable private fun SportClientDetailDialog( client: SportClient, onDismiss: () -&gt; Unit, onEdit: (SportClient) -&gt; Unit, onDelete: (String) -&gt; Unit, )</ID>
+    <ID>LongMethod:SportClientScreen.kt$@Composable private fun SportClientFormFields( name: String, onNameChange: (String) -&gt; Unit, nameError: String?, apelido: String, onApelidoChange: (String) -&gt; Unit, apelidoError: String?, cpfDigits: String, onCpfChange: (String) -&gt; Unit, cpfError: String?, phoneDigits: String, onPhoneChange: (String) -&gt; Unit, phoneError: String?, selectedModalities: Set&lt;SportModality&gt;, onModalityToggle: (SportModality) -&gt; Unit, modalityError: String?, selectedAttendance: Int?, onAttendanceChange: (Int) -&gt; Unit, attendanceError: String?, selectedPayment: PaymentMethod?, onPaymentChange: (PaymentMethod) -&gt; Unit, paymentError: String?, cashDigits: String, onCashChange: (String) -&gt; Unit, cashError: String?, lastPaymentMonthDisplay: String, onLastPaymentMonthClick: () -&gt; Unit, lastPaymentMonthError: String?, paymentHistory: List&lt;String&gt; = emptyList(), onRemovePaymentMonth: (String) -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:SportClientScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SportClientScreen( viewModel: SportClientViewModel, themeViewModel: ThemeViewModel, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:SportClientViewModel.kt$SportClientViewModel$override fun handleIntent(intent: SportClientIntent)</ID>
+    <ID>LongMethod:TaskDetailSheet.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun TaskDetailSheet( viewModel: TaskDetailViewModel, sheetState: SheetState, onDismiss: () -&gt; Unit, onTaskUpdated: (TaskDetailEffect.TaskUpdated) -&gt; Unit, onTaskDeleted: (String) -&gt; Unit, )</ID>
+    <ID>LongMethod:TaskDetailViewModel.kt$TaskDetailViewModel$override fun handleIntent(intent: TaskDetailIntent)</ID>
+    <ID>LongParameterList:AddTransactionDialog.kt$( viewModel: AddTransactionViewModel, categories: List&lt;String&gt; = emptyList(), isEditMode: Boolean = false, onDismiss: () -&gt; Unit, onTransactionCreated: (FinancialTransactionSummary) -&gt; Unit, onTransactionUpdated: (FinancialTransactionSummary) -&gt; Unit = {}, onTransactionDeleted: () -&gt; Unit = {}, )</ID>
+    <ID>LongParameterList:ClientDetailSheet.kt$( state: ClientDetailState, menuItems: List&lt;CardapioItem&gt; = emptyList(), onMenuItemSelected: (MenuItem) -&gt; Unit, onNameChanged: (String) -&gt; Unit, onPriceChanged: (Long?) -&gt; Unit, onSave: () -&gt; Unit, onCancel: () -&gt; Unit, )</ID>
+    <ID>LongParameterList:NavGraph.kt$( navController: NavHostController, themeViewModel: ThemeViewModel, menuViewModel: MenuViewModel, categoryViewModel: CategoryViewModel, authenticatedUser: UserModel? = null, createdTaskName: String? = null, createdTaskPriority: Int? = null, onTaskConsumed: () -&gt; Unit = {}, createdEventId: String? = null, createdEventName: String? = null, createdEventCategory: String? = null, createdEventDate: Long? = null, createdEventContact: String? = null, createdEventDescription: String? = null, onEventConsumed: () -&gt; Unit = {}, )</ID>
+    <ID>LongParameterList:SportClientEditScreen.kt$( value: String, onValueChange: (String) -&gt; Unit, label: String, icon: ImageVector, error: String?, keyboardType: KeyboardType = KeyboardType.Text, visualTransformation: androidx.compose.ui.text.input.VisualTransformation = androidx.compose.ui.text.input.VisualTransformation.None, )</ID>
+    <ID>LongParameterList:SportClientScreen.kt$( name: String, onNameChange: (String) -&gt; Unit, nameError: String?, apelido: String, onApelidoChange: (String) -&gt; Unit, apelidoError: String?, cpfDigits: String, onCpfChange: (String) -&gt; Unit, cpfError: String?, phoneDigits: String, onPhoneChange: (String) -&gt; Unit, phoneError: String?, selectedModalities: Set&lt;SportModality&gt;, onModalityToggle: (SportModality) -&gt; Unit, modalityError: String?, selectedAttendance: Int?, onAttendanceChange: (Int) -&gt; Unit, attendanceError: String?, selectedPayment: PaymentMethod?, onPaymentChange: (PaymentMethod) -&gt; Unit, paymentError: String?, cashDigits: String, onCashChange: (String) -&gt; Unit, cashError: String?, lastPaymentMonthDisplay: String, onLastPaymentMonthClick: () -&gt; Unit, lastPaymentMonthError: String?, paymentHistory: List&lt;String&gt; = emptyList(), onRemovePaymentMonth: (String) -&gt; Unit = {}, )</ID>
+    <ID>MagicNumber:AddClientDialog.kt$11</ID>
+    <ID>MagicNumber:AddTaskDialog.kt$3</ID>
+    <ID>MagicNumber:AddTaskDialog.kt$4</ID>
+    <ID>MagicNumber:AddTaskDialog.kt$5</ID>
+    <ID>MagicNumber:AddTransactionDialog.kt$0xFF2E7D32</ID>
+    <ID>MagicNumber:AddTransactionDialog.kt$0xFFC62828</ID>
+    <ID>MagicNumber:AddTransactionDialog.kt$0xFFE53935</ID>
+    <ID>MagicNumber:AddTransactionDialog.kt$3</ID>
+    <ID>MagicNumber:AddTransactionDialog.kt$BrlVisualTransformation$3</ID>
+    <ID>MagicNumber:BarScreen.kt$0xFF4CAF50</ID>
+    <ID>MagicNumber:BarScreen.kt$0xFFF44336</ID>
+    <ID>MagicNumber:BarScreen.kt$1.5f</ID>
+    <ID>MagicNumber:ClientDetailSheet.kt$9</ID>
+    <ID>MagicNumber:CreateEventScreen.kt$10</ID>
+    <ID>MagicNumber:CreateEventScreen.kt$11</ID>
+    <ID>MagicNumber:CreateEventScreen.kt$6</ID>
+    <ID>MagicNumber:CreateEventScreen.kt$7</ID>
+    <ID>MagicNumber:CreateEventScreen.kt$86_400_000L</ID>
+    <ID>MagicNumber:CreateTaskScreen.kt$10</ID>
+    <ID>MagicNumber:CreateTaskScreen.kt$1460</ID>
+    <ID>MagicNumber:CreateTaskScreen.kt$146096</ID>
+    <ID>MagicNumber:CreateTaskScreen.kt$146097</ID>
+    <ID>MagicNumber:CreateTaskScreen.kt$153</ID>
+    <ID>MagicNumber:CreateTaskScreen.kt$3</ID>
+    <ID>MagicNumber:CreateTaskScreen.kt$365</ID>
+    <ID>MagicNumber:CreateTaskScreen.kt$36524</ID>
+    <ID>MagicNumber:CreateTaskScreen.kt$4</ID>
+    <ID>MagicNumber:CreateTaskScreen.kt$400</ID>
+    <ID>MagicNumber:CreateTaskScreen.kt$5</ID>
+    <ID>MagicNumber:CreateTaskScreen.kt$719468</ID>
+    <ID>MagicNumber:CreateTaskScreen.kt$86_400_000L</ID>
+    <ID>MagicNumber:CreateTaskScreen.kt$9</ID>
+    <ID>MagicNumber:EventosScreen.kt$0.55f</ID>
+    <ID>MagicNumber:EventosScreen.kt$0.5f</ID>
+    <ID>MagicNumber:EventosScreen.kt$10</ID>
+    <ID>MagicNumber:EventosScreen.kt$11</ID>
+    <ID>MagicNumber:EventosScreen.kt$12</ID>
+    <ID>MagicNumber:EventosScreen.kt$1460</ID>
+    <ID>MagicNumber:EventosScreen.kt$146096</ID>
+    <ID>MagicNumber:EventosScreen.kt$146097</ID>
+    <ID>MagicNumber:EventosScreen.kt$153</ID>
+    <ID>MagicNumber:EventosScreen.kt$3</ID>
+    <ID>MagicNumber:EventosScreen.kt$365</ID>
+    <ID>MagicNumber:EventosScreen.kt$36524</ID>
+    <ID>MagicNumber:EventosScreen.kt$4</ID>
+    <ID>MagicNumber:EventosScreen.kt$400</ID>
+    <ID>MagicNumber:EventosScreen.kt$5</ID>
+    <ID>MagicNumber:EventosScreen.kt$6</ID>
+    <ID>MagicNumber:EventosScreen.kt$7</ID>
+    <ID>MagicNumber:EventosScreen.kt$719468</ID>
+    <ID>MagicNumber:EventosScreen.kt$8</ID>
+    <ID>MagicNumber:EventosScreen.kt$9</ID>
+    <ID>MagicNumber:EventosViewModel.kt$EventosViewModel$12</ID>
+    <ID>MagicNumber:EventosViewModel.kt$EventosViewModel$86_400_000L</ID>
+    <ID>MagicNumber:FinancialScreen.kt$0xFF4CAF50</ID>
+    <ID>MagicNumber:FinancialScreen.kt$0xFFE53935</ID>
+    <ID>MagicNumber:FinancialScreen.kt$0xFFE6FFD5</ID>
+    <ID>MagicNumber:FinancialScreen.kt$0xFFF4946E</ID>
+    <ID>MagicNumber:FinancialViewModel.kt$FinancialViewModel$12</ID>
+    <ID>MagicNumber:FinancialViewModel.kt$FinancialViewModel$3</ID>
+    <ID>MagicNumber:FinancialViewModel.kt$FinancialViewModel$4</ID>
+    <ID>MagicNumber:FinancialViewModel.kt$FinancialViewModel$6</ID>
+    <ID>MagicNumber:HomeScreen.kt$150</ID>
+    <ID>MagicNumber:InputMasks.kt$10</ID>
+    <ID>MagicNumber:InputMasks.kt$11</ID>
+    <ID>MagicNumber:InputMasks.kt$3</ID>
+    <ID>MagicNumber:InputMasks.kt$6</ID>
+    <ID>MagicNumber:InputMasks.kt$7</ID>
+    <ID>MagicNumber:InputMasks.kt$9</ID>
+    <ID>MagicNumber:InputMasks.kt$CpfMaskTransformation$11</ID>
+    <ID>MagicNumber:InputMasks.kt$MonthYearMaskTransformation$6</ID>
+    <ID>MagicNumber:InputMasks.kt$PhoneMaskTransformation$11</ID>
+    <ID>MagicNumber:KanbanScreen.kt$0.8f</ID>
+    <ID>MagicNumber:KanbanScreen.kt$0xFF2E7D32</ID>
+    <ID>MagicNumber:KanbanScreen.kt$1.05f</ID>
+    <ID>MagicNumber:KanbanScreen.kt$3</ID>
+    <ID>MagicNumber:KanbanScreen.kt$4</ID>
+    <ID>MagicNumber:KanbanScreen.kt$5</ID>
+    <ID>MagicNumber:MenuScreen.kt$10</ID>
+    <ID>MagicNumber:SportClientEditScreen.kt$10</ID>
+    <ID>MagicNumber:SportClientEditScreen.kt$11</ID>
+    <ID>MagicNumber:SportClientEditScreen.kt$3</ID>
+    <ID>MagicNumber:SportClientEditScreen.kt$4</ID>
+    <ID>MagicNumber:SportClientScreen.kt$0.8f</ID>
+    <ID>MagicNumber:SportClientScreen.kt$1.2f</ID>
+    <ID>MagicNumber:SportClientScreen.kt$10</ID>
+    <ID>MagicNumber:SportClientScreen.kt$11</ID>
+    <ID>MagicNumber:SportClientScreen.kt$3</ID>
+    <ID>MagicNumber:SportClientScreen.kt$4</ID>
+    <ID>MagicNumber:SportClientScreen.kt$6</ID>
+    <ID>MagicNumber:SportClientScreen.kt$7</ID>
+    <ID>MagicNumber:SportClientScreen.kt$9</ID>
+    <ID>MagicNumber:SprenaLogo.kt$0.05f</ID>
+    <ID>MagicNumber:SprenaLogo.kt$0.15f</ID>
+    <ID>MagicNumber:SprenaLogo.kt$0.1f</ID>
+    <ID>MagicNumber:SprenaLogo.kt$0.25f</ID>
+    <ID>MagicNumber:SprenaLogo.kt$0.2f</ID>
+    <ID>MagicNumber:SprenaLogo.kt$0.35f</ID>
+    <ID>MagicNumber:SprenaLogo.kt$0.3f</ID>
+    <ID>MagicNumber:SprenaLogo.kt$0.45f</ID>
+    <ID>MagicNumber:SprenaLogo.kt$0.4f</ID>
+    <ID>MagicNumber:SprenaLogo.kt$0.55f</ID>
+    <ID>MagicNumber:SprenaLogo.kt$0.5f</ID>
+    <ID>MagicNumber:SprenaLogo.kt$0.6f</ID>
+    <ID>MagicNumber:TaskDetailSheet.kt$10</ID>
+    <ID>MagicNumber:TaskDetailSheet.kt$1460</ID>
+    <ID>MagicNumber:TaskDetailSheet.kt$146096</ID>
+    <ID>MagicNumber:TaskDetailSheet.kt$146097</ID>
+    <ID>MagicNumber:TaskDetailSheet.kt$153</ID>
+    <ID>MagicNumber:TaskDetailSheet.kt$3</ID>
+    <ID>MagicNumber:TaskDetailSheet.kt$365</ID>
+    <ID>MagicNumber:TaskDetailSheet.kt$36524</ID>
+    <ID>MagicNumber:TaskDetailSheet.kt$4</ID>
+    <ID>MagicNumber:TaskDetailSheet.kt$400</ID>
+    <ID>MagicNumber:TaskDetailSheet.kt$5</ID>
+    <ID>MagicNumber:TaskDetailSheet.kt$719468</ID>
+    <ID>MagicNumber:TaskDetailSheet.kt$86_400_000L</ID>
+    <ID>MagicNumber:TaskDetailSheet.kt$9</ID>
+    <ID>MatchingDeclarationName:AddTransactionDialog.kt$BrlVisualTransformation : VisualTransformation</ID>
+    <ID>MatchingDeclarationName:FilePicker.kt$PickedFile</ID>
+    <ID>MatchingDeclarationName:NavGraph.kt$Routes</ID>
+    <ID>ReturnCount:CategoryViewModel.kt$CategoryViewModel$override fun handleIntent(intent: CategoryIntent)</ID>
+    <ID>ReturnCount:ClientDetailViewModel.kt$ClientDetailViewModel$override fun handleIntent(intent: ClientDetailIntent)</ID>
+    <ID>ReturnCount:InputMasks.kt$private fun mapOriginalToTransformed( offset: Int, totalDigits: Int, ): Int</ID>
+  </CurrentIssues>
+</SmellBaseline>

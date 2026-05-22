@@ -1,7 +1,6 @@
 package br.com.sprena.shared.bar.domain.validation
 
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -13,7 +12,6 @@ import kotlin.test.assertTrue
  * e casos especiais (formato, dígitos, etc.).
  */
 class BarValidatorTest {
-
     // =========================================================================
     // validateClientName — obrigatório, max 100 chars
     // =========================================================================

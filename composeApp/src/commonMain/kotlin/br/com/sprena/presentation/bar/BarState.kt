@@ -5,7 +5,9 @@ import br.com.sprena.shared.core.mvi.UiState
 /**
  * Filtro rápido de pagamento para Comandas.
  */
-enum class PaymentFilter(val label: String) {
+enum class PaymentFilter(
+    val label: String,
+) {
     ALL("Todos"),
     PAID("Pagos"),
     UNPAID("Não Pagos"),

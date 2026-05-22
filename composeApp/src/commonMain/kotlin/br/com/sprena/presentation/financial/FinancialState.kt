@@ -17,7 +17,9 @@ data class FinancialTransactionSummary(
 
 enum class TransactionType { INCOME, EXPENSE }
 
-enum class PeriodFilter(val label: String) {
+enum class PeriodFilter(
+    val label: String,
+) {
     MONTHLY("Mensal"),
     QUARTERLY("Trimestral"),
     SEMI_ANNUAL("Semestral"),

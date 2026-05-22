@@ -11,12 +11,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Badge
@@ -50,11 +50,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import br.com.sprena.core.ui.components.ThemeToggleButton
@@ -126,9 +126,10 @@ fun EventosScreen(
                 actions = {
                     ThemeToggleButton(themeViewModel = themeViewModel)
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
             )
         },
         floatingActionButton = {
@@ -147,9 +148,10 @@ fun EventosScreen(
         },
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
         ) {
             // --- Filter Row: Category Dropdown + Month Navigator ---
             FilterRow(
@@ -214,11 +216,12 @@ fun EventosScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = if (state.isSearchActive) {
-                            "Nenhum evento encontrado"
-                        } else {
-                            "Nenhum evento"
-                        },
+                        text =
+                            if (state.isSearchActive) {
+                                "Nenhum evento encontrado"
+                            } else {
+                                "Nenhum evento"
+                            },
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -260,9 +263,10 @@ private fun FilterRow(
     var expanded by remember { mutableStateOf(false) }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -278,9 +282,10 @@ private fun FilterRow(
                 readOnly = true,
                 label = { Text("Categoria") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(),
                 singleLine = true,
             )
             ExposedDropdownMenu(
@@ -332,21 +337,22 @@ private fun FilterRow(
 /**
  * Retorna nome abreviado do mes em portugues.
  */
-private fun monthName(month: Int): String = when (month) {
-    1 -> "Jan"
-    2 -> "Fev"
-    3 -> "Mar"
-    4 -> "Abr"
-    5 -> "Mai"
-    6 -> "Jun"
-    7 -> "Jul"
-    8 -> "Ago"
-    9 -> "Set"
-    10 -> "Out"
-    11 -> "Nov"
-    12 -> "Dez"
-    else -> "---"
-}
+private fun monthName(month: Int): String =
+    when (month) {
+        1 -> "Jan"
+        2 -> "Fev"
+        3 -> "Mar"
+        4 -> "Abr"
+        5 -> "Mai"
+        6 -> "Jun"
+        7 -> "Jul"
+        8 -> "Ago"
+        9 -> "Set"
+        10 -> "Out"
+        11 -> "Nov"
+        12 -> "Dez"
+        else -> "---"
+    }
 
 /**
  * Card de evento — exibe nome, data e badge de categoria.
@@ -362,22 +368,25 @@ private fun EventCard(
     val categoryColor = categoryColor(event.category)
     val cardAlpha = if (isCompleted) 0.55f else 1f
     val borderColor = if (isCompleted) CompletedColor else categoryColor
-    val containerColor = if (isCompleted) {
-        CompletedColor.copy(alpha = 0.08f)
-    } else {
-        categoryColor.copy(alpha = 0.08f)
-    }
+    val containerColor =
+        if (isCompleted) {
+            CompletedColor.copy(alpha = 0.08f)
+        } else {
+            categoryColor.copy(alpha = 0.08f)
+        }
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        border = androidx.compose.foundation.BorderStroke(
-            width = 1.dp,
-            color = borderColor.copy(alpha = cardAlpha),
-        ),
+        border =
+            androidx.compose.foundation.BorderStroke(
+                width = 1.dp,
+                color = borderColor.copy(alpha = cardAlpha),
+            ),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isCompleted) 0.dp else 2.dp),
     ) {
         Column(
@@ -395,11 +404,12 @@ private fun EventCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
-                    color = if (isCompleted) {
-                        CompletedColor.copy(alpha = 0.7f)
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
+                    color =
+                        if (isCompleted) {
+                            CompletedColor.copy(alpha = 0.7f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 CategoryBadge(
@@ -413,11 +423,12 @@ private fun EventCard(
             Text(
                 text = formatEpochDay(event.dateEpochDay),
                 style = MaterialTheme.typography.bodySmall,
-                color = if (isCompleted) {
-                    CompletedColor.copy(alpha = 0.6f)
-                } else {
-                    categoryColor.copy(alpha = 0.8f)
-                },
+                color =
+                    if (isCompleted) {
+                        CompletedColor.copy(alpha = 0.6f)
+                    } else {
+                        categoryColor.copy(alpha = 0.8f)
+                    },
             )
 
             if (event.contact != null) {
@@ -425,9 +436,10 @@ private fun EventCard(
                 Text(
                     text = event.contact,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                        alpha = if (isCompleted) 0.5f else 0.8f,
-                    ),
+                    color =
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                            alpha = if (isCompleted) 0.5f else 0.8f,
+                        ),
                 )
             }
         }
@@ -462,11 +474,12 @@ private fun CategoryBadge(
 /**
  * Retorna a cor correspondente a categoria do evento.
  */
-private fun categoryColor(category: EventCategory): Color = when (category) {
-    EventCategory.ALUGUEL -> AluguelColor
-    EventCategory.RESERVA -> ReservaColor
-    EventCategory.DAY_USE -> DayUseColor
-}
+private fun categoryColor(category: EventCategory): Color =
+    when (category) {
+        EventCategory.ALUGUEL -> AluguelColor
+        EventCategory.RESERVA -> ReservaColor
+        EventCategory.DAY_USE -> DayUseColor
+    }
 
 /**
  * Formata epoch day (dias desde 1970-01-01) para "dd/MM/yyyy".
