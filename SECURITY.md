@@ -41,3 +41,35 @@ Decisões de segurança aplicadas ao projeto. Cada sub-fase de F1 adiciona uma s
 - [ ] Manifest mergeado contém os atributos (Task 6 Step 3)
 - [ ] Screenshot do app em device real sai preto / é bloqueado pelo sistema
 - [ ] App ainda abre, navega Login → Home, consegue ler/escrever Firestore
+
+## F1.2 — Logging seguro (Napier + Crashlytics + sanitização PII)
+
+### Stack
+- **Napier 2.7.1** — logger KMP, `DebugAntilog` plantado apenas em debug.
+- **Firebase Crashlytics** (BOM 34.12.0) — `log` para warn/error, `recordException` para throwables. Desabilitado em debug (`setCrashlyticsCollectionEnabled(false)`).
+- **Interface `Logger`** em `shared/commonMain/core/logger/` — única superfície usada por Repositories/UseCases. `AndroidLogger` é a impl injetada via Koin.
+
+### Sanitização PII
+- **`PiiMasker`** (commonMain) — masking explícito pelo call site:
+  - `cpf("123.456.789-90")` → `"***.***.***-90"`
+  - `phone("11987654321")` → `"(11)*******-21"`
+  - `email("pedro@gmail.com")` → `"p***@gmail.com"`
+- **`PiiScrubber`** (commonMain) — defense-in-depth: a impl `AndroidLogger` aplica regex sweep ANTES de emitir (CPF formatado, email, password=). Cobre o caso "esqueci de mascarar".
+
+### Convenção de uso
+1. **Sempre** receba `Logger` via construtor (Koin injeta).
+2. **Nunca** logue objetos de domínio inteiros (`logger.info(TAG, "$client")`) — use campos específicos com `PiiMasker`.
+3. **Nunca** logue `password`, mesmo "uma vez para debug".
+4. Tag = nome curto da classe (ex.: `"SportClientRepo"`, `"LoginUseCase"`).
+5. `error` é para falhas que devem ir ao Crashlytics; `warn` para situações esperadas mas anômalas.
+
+### Trade-offs
+- **Crashlytics desligado em debug**: evita poluir o painel com crashes de desenvolvimento. Custo: integração só é validada end-to-end após instalar release build.
+- **Scrubber por regex**: pode dar falso-positivo (qualquer 11 dígitos após "cpf" vira mask). Aceito — falso-positivo em log é inofensivo, falso-negativo seria vazamento.
+- **Instrumentação parcial**: apenas `SportClientRepositoryImpl` e `LoginUseCase` instrumentados. Demais Repos/UseCases entram conforme F2 (Clean Architecture) os refatorar.
+
+### Verificação manual (pré-merge)
+- [ ] `./gradlew :shared:testDebugUnitTest --tests "*Pii*"` — 22 tests pass
+- [ ] Login com credencial inválida loga "login rejected" sem mostrar a senha em logcat
+- [ ] Salvar cliente com Firestore offline gera `error` log com CPF mascarado
+- [ ] APK release abre, navega normalmente, sem logs em logcat (Napier no-op em release)
