@@ -22,7 +22,7 @@ class AndroidLogger : Logger {
         message: String,
         throwable: Throwable?,
     ) {
-        val safe = PiiScrubber.scrub(message) ?: ""
+        val safe = PiiScrubber.scrub(message).orEmpty()
         Napier.d(message = safe, throwable = throwable, tag = tag)
     }
 
@@ -31,7 +31,7 @@ class AndroidLogger : Logger {
         message: String,
         throwable: Throwable?,
     ) {
-        val safe = PiiScrubber.scrub(message) ?: ""
+        val safe = PiiScrubber.scrub(message).orEmpty()
         Napier.i(message = safe, throwable = throwable, tag = tag)
     }
 
@@ -40,7 +40,7 @@ class AndroidLogger : Logger {
         message: String,
         throwable: Throwable?,
     ) {
-        val safe = PiiScrubber.scrub(message) ?: ""
+        val safe = PiiScrubber.scrub(message).orEmpty()
         Napier.w(message = safe, throwable = throwable, tag = tag)
         crashlytics.log("[$tag] WARN: $safe")
     }
@@ -50,7 +50,7 @@ class AndroidLogger : Logger {
         message: String,
         throwable: Throwable?,
     ) {
-        val safe = PiiScrubber.scrub(message) ?: ""
+        val safe = PiiScrubber.scrub(message).orEmpty()
         Napier.e(message = safe, throwable = throwable, tag = tag)
         crashlytics.log("[$tag] ERROR: $safe")
         throwable?.let { crashlytics.recordException(it) }

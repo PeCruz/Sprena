@@ -21,9 +21,14 @@ object PiiScrubber {
     // Password após keyword (password=, senha=, etc.) até espaço/fim
     private val passwordAfterKeywordRegex = Regex("""(?i)(password|senha|pwd)\s*[:=]\s*\S+""")
 
-    fun scrub(value: String?): String? {
-        if (value == null) return null
-        if (value.isEmpty()) return ""
+    fun scrub(value: String?): String? =
+        when {
+            value == null -> null
+            value.isEmpty() -> ""
+            else -> scrubNonEmpty(value)
+        }
+
+    private fun scrubNonEmpty(value: String): String {
         var result = value
         result = cpfFormattedRegex.replace(result, "***.***.***-**")
         result = cpfRawAfterKeywordRegex.replace(result, "$1***********")

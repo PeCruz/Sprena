@@ -31,10 +31,12 @@ class SprenaApplication : Application() {
             androidLogger(Level.DEBUG)
             androidContext(this@SprenaApplication)
             modules(
-                loggerModule(),
-                platformModule(),
-                *sharedModules().toTypedArray(),
-                appModule(),
+                buildList {
+                    add(loggerModule())
+                    add(platformModule())
+                    addAll(sharedModules())
+                    add(appModule())
+                },
             )
         }
     }
