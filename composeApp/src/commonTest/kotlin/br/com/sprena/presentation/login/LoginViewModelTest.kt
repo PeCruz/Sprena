@@ -5,6 +5,7 @@ import br.com.sprena.shared.auth.data.repository.MockAuthRepository
 import br.com.sprena.shared.auth.domain.model.UserRole
 import br.com.sprena.shared.auth.domain.usecase.LoginUseCase
 import br.com.sprena.shared.auth.domain.validation.LoginValidator
+import br.com.sprena.shared.core.logger.NoOpLogger
 import br.com.sprena.test.MainDispatcherEnv
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -39,7 +40,7 @@ class LoginViewModelTest {
     @BeforeTest
     fun setUp() {
         env.install()
-        loginUseCase = LoginUseCase(MockAuthRepository())
+        loginUseCase = LoginUseCase(MockAuthRepository(), NoOpLogger())
     }
 
     @AfterTest

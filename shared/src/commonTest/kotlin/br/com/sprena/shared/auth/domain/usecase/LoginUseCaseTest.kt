@@ -3,6 +3,7 @@ package br.com.sprena.shared.auth.domain.usecase
 import br.com.sprena.shared.auth.data.repository.MockAuthRepository
 import br.com.sprena.shared.auth.domain.model.AuthResult
 import br.com.sprena.shared.auth.domain.model.UserRole
+import br.com.sprena.shared.core.logger.NoOpLogger
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,7 +18,7 @@ import kotlin.test.assertTrue
  *  - Retorno correto de Success/Error
  */
 class LoginUseCaseTest {
-    private val useCase = LoginUseCase(MockAuthRepository())
+    private val useCase = LoginUseCase(MockAuthRepository(), NoOpLogger())
 
     // ── Validação de inputs ──────────────────────────────
 
