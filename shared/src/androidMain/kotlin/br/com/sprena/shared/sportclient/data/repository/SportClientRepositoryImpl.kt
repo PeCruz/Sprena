@@ -25,13 +25,13 @@ class SportClientRepositoryImpl(
     private val collection get() = firestore.collection(COLLECTION_NAME)
 
     override fun observeAll(): Flow<List<SportClientModel>> =
-        collection.snapshots()
+        collection
+            .snapshots()
             .map { snapshot ->
                 snapshot.documents.mapNotNull { doc ->
                     doc.toObject(SportClientDto::class.java)?.toDomain(doc.id)
                 }
-            }
-            .catch { e ->
+            }.catch { e ->
                 logger.error(TAG, "observeAll firestore stream failed", e)
                 throw e
             }

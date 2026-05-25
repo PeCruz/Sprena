@@ -11,8 +11,27 @@ package br.com.sprena.shared.core.logger
  * NÃO incluir PII bruto em `message` — use [pii.PiiMasker] no call site.
  */
 interface Logger {
-    fun debug(tag: String, message: String, throwable: Throwable? = null)
-    fun info(tag: String, message: String, throwable: Throwable? = null)
-    fun warn(tag: String, message: String, throwable: Throwable? = null)
-    fun error(tag: String, message: String, throwable: Throwable? = null)
+    fun debug(
+        tag: String,
+        message: String,
+        throwable: Throwable? = null,
+    )
+
+    fun info(
+        tag: String,
+        message: String,
+        throwable: Throwable? = null,
+    )
+
+    fun warn(
+        tag: String,
+        message: String,
+        throwable: Throwable? = null,
+    )
+
+    fun error(
+        tag: String,
+        message: String,
+        throwable: Throwable? = null,
+    )
 }

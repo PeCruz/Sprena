@@ -28,11 +28,12 @@ object PiiScrubber {
         result = cpfFormattedRegex.replace(result, "***.***.***-**")
         result = cpfRawAfterKeywordRegex.replace(result, "$1***********")
         result = emailRegex.replace(result, "***@***")
-        result = passwordAfterKeywordRegex.replace(result) { match ->
-            val keyword = match.value.substringBefore('=').substringBefore(':')
-            val sep = if ('=' in match.value) '=' else ':'
-            "$keyword$sep***"
-        }
+        result =
+            passwordAfterKeywordRegex.replace(result) { match ->
+                val keyword = match.value.substringBefore('=').substringBefore(':')
+                val sep = if ('=' in match.value) '=' else ':'
+                "$keyword$sep***"
+            }
         return result
     }
 }

@@ -17,23 +17,39 @@ import io.github.aakira.napier.Napier
 class AndroidLogger : Logger {
     private val crashlytics by lazy { FirebaseCrashlytics.getInstance() }
 
-    override fun debug(tag: String, message: String, throwable: Throwable?) {
+    override fun debug(
+        tag: String,
+        message: String,
+        throwable: Throwable?,
+    ) {
         val safe = PiiScrubber.scrub(message) ?: ""
         Napier.d(message = safe, throwable = throwable, tag = tag)
     }
 
-    override fun info(tag: String, message: String, throwable: Throwable?) {
+    override fun info(
+        tag: String,
+        message: String,
+        throwable: Throwable?,
+    ) {
         val safe = PiiScrubber.scrub(message) ?: ""
         Napier.i(message = safe, throwable = throwable, tag = tag)
     }
 
-    override fun warn(tag: String, message: String, throwable: Throwable?) {
+    override fun warn(
+        tag: String,
+        message: String,
+        throwable: Throwable?,
+    ) {
         val safe = PiiScrubber.scrub(message) ?: ""
         Napier.w(message = safe, throwable = throwable, tag = tag)
         crashlytics.log("[$tag] WARN: $safe")
     }
 
-    override fun error(tag: String, message: String, throwable: Throwable?) {
+    override fun error(
+        tag: String,
+        message: String,
+        throwable: Throwable?,
+    ) {
         val safe = PiiScrubber.scrub(message) ?: ""
         Napier.e(message = safe, throwable = throwable, tag = tag)
         crashlytics.log("[$tag] ERROR: $safe")

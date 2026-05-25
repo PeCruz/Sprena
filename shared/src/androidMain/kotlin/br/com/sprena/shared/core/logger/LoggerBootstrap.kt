@@ -16,7 +16,8 @@ object LoggerBootstrap {
         if (isDebug) {
             Napier.base(DebugAntilog())
         }
-        FirebaseCrashlytics.getInstance()
+        FirebaseCrashlytics
+            .getInstance()
             .setCrashlyticsCollectionEnabled(!isDebug)
     }
 }
