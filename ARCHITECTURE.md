@@ -106,3 +106,7 @@ Aceito. Targets iOS comentados (`composeApp/build.gradle.kts:21-23`). Razão: fo
 
 ### ADR-005: Docker como sandbox local, CI em Gradle direto
 Aceito. Razão: Docker isola dev local mas adiciona latência em CI; GH Actions roda Gradle direto com cache nativo.
+
+## Segurança
+
+Decisões de segurança e endurecimento de build estão documentadas em [SECURITY.md](./SECURITY.md). A fase atual (F1.1) cobre minificação R8, bloqueio de backup, network security config e `FLAG_SECURE`. Próximas sub-fases de F1 adicionarão Firebase Auth, App Check, Firestore Rules e tratamento LGPD.

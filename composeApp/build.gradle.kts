@@ -87,4 +87,22 @@ android {
     buildFeatures {
         compose = true
     }
+
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+            // F1.1: assina com a chave debug para `assembleRelease` rodar local.
+            // Substituir por signingConfig real ao publicar (F6/Pós-MVP).
+            signingConfig = signingConfigs.getByName("debug")
+        }
+        getByName("debug") {
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+    }
 }
