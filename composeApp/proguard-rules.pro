@@ -74,3 +74,16 @@
 -keep class androidx.navigation.** { *; }
 -dontwarn androidx.lifecycle.**
 -dontwarn androidx.navigation.**
+
+# ---------------------------------------------------------------------------
+# F1.2 — Napier
+# ---------------------------------------------------------------------------
+-keep class io.github.aakira.napier.** { *; }
+-dontwarn io.github.aakira.napier.**
+
+# ---------------------------------------------------------------------------
+# F1.2 — Firebase Crashlytics
+# ---------------------------------------------------------------------------
+# Crashlytics SDK (já coberto pelo bloco geral firebase.**, reforçar para deobfuscation):
+-keepattributes SourceFile,LineNumberTable
+-keep public class * extends java.lang.Exception

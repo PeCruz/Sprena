@@ -109,4 +109,9 @@ Aceito. Razão: Docker isola dev local mas adiciona latência em CI; GH Actions 
 
 ## Segurança
 
-Decisões de segurança e endurecimento de build estão documentadas em [SECURITY.md](./SECURITY.md). A fase atual (F1.1) cobre minificação R8, bloqueio de backup, network security config e `FLAG_SECURE`. Próximas sub-fases de F1 adicionarão Firebase Auth, App Check, Firestore Rules e tratamento LGPD.
+Decisões de segurança e endurecimento de build estão documentadas em [SECURITY.md](./SECURITY.md). Fases aplicadas:
+
+- **F1.1** — minificação R8, bloqueio de backup, network security config, `FLAG_SECURE`.
+- **F1.2** — logging seguro (Napier + Crashlytics) com sanitização de PII (`PiiMasker`/`PiiScrubber`) e instrumentação inicial de Repositories críticos.
+
+Próximas sub-fases de F1 adicionarão Firebase Auth (F1.3), Firestore Rules + App Check (F1.4) e baseline LGPD (F1.5).

@@ -28,12 +28,16 @@ kotlin {
 
             // Koin DI (módulos shared exportam definições de módulo)
             implementation(libs.koin.core)
+
+            // Logging (KMP)
+            implementation(libs.napier)
         }
 
         androidMain.dependencies {
             // Firebase (project.dependencies.platform() is required for BOM in KMP)
             implementation(project.dependencies.platform(libs.firebase.bom))
             implementation(libs.firebase.firestore)
+            implementation(libs.firebase.crashlytics)
         }
 
         commonTest.dependencies {

@@ -25,5 +25,5 @@ fun platformModule() =
         single<FirebaseFirestore> { Firebase.firestore }
 
         // Repository bindings (interface → Firestore implementation)
-        single<SportClientRepository> { SportClientRepositoryImpl(firestore = get()) }
+        single<SportClientRepository> { SportClientRepositoryImpl(firestore = get(), logger = get()) }
     }
