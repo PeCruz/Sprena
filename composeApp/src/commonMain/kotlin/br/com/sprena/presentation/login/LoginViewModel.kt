@@ -27,8 +27,8 @@ class LoginViewModel(
     override fun handleIntent(intent: LoginIntent) {
         when (intent) {
             is LoginIntent.UsernameChanged -> {
-                val clamped = intent.value.take(LoginValidator.USERNAME_MAX_LENGTH)
-                val validation = LoginValidator.validateUsername(clamped)
+                val clamped = intent.value.take(LoginValidator.EMAIL_MAX_LENGTH)
+                val validation = LoginValidator.validateEmail(clamped)
                 _state.value =
                     _state.value.copy(
                         username = clamped,
@@ -39,16 +39,13 @@ class LoginViewModel(
             }
 
             is LoginIntent.PasswordChanged -> {
-                val digitsOnly =
-                    intent.value
-                        .filter { it.isDigit() }
-                        .take(LoginValidator.PASSWORD_LENGTH)
-                val validation = LoginValidator.validatePassword(digitsOnly)
+                val newPassword = intent.value
+                val validation = LoginValidator.validatePassword(newPassword)
                 _state.value =
                     _state.value.copy(
-                        password = digitsOnly,
-                        passwordError = if (digitsOnly.isEmpty()) null else validation.errorMessage,
-                        canSubmit = canSubmit(_state.value.username, digitsOnly),
+                        password = newPassword,
+                        passwordError = if (newPassword.isEmpty()) null else validation.errorMessage,
+                        canSubmit = canSubmit(_state.value.username, newPassword),
                         authError = null,
                     )
             }
@@ -66,7 +63,7 @@ class LoginViewModel(
 
     private fun handleSubmit() {
         val currentState = _state.value
-        val uResult = LoginValidator.validateUsername(currentState.username)
+        val uResult = LoginValidator.validateEmail(currentState.username)
         val pResult = LoginValidator.validatePassword(currentState.password)
 
         if (!uResult.isValid || !pResult.isValid) {
@@ -106,6 +103,6 @@ class LoginViewModel(
         username: String,
         password: String,
     ): Boolean =
-        LoginValidator.validateUsername(username).isValid &&
+        LoginValidator.validateEmail(username).isValid &&
             LoginValidator.validatePassword(password).isValid
 }
