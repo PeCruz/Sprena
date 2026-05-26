@@ -1,8 +1,12 @@
 package br.com.sprena.di
 
+import br.com.sprena.shared.auth.data.repository.FirebaseAuthRepositoryImpl
+import br.com.sprena.shared.auth.domain.repository.AuthRepository
 import br.com.sprena.shared.sportclient.data.repository.SportClientRepositoryImpl
 import br.com.sprena.shared.sportclient.domain.repository.SportClientRepository
 import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
 import org.koin.dsl.module
@@ -12,6 +16,7 @@ import org.koin.dsl.module
  *
  * Responsabilidades:
  *  - Fornecer [FirebaseFirestore] como singleton
+ *  - Fornecer [FirebaseAuth] como singleton
  *  - Binding das implementações Android dos repositórios (Firebase)
  *
  * ⚠️ Configuração do Firebase:
@@ -24,6 +29,16 @@ fun platformModule() =
         // Firebase Firestore instance
         single<FirebaseFirestore> { Firebase.firestore }
 
-        // Repository bindings (interface → Firestore implementation)
+        // Firebase Auth instance
+        single<FirebaseAuth> { Firebase.auth }
+
+        // Repository bindings (interface → Firestore/Firebase implementation)
         single<SportClientRepository> { SportClientRepositoryImpl(firestore = get(), logger = get()) }
+        single<AuthRepository> {
+            FirebaseAuthRepositoryImpl(
+                auth = get(),
+                firestore = get(),
+                logger = get(),
+            )
+        }
     }

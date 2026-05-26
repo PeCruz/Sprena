@@ -3,6 +3,7 @@ package br.com.sprena
 import android.app.Application
 import br.com.sprena.di.appModule
 import br.com.sprena.di.platformModule
+import br.com.sprena.shared.auth.di.sessionModule
 import br.com.sprena.shared.core.di.sharedModules
 import br.com.sprena.shared.core.logger.LoggerBootstrap
 import br.com.sprena.shared.core.logger.di.loggerModule
@@ -33,6 +34,7 @@ class SprenaApplication : Application() {
             modules(
                 buildList {
                     add(loggerModule())
+                    add(sessionModule())
                     add(platformModule())
                     addAll(sharedModules())
                     add(appModule())
