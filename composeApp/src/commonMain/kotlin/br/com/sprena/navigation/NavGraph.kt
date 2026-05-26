@@ -108,7 +108,7 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
                 onNavigateHome = { user ->
                     val encodedName = user.name.replace(" ", "+")
                     navController.navigate(
-                        "${Routes.HOME}/${user.id}/${user.username}/$encodedName/${user.role.name}",
+                        "${Routes.HOME}/${user.id}/${user.email}/$encodedName/${user.role.name}",
                     ) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
@@ -134,7 +134,7 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
             val authenticatedUser =
                 UserModel(
                     id = userId,
-                    username = username,
+                    email = username,
                     name = userName,
                     role = userRole,
                 )

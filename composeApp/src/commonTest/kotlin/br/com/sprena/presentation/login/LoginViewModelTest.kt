@@ -430,7 +430,7 @@ class LoginViewModelTest {
                 vm.handleIntent(LoginIntent.Submit)
                 val effect = awaitItem() as LoginEffect.NavigateHome
                 assertEquals("1", effect.user.id)
-                assertEquals("admin", effect.user.username)
+                assertEquals("admin", effect.user.email)
                 assertEquals("Pedro Admin", effect.user.name)
                 assertEquals(UserRole.ADM, effect.user.role)
                 cancelAndIgnoreRemainingEvents()

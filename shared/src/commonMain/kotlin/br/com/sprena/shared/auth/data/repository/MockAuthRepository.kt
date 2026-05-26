@@ -23,7 +23,7 @@ class MockAuthRepository : AuthRepository {
                 user =
                     UserModel(
                         id = "1",
-                        username = "admin",
+                        email = "admin",
                         name = "Pedro Admin",
                         role = UserRole.ADM,
                     ),
@@ -33,7 +33,7 @@ class MockAuthRepository : AuthRepository {
                 user =
                     UserModel(
                         id = "2",
-                        username = "mod",
+                        email = "mod",
                         name = "Maria Moderadora",
                         role = UserRole.MOD,
                     ),
@@ -43,7 +43,7 @@ class MockAuthRepository : AuthRepository {
                 user =
                     UserModel(
                         id = "3",
-                        username = "func",
+                        email = "func",
                         name = "João Funcionário",
                         role = UserRole.CLIENT,
                     ),
@@ -61,7 +61,7 @@ class MockAuthRepository : AuthRepository {
         val trimmedPassword = password.trim()
 
         val found =
-            users.find { it.user.username == trimmedUsername }
+            users.find { it.user.email == trimmedUsername }
                 ?: return AuthResult.Error("Usuário não encontrado")
 
         return if (found.password == trimmedPassword) {

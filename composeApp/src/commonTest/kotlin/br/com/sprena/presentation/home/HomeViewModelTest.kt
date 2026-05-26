@@ -25,7 +25,7 @@ class HomeViewModelTest {
     private val admUser =
         UserModel(
             id = "1",
-            username = "admin",
+            email = "admin",
             name = "Pedro Admin",
             role = UserRole.ADM,
         )
@@ -33,7 +33,7 @@ class HomeViewModelTest {
     private val modUser =
         UserModel(
             id = "2",
-            username = "mod",
+            email = "mod",
             name = "Maria Moderadora",
             role = UserRole.MOD,
         )
@@ -41,7 +41,7 @@ class HomeViewModelTest {
     private val clientUser =
         UserModel(
             id = "3",
-            username = "func",
+            email = "func",
             name = "João Funcionário",
             role = UserRole.CLIENT,
         )
