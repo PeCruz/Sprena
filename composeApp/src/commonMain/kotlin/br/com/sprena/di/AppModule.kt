@@ -23,7 +23,7 @@ import org.koin.dsl.module
 fun appModule() =
     module {
         viewModelOf(::HomeViewModel)
-        viewModel { LoginViewModel(get()) }
+        viewModel { LoginViewModel(loginUseCase = get(), requestPasswordReset = get()) }
         viewModelOf(::KanbanViewModel)
         viewModelOf(::AddTaskViewModel)
         viewModel { CreateTaskViewModel() }

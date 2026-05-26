@@ -20,11 +20,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
@@ -38,9 +42,8 @@ import br.com.sprena.presentation.core.theme.ThemeViewModel
 import br.com.sprena.shared.auth.domain.model.UserModel
 
 /**
- * Tela de Login — simple sign-in com logo Sprena,
- * campos de username (max 8 chars) / password (6 dígitos numéricos)
- * e botão de entrar.
+ * Tela de Login — autenticação com email e senha,
+ * com fluxo opcional de recuperação de senha.
  *
  * Apenas renderiza state e dispara intents (MVI).
  */
@@ -51,6 +54,7 @@ fun LoginScreen(
     onNavigateHome: (UserModel) -> Unit,
 ) {
     val state by viewModel.state.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Observa efeitos one-shot
     LaunchedEffect(Unit) {
@@ -58,11 +62,19 @@ fun LoginScreen(
             when (effect) {
                 is LoginEffect.NavigateHome -> onNavigateHome(effect.user)
                 is LoginEffect.ShowError -> { /* Handled inline via authError state */ }
+                is LoginEffect.ShowPasswordResetSent ->
+                    snackbarHostState.showSnackbar(
+                        "Email enviado. Verifique sua caixa de entrada.",
+                    )
+                is LoginEffect.ShowPasswordResetError ->
+                    snackbarHostState.showSnackbar(effect.message)
             }
         }
     }
 
-    Scaffold { innerPadding ->
+    Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+    ) { innerPadding ->
         Box(
             modifier =
                 Modifier
@@ -103,17 +115,17 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // --- Username (max 8 caracteres) ---
+                // --- Email ---
                 OutlinedTextField(
-                    value = state.username,
-                    onValueChange = { viewModel.handleIntent(LoginIntent.UsernameChanged(it)) },
-                    label = { Text("Usuário") },
+                    value = state.email,
+                    onValueChange = { viewModel.handleIntent(LoginIntent.EmailChanged(it)) },
+                    label = { Text("Email") },
                     singleLine = true,
-                    isError = state.usernameError != null,
-                    supportingText = state.usernameError?.let { error -> { Text(error) } },
+                    isError = state.emailError != null,
+                    supportingText = state.emailError?.let { error -> { Text(error) } },
                     keyboardOptions =
                         KeyboardOptions(
-                            keyboardType = KeyboardType.Text,
+                            keyboardType = KeyboardType.Email,
                             imeAction = ImeAction.Next,
                         ),
                     modifier = Modifier.fillMaxWidth(),
@@ -121,11 +133,11 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // --- Password (6 dígitos numéricos) ---
+                // --- Password ---
                 OutlinedTextField(
                     value = state.password,
                     onValueChange = { viewModel.handleIntent(LoginIntent.PasswordChanged(it)) },
-                    label = { Text("Senha (6 dígitos)") },
+                    label = { Text("Senha") },
                     singleLine = true,
                     isError = state.passwordError != null,
                     supportingText = state.passwordError?.let { error -> { Text(error) } },
@@ -147,7 +159,7 @@ fun LoginScreen(
                     },
                     keyboardOptions =
                         KeyboardOptions(
-                            keyboardType = KeyboardType.NumberPassword,
+                            keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done,
                         ),
                     keyboardActions =
@@ -186,6 +198,28 @@ fun LoginScreen(
                         Text("Entrar")
                     }
                 }
+
+                // --- Forgot password ---
+                TextButton(
+                    onClick = { viewModel.handleIntent(LoginIntent.OpenPasswordResetDialog) },
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    Text("Esqueci a senha")
+                }
+            }
+
+            // --- Forgot password dialog ---
+            if (state.passwordResetDialogOpen) {
+                ForgotPasswordDialog(
+                    email = state.passwordResetEmail,
+                    emailError = state.passwordResetEmailError,
+                    sending = state.passwordResetSending,
+                    onEmailChange = {
+                        viewModel.handleIntent(LoginIntent.UpdatePasswordResetEmail(it))
+                    },
+                    onSubmit = { viewModel.handleIntent(LoginIntent.SubmitPasswordReset) },
+                    onDismiss = { viewModel.handleIntent(LoginIntent.DismissPasswordResetDialog) },
+                )
             }
         }
     }
