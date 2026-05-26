@@ -15,5 +15,5 @@ import org.koin.dsl.module
 fun authModule() =
     module {
         single<AuthRepository> { MockAuthRepository() }
-        factory { LoginUseCase(authRepository = get(), logger = get()) }
+        factory { LoginUseCase(authRepository = get(), sessionStore = get(), clock = get(), logger = get()) }
     }
