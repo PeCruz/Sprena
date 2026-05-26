@@ -25,24 +25,38 @@ class FirebaseAuthRepositoryImpl(
     private val firestore: FirebaseFirestore,
     private val logger: Logger,
 ) : AuthRepository {
-    override suspend fun authenticate(email: String, password: String): AuthResult {
+    // ReturnCount: 4 distinct error paths (no uid / missing doc / invalid role / success) are
+    // clearer as guards than via collapsed Result chains. TooGenericExceptionCaught: Firebase
+    // wraps many failure modes in subclasses of Exception — we map all of them via mapError.
+    @Suppress("ReturnCount", "TooGenericExceptionCaught")
+    override suspend fun authenticate(
+        email: String,
+        password: String,
+    ): AuthResult {
         return try {
             val authResult = auth.signInWithEmailAndPassword(email, password).await()
-            val uid = authResult.user?.uid
-                ?: return AuthResult.Error("Falha inesperada na autenticação")
+            val uid =
+                authResult.user?.uid
+                    ?: return AuthResult.Error("Falha inesperada na autenticação")
 
-            val doc = firestore.collection(USERS_COLLECTION).document(uid).get().await()
+            val doc =
+                firestore
+                    .collection(USERS_COLLECTION)
+                    .document(uid)
+                    .get()
+                    .await()
             if (!doc.exists()) {
                 logger.warn(TAG, "user doc missing email=${PiiMasker.email(email)} uid=$uid")
                 return AuthResult.Error("Conta não autorizada. Contate o administrador.")
             }
 
             val roleStr = doc.getString("role")
-            val role = roleStr?.let { runCatching { UserRole.valueOf(it.uppercase()) }.getOrNull() }
-                ?: run {
-                    logger.warn(TAG, "user doc has invalid role uid=$uid raw=$roleStr")
-                    return AuthResult.Error("Conta sem perfil válido")
-                }
+            val role =
+                roleStr?.let { runCatching { UserRole.valueOf(it.uppercase()) }.getOrNull() }
+                    ?: run {
+                        logger.warn(TAG, "user doc has invalid role uid=$uid raw=$roleStr")
+                        return AuthResult.Error("Conta sem perfil válido")
+                    }
             val name = doc.getString("name") ?: email.substringBefore('@')
 
             logger.info(TAG, "login ok uid=$uid email=${PiiMasker.email(email)}")
@@ -54,10 +68,12 @@ class FirebaseAuthRepositoryImpl(
     }
 
     override suspend fun sendPasswordReset(email: String): Result<Unit> =
-        runCatching { auth.sendPasswordResetEmail(email).await(); Unit }
-            .onFailure { e ->
-                logger.warn(TAG, "sendPasswordReset failed email=${PiiMasker.email(email)}", e)
-            }
+        runCatching {
+            auth.sendPasswordResetEmail(email).await()
+            Unit
+        }.onFailure { e ->
+            logger.warn(TAG, "sendPasswordReset failed email=${PiiMasker.email(email)}", e)
+        }
 
     override suspend fun signOut() {
         auth.signOut()
@@ -70,8 +86,11 @@ class FirebaseAuthRepositoryImpl(
         when (e) {
             is FirebaseAuthInvalidUserException -> "Email ou senha incorretos"
             is FirebaseAuthInvalidCredentialsException -> {
-                if (e.errorCode == "ERROR_INVALID_EMAIL") "Email inválido"
-                else "Email ou senha incorretos"
+                if (e.errorCode == "ERROR_INVALID_EMAIL") {
+                    "Email inválido"
+                } else {
+                    "Email ou senha incorretos"
+                }
             }
             is FirebaseNetworkException -> "Sem conexão. Verifique a internet"
             is FirebaseAuthException ->

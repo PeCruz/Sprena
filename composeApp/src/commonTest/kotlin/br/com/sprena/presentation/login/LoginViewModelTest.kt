@@ -54,7 +54,10 @@ class LoginViewModelTest {
         var lastPassword: String? = null
         var lastResetEmail: String? = null
 
-        override suspend fun authenticate(email: String, password: String): AuthResult {
+        override suspend fun authenticate(
+            email: String,
+            password: String,
+        ): AuthResult {
             lastEmail = email
             lastPassword = password
             return nextResult
@@ -72,7 +75,9 @@ class LoginViewModelTest {
 
     // Simulação de erro de rede para o reset (nome contém "UnknownHostException"
     // para acionar a branch isNetworkError do use case).
-    private class FakeUnknownHostException(message: String) : RuntimeException(message)
+    private class FakeUnknownHostException(
+        message: String,
+    ) : RuntimeException(message)
 
     private class FakeSessionStore : SessionStore {
         var saved: SessionUser? = null

@@ -38,6 +38,11 @@ class EncryptedSessionStore(
         }
     }
 
+    // ReturnCount: progressive null-check of 4 cipher fields is clearer as guards than via
+    // listOfNotNull tricks. TooGenericExceptionCaught: Tink can throw GeneralSecurityException,
+    // base64 decode errors, NumberFormatException, IllegalArgumentException — all handled
+    // identically (clear + return null defensively).
+    @Suppress("ReturnCount", "TooGenericExceptionCaught")
     @OptIn(ExperimentalEncodingApi::class)
     override suspend fun load(): SessionUser? {
         val prefs = context.sessionDataStore.data.first()
@@ -79,7 +84,8 @@ class EncryptedSessionStore(
     private fun buildAead(): Aead {
         AeadConfig.register()
         val handle =
-            AndroidKeysetManager.Builder()
+            AndroidKeysetManager
+                .Builder()
                 .withSharedPref(context, KEYSET_NAME, KEYSET_PREF_FILE)
                 .withKeyTemplate(KeyTemplates.get("AES256_GCM"))
                 .withMasterKeyUri(MASTER_KEY_URI)

@@ -1,6 +1,5 @@
 package br.com.sprena.shared.auth.domain.validation
 
-import br.com.sprena.shared.core.validation.ValidationResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

@@ -8,6 +8,8 @@ package br.com.sprena.shared.auth.session
  */
 interface SessionStore {
     suspend fun save(user: SessionUser)
+
     suspend fun load(): SessionUser?
+
     suspend fun clear()
 }

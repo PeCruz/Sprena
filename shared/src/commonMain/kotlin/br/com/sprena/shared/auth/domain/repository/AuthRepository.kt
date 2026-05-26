@@ -13,7 +13,10 @@ interface AuthRepository {
      * Em sucesso, retorna [AuthResult.Success] com `UserModel` populado a partir
      * do Firebase Auth + doc `users/{uid}` no Firestore.
      */
-    suspend fun authenticate(email: String, password: String): AuthResult
+    suspend fun authenticate(
+        email: String,
+        password: String,
+    ): AuthResult
 
     /**
      * Envia email de reset de senha. `Result.failure` se rede/Firebase falhar.

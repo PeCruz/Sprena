@@ -65,6 +65,7 @@ import br.com.sprena.presentation.login.LoginScreen
 import br.com.sprena.presentation.login.LoginViewModel
 import br.com.sprena.presentation.menu.MenuScreen
 import br.com.sprena.presentation.menu.MenuViewModel
+import br.com.sprena.presentation.settings.SettingsNavigation
 import br.com.sprena.presentation.settings.SettingsScreen
 import br.com.sprena.presentation.sportclient.SportClient
 import br.com.sprena.presentation.sportclient.SportClientEffect
@@ -400,14 +401,17 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
         composable(route = Routes.SETTINGS) {
             SettingsScreen(
                 themeViewModel = themeViewModel,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateMenu = { navController.navigate(Routes.MENU) },
-                onNavigateCategory = { navController.navigate(Routes.CATEGORY) },
-                onNavigateToLogin = {
-                    navController.navigate(Routes.LOGIN) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                },
+                navigation =
+                    SettingsNavigation(
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateMenu = { navController.navigate(Routes.MENU) },
+                        onNavigateCategory = { navController.navigate(Routes.CATEGORY) },
+                        onNavigateToLogin = {
+                            navController.navigate(Routes.LOGIN) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        },
+                    ),
             )
         }
 
@@ -754,17 +758,16 @@ private fun HomeWithBottomNav(
                 SettingsScreen(
                     themeViewModel = themeViewModel,
                     modifier = Modifier.padding(bottomNavPadding),
-                    onNavigateMenu = {
-                        navController.navigate(Routes.MENU)
-                    },
-                    onNavigateCategory = {
-                        navController.navigate(Routes.CATEGORY)
-                    },
-                    onNavigateToLogin = {
-                        navController.navigate(Routes.LOGIN) {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    },
+                    navigation =
+                        SettingsNavigation(
+                            onNavigateMenu = { navController.navigate(Routes.MENU) },
+                            onNavigateCategory = { navController.navigate(Routes.CATEGORY) },
+                            onNavigateToLogin = {
+                                navController.navigate(Routes.LOGIN) {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            },
+                        ),
                 )
             }
         }

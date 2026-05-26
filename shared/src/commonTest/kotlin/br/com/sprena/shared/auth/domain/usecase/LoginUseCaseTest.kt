@@ -24,94 +24,115 @@ class LoginUseCaseTest {
         var lastEmail: String? = null
         var lastPassword: String? = null
 
-        override suspend fun authenticate(email: String, password: String): AuthResult {
+        override suspend fun authenticate(
+            email: String,
+            password: String,
+        ): AuthResult {
             lastEmail = email
             lastPassword = password
             return nextResult
         }
+
         override suspend fun sendPasswordReset(email: String) = Result.success(Unit)
+
         override suspend fun signOut() = Unit
+
         override fun currentUid(): String? = null
     }
 
     private class FakeSessionStore : SessionStore {
         var saved: SessionUser? = null
         var cleared = false
-        override suspend fun save(user: SessionUser) { saved = user }
+
+        override suspend fun save(user: SessionUser) {
+            saved = user
+        }
+
         override suspend fun load(): SessionUser? = saved
-        override suspend fun clear() { saved = null; cleared = true }
+
+        override suspend fun clear() {
+            saved = null
+            cleared = true
+        }
     }
 
-    private class FixedClock(private val now: Long) : Clock {
+    private class FixedClock(
+        private val now: Long,
+    ) : Clock {
         override fun nowEpochMillis(): Long = now
     }
 
     @Test
-    fun `returns Error and does not persist when email invalid`() = runTest {
-        val repo = FakeAuthRepository()
-        val store = FakeSessionStore()
-        val useCase = LoginUseCase(repo, store, FixedClock(1_000L), NoOpLogger())
+    fun `returns Error and does not persist when email invalid`() =
+        runTest {
+            val repo = FakeAuthRepository()
+            val store = FakeSessionStore()
+            val useCase = LoginUseCase(repo, store, FixedClock(1_000L), NoOpLogger())
 
-        val result = useCase("nao-eh-email", "abc123")
+            val result = useCase("nao-eh-email", "abc123")
 
-        assertTrue(result is AuthResult.Error)
-        assertNull(store.saved)
-        assertNull(repo.lastEmail)
-    }
-
-    @Test
-    fun `returns Error and does not persist when password invalid`() = runTest {
-        val repo = FakeAuthRepository()
-        val store = FakeSessionStore()
-        val useCase = LoginUseCase(repo, store, FixedClock(1_000L), NoOpLogger())
-
-        val result = useCase("ok@ex.com", "12345") // < 6
-
-        assertTrue(result is AuthResult.Error)
-        assertNull(store.saved)
-    }
+            assertTrue(result is AuthResult.Error)
+            assertNull(store.saved)
+            assertNull(repo.lastEmail)
+        }
 
     @Test
-    fun `delegates to repository when validation passes`() = runTest {
-        val repo = FakeAuthRepository()
-        val store = FakeSessionStore()
-        val useCase = LoginUseCase(repo, store, FixedClock(1_000L), NoOpLogger())
+    fun `returns Error and does not persist when password invalid`() =
+        runTest {
+            val repo = FakeAuthRepository()
+            val store = FakeSessionStore()
+            val useCase = LoginUseCase(repo, store, FixedClock(1_000L), NoOpLogger())
 
-        useCase("ok@ex.com", "abc123")
+            val result = useCase("ok@ex.com", "12345") // < 6
 
-        assertEquals("ok@ex.com", repo.lastEmail)
-        assertEquals("abc123", repo.lastPassword)
-    }
+            assertTrue(result is AuthResult.Error)
+            assertNull(store.saved)
+        }
 
     @Test
-    fun `persists session with clock timestamp on success`() = runTest {
-        val repo =
-            FakeAuthRepository(
-                nextResult =
-                    AuthResult.Success(
-                        UserModel(id = "u42", email = "ok@ex.com", name = "P", role = UserRole.MOD),
-                    ),
+    fun `delegates to repository when validation passes`() =
+        runTest {
+            val repo = FakeAuthRepository()
+            val store = FakeSessionStore()
+            val useCase = LoginUseCase(repo, store, FixedClock(1_000L), NoOpLogger())
+
+            useCase("ok@ex.com", "abc123")
+
+            assertEquals("ok@ex.com", repo.lastEmail)
+            assertEquals("abc123", repo.lastPassword)
+        }
+
+    @Test
+    fun `persists session with clock timestamp on success`() =
+        runTest {
+            val repo =
+                FakeAuthRepository(
+                    nextResult =
+                        AuthResult.Success(
+                            UserModel(id = "u42", email = "ok@ex.com", name = "P", role = UserRole.MOD),
+                        ),
+                )
+            val store = FakeSessionStore()
+            val useCase = LoginUseCase(repo, store, FixedClock(now = 9_999L), NoOpLogger())
+
+            useCase("ok@ex.com", "abc123")
+
+            assertEquals(
+                SessionUser(uid = "u42", email = "ok@ex.com", role = UserRole.MOD, lastLoginEpochMillis = 9_999L),
+                store.saved,
             )
-        val store = FakeSessionStore()
-        val useCase = LoginUseCase(repo, store, FixedClock(now = 9_999L), NoOpLogger())
-
-        useCase("ok@ex.com", "abc123")
-
-        assertEquals(
-            SessionUser(uid = "u42", email = "ok@ex.com", role = UserRole.MOD, lastLoginEpochMillis = 9_999L),
-            store.saved,
-        )
-    }
+        }
 
     @Test
-    fun `does not persist when repository returns Error`() = runTest {
-        val repo = FakeAuthRepository(nextResult = AuthResult.Error("falhou"))
-        val store = FakeSessionStore()
-        val useCase = LoginUseCase(repo, store, FixedClock(1_000L), NoOpLogger())
+    fun `does not persist when repository returns Error`() =
+        runTest {
+            val repo = FakeAuthRepository(nextResult = AuthResult.Error("falhou"))
+            val store = FakeSessionStore()
+            val useCase = LoginUseCase(repo, store, FixedClock(1_000L), NoOpLogger())
 
-        val result = useCase("ok@ex.com", "abc123")
+            val result = useCase("ok@ex.com", "abc123")
 
-        assertTrue(result is AuthResult.Error)
-        assertNull(store.saved)
-    }
+            assertTrue(result is AuthResult.Error)
+            assertNull(store.saved)
+        }
 }

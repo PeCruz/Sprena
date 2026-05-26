@@ -23,18 +23,12 @@ class LoginUseCase(
     private val clock: Clock,
     private val logger: Logger,
 ) {
-    suspend operator fun invoke(email: String, password: String): AuthResult {
-        val emailResult = LoginValidator.validateEmail(email)
-        if (!emailResult.isValid) {
-            logger.warn(TAG, "login rejected invalid email")
-            return AuthResult.Error(emailResult.errorMessage ?: "Email inválido")
-        }
-
-        val passwordResult = LoginValidator.validatePassword(password)
-        if (!passwordResult.isValid) {
-            logger.warn(TAG, "login rejected invalid password for email=$email")
-            return AuthResult.Error(passwordResult.errorMessage ?: "Senha inválida")
-        }
+    suspend operator fun invoke(
+        email: String,
+        password: String,
+    ): AuthResult {
+        val validationError = validate(email, password)
+        if (validationError != null) return validationError
 
         val result = authRepository.authenticate(email.trim(), password)
         if (result is AuthResult.Success) {
@@ -51,6 +45,24 @@ class LoginUseCase(
             logger.warn(TAG, "login failed email=$email")
         }
         return result
+    }
+
+    private fun validate(
+        email: String,
+        password: String,
+    ): AuthResult.Error? {
+        val emailResult = LoginValidator.validateEmail(email)
+        if (!emailResult.isValid) {
+            logger.warn(TAG, "login rejected invalid email")
+            return AuthResult.Error(emailResult.errorMessage ?: "Email inválido")
+        }
+        val passwordResult = LoginValidator.validatePassword(password)
+        return if (!passwordResult.isValid) {
+            logger.warn(TAG, "login rejected invalid password for email=$email")
+            AuthResult.Error(passwordResult.errorMessage ?: "Senha inválida")
+        } else {
+            null
+        }
     }
 
     private companion object {

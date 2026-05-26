@@ -3,6 +3,7 @@ package br.com.sprena.shared.auth.domain.usecase
 import br.com.sprena.shared.auth.domain.model.RestoreResult
 import br.com.sprena.shared.auth.domain.repository.AuthRepository
 import br.com.sprena.shared.auth.session.SessionStore
+import br.com.sprena.shared.auth.session.SessionUser
 import br.com.sprena.shared.auth.session.SessionValidator
 import br.com.sprena.shared.core.logger.Logger
 import br.com.sprena.shared.core.time.Clock
@@ -23,28 +24,34 @@ class RestoreSessionUseCase(
     private val logger: Logger,
 ) {
     suspend operator fun invoke(): RestoreResult {
-        val stored = sessionStore.load()
-        if (stored == null) {
-            logger.info(TAG, "no local session")
-            return RestoreResult.NotAuthenticated
+        val stored = sessionStore.load() ?: return notAuthenticated("no local session")
+        val invalidReason = invalidateIfNeeded(stored)
+        return if (invalidReason != null) {
+            notAuthenticated(invalidReason)
+        } else {
+            logger.info(TAG, "session restored uid=${stored.uid}")
+            RestoreResult.Authenticated(stored)
         }
+    }
 
+    private suspend fun invalidateIfNeeded(stored: SessionUser): String? {
         if (SessionValidator.isExpired(stored.lastLoginEpochMillis, clock.nowEpochMillis())) {
-            logger.info(TAG, "session expired uid=${stored.uid}")
             authRepository.signOut()
             sessionStore.clear()
-            return RestoreResult.NotAuthenticated
+            return "session expired uid=${stored.uid}"
         }
-
         val currentUid = authRepository.currentUid()
-        if (currentUid == null || currentUid != stored.uid) {
-            logger.warn(TAG, "session uid mismatch stored=${stored.uid} firebase=$currentUid")
+        return if (currentUid == null || currentUid != stored.uid) {
             sessionStore.clear()
-            return RestoreResult.NotAuthenticated
+            "session uid mismatch stored=${stored.uid} firebase=$currentUid"
+        } else {
+            null
         }
+    }
 
-        logger.info(TAG, "session restored uid=${stored.uid}")
-        return RestoreResult.Authenticated(stored)
+    private fun notAuthenticated(reason: String): RestoreResult.NotAuthenticated {
+        logger.info(TAG, reason)
+        return RestoreResult.NotAuthenticated
     }
 
     private companion object {

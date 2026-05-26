@@ -51,17 +51,14 @@ fun SettingsScreen(
     themeViewModel: ThemeViewModel,
     modifier: Modifier = Modifier,
     settingsViewModel: SettingsViewModel = koinViewModel(),
-    onNavigateBack: (() -> Unit)? = null,
-    onNavigateMenu: () -> Unit = {},
-    onNavigateCategory: () -> Unit = {},
-    onNavigateToLogin: () -> Unit = {},
+    navigation: SettingsNavigation = SettingsNavigation(),
 ) {
     val settingsState by settingsViewModel.state.collectAsState()
 
     LaunchedEffect(Unit) {
         settingsViewModel.effects.collect { effect ->
             when (effect) {
-                is SettingsEffect.NavigateToLogin -> onNavigateToLogin()
+                is SettingsEffect.NavigateToLogin -> navigation.onNavigateToLogin()
             }
         }
     }
@@ -69,25 +66,9 @@ fun SettingsScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
-                title = { Text("Configurações") },
-                navigationIcon = {
-                    if (onNavigateBack != null) {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Voltar",
-                            )
-                        }
-                    }
-                },
-                actions = {
-                    ThemeToggleButton(themeViewModel = themeViewModel)
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ),
+            SettingsTopBar(
+                themeViewModel = themeViewModel,
+                onNavigateBack = navigation.onNavigateBack,
             )
         },
     ) { innerPadding ->
@@ -97,82 +78,122 @@ fun SettingsScreen(
                     .fillMaxSize()
                     .padding(innerPadding),
         ) {
-            // ── Section: Conta ──
-            SectionTitle(title = "Conta")
-            val user = settingsState.user
-            if (user != null) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = user.email,
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Text(
-                            text = "Perfil: ${user.role.displayName}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-            TextButton(
-                onClick = { settingsViewModel.handleIntent(SettingsIntent.Logout) },
-                enabled = !settingsState.loggingOut,
-                modifier = Modifier.padding(horizontal = 16.dp),
-                colors =
-                    ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                    ),
-            ) {
-                Text(if (settingsState.loggingOut) "Saindo..." else "Sair")
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // ── Section: Comandas ──
-            SectionTitle(title = "Comandas")
-
-            SettingsItem(
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.Menu,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                title = "Cardápio",
-                subtitle = "Configurar itens do cardápio",
-                onClick = onNavigateMenu,
+            AccountSection(
+                state = settingsState,
+                onLogout = { settingsViewModel.handleIntent(SettingsIntent.Logout) },
             )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
             Spacer(modifier = Modifier.height(8.dp))
-
-            // ── Section: Financeiro ──
-            SectionTitle(title = "Financeiro")
-
-            SettingsItem(
-                icon = {
-                    Text(
-                        text = "R$",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                title = "Categorias",
-                subtitle = "Gerenciar categorias de transações",
-                onClick = onNavigateCategory,
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            ComandasSection(onNavigateMenu = navigation.onNavigateMenu)
+            Spacer(modifier = Modifier.height(8.dp))
+            FinanceiroSection(onNavigateCategory = navigation.onNavigateCategory)
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsTopBar(
+    themeViewModel: ThemeViewModel,
+    onNavigateBack: (() -> Unit)?,
+) {
+    TopAppBar(
+        title = { Text("Configurações") },
+        navigationIcon = {
+            if (onNavigateBack != null) {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Voltar",
+                    )
+                }
+            }
+        },
+        actions = {
+            ThemeToggleButton(themeViewModel = themeViewModel)
+        },
+        colors =
+            TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+            ),
+    )
+}
+
+@Composable
+private fun AccountSection(
+    state: SettingsState,
+    onLogout: () -> Unit,
+) {
+    SectionTitle(title = "Conta")
+    val user = state.user
+    if (user != null) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = user.email,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = "Perfil: ${user.role.displayName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+    TextButton(
+        onClick = onLogout,
+        enabled = !state.loggingOut,
+        modifier = Modifier.padding(horizontal = 16.dp),
+        colors =
+            ButtonDefaults.textButtonColors(
+                contentColor = MaterialTheme.colorScheme.error,
+            ),
+    ) {
+        Text(if (state.loggingOut) "Saindo..." else "Sair")
+    }
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+}
+
+@Composable
+private fun ComandasSection(onNavigateMenu: () -> Unit) {
+    SectionTitle(title = "Comandas")
+    SettingsItem(
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Menu,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        },
+        title = "Cardápio",
+        subtitle = "Configurar itens do cardápio",
+        onClick = onNavigateMenu,
+    )
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+}
+
+@Composable
+private fun FinanceiroSection(onNavigateCategory: () -> Unit) {
+    SectionTitle(title = "Categorias")
+    SettingsItem(
+        icon = {
+            Text(
+                text = "R$",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        },
+        title = "Categorias",
+        subtitle = "Gerenciar categorias de transações",
+        onClick = onNavigateCategory,
+    )
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
 @Composable
