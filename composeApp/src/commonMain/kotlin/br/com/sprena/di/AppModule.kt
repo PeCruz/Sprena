@@ -15,6 +15,7 @@ import br.com.sprena.presentation.kanban.addtask.AddTaskViewModel
 import br.com.sprena.presentation.kanban.createtask.CreateTaskViewModel
 import br.com.sprena.presentation.login.LoginViewModel
 import br.com.sprena.presentation.menu.MenuViewModel
+import br.com.sprena.presentation.settings.SettingsViewModel
 import br.com.sprena.presentation.sportclient.SportClientViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
@@ -38,4 +39,5 @@ fun appModule() =
         viewModelOf(::SportClientViewModel)
         viewModel { EventosViewModel() }
         viewModel { CreateEventViewModel() }
+        viewModel { SettingsViewModel(sessionStore = get(), logout = get()) }
     }

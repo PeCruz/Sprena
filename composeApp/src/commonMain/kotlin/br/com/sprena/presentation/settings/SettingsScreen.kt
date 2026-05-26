@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -20,15 +21,20 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import br.com.sprena.core.ui.components.ThemeToggleButton
 import br.com.sprena.presentation.core.theme.ThemeViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Tela de Configurações — acessível via BottomNav (aba "Config").
@@ -36,16 +42,30 @@ import br.com.sprena.presentation.core.theme.ThemeViewModel
  *
  * Overload sem onNavigateBack é usado quando é aba do BottomNav.
  * Overload com onNavigateBack é usado quando navegado via rota direta.
+ *
+ * Inclui seção "Conta" no topo com email + role do usuário e botão Sair.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     themeViewModel: ThemeViewModel,
     modifier: Modifier = Modifier,
+    settingsViewModel: SettingsViewModel = koinViewModel(),
     onNavigateBack: (() -> Unit)? = null,
     onNavigateMenu: () -> Unit = {},
     onNavigateCategory: () -> Unit = {},
+    onNavigateToLogin: () -> Unit = {},
 ) {
+    val settingsState by settingsViewModel.state.collectAsState()
+
+    LaunchedEffect(Unit) {
+        settingsViewModel.effects.collect { effect ->
+            when (effect) {
+                is SettingsEffect.NavigateToLogin -> onNavigateToLogin()
+            }
+        }
+    }
+
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -77,6 +97,45 @@ fun SettingsScreen(
                     .fillMaxSize()
                     .padding(innerPadding),
         ) {
+            // ── Section: Conta ──
+            SectionTitle(title = "Conta")
+            val user = settingsState.user
+            if (user != null) {
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = user.email,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            text = "Perfil: ${user.role.displayName}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            TextButton(
+                onClick = { settingsViewModel.handleIntent(SettingsIntent.Logout) },
+                enabled = !settingsState.loggingOut,
+                modifier = Modifier.padding(horizontal = 16.dp),
+                colors =
+                    ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+            ) {
+                Text(if (settingsState.loggingOut) "Saindo..." else "Sair")
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             // ── Section: Comandas ──
             SectionTitle(title = "Comandas")
 

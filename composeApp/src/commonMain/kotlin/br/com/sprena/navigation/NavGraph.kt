@@ -368,6 +368,11 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateMenu = { navController.navigate(Routes.MENU) },
                 onNavigateCategory = { navController.navigate(Routes.CATEGORY) },
+                onNavigateToLogin = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
             )
         }
 
@@ -719,6 +724,11 @@ private fun HomeWithBottomNav(
                     },
                     onNavigateCategory = {
                         navController.navigate(Routes.CATEGORY)
+                    },
+                    onNavigateToLogin = {
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(0) { inclusive = true }
+                        }
                     },
                 )
             }
