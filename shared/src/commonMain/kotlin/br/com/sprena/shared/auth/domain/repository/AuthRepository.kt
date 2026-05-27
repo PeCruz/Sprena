@@ -5,17 +5,32 @@ import br.com.sprena.shared.auth.domain.model.AuthResult
 /**
  * Contrato do repositório de autenticação.
  *
- * Interface em `shared/commonMain` — implementação concreta
- * pode ser mockada (in-memory) ou Firebase Auth.
+ * Implementação concreta em `shared/androidMain`: `FirebaseAuthRepositoryImpl`.
  */
 interface AuthRepository {
     /**
-     * Autentica o usuário com [username] e [password].
-     *
-     * @return [AuthResult.Success] com dados do usuário ou [AuthResult.Error] com mensagem.
+     * Autentica com [email] e [password].
+     * Em sucesso, retorna [AuthResult.Success] com `UserModel` populado a partir
+     * do Firebase Auth + doc `users/{uid}` no Firestore.
      */
     suspend fun authenticate(
-        username: String,
+        email: String,
         password: String,
     ): AuthResult
+
+    /**
+     * Envia email de reset de senha. `Result.failure` se rede/Firebase falhar.
+     */
+    suspend fun sendPasswordReset(email: String): Result<Unit>
+
+    /**
+     * Encerra a sessão Firebase Auth local (não invalida no servidor).
+     */
+    suspend fun signOut()
+
+    /**
+     * Retorna o uid do usuário atualmente autenticado no Firebase Auth, ou null.
+     * Não depende de cache local — consulta `FirebaseAuth.currentUser`.
+     */
+    fun currentUid(): String?
 }

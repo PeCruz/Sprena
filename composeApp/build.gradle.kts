@@ -58,6 +58,7 @@ kotlin {
             // Firebase (project.dependencies.platform() is required for BOM in KMP)
             implementation(project.dependencies.platform(libs.firebase.bom))
             implementation(libs.firebase.firestore)
+            implementation(libs.firebase.auth)
         }
 
         commonTest.dependencies {

@@ -11,4 +11,10 @@ sealed interface LoginEffect : UiEffect {
     data class ShowError(
         val message: String,
     ) : LoginEffect
+
+    data object ShowPasswordResetSent : LoginEffect
+
+    data class ShowPasswordResetError(
+        val message: String,
+    ) : LoginEffect
 }

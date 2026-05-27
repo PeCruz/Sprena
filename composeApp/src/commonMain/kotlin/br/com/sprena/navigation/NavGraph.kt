@@ -1,9 +1,12 @@
 package br.com.sprena.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -16,7 +19,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -59,6 +65,7 @@ import br.com.sprena.presentation.login.LoginScreen
 import br.com.sprena.presentation.login.LoginViewModel
 import br.com.sprena.presentation.menu.MenuScreen
 import br.com.sprena.presentation.menu.MenuViewModel
+import br.com.sprena.presentation.settings.SettingsNavigation
 import br.com.sprena.presentation.settings.SettingsScreen
 import br.com.sprena.presentation.sportclient.SportClient
 import br.com.sprena.presentation.sportclient.SportClientEffect
@@ -66,8 +73,11 @@ import br.com.sprena.presentation.sportclient.SportClientIntent
 import br.com.sprena.presentation.sportclient.SportClientScreen
 import br.com.sprena.presentation.sportclient.SportClientViewModel
 import br.com.sprena.presentation.sportclient.edit.SportClientEditScreen
+import br.com.sprena.shared.auth.domain.model.RestoreResult
 import br.com.sprena.shared.auth.domain.model.UserModel
 import br.com.sprena.shared.auth.domain.model.UserRole
+import br.com.sprena.shared.auth.domain.usecase.RestoreSessionUseCase
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -96,9 +106,35 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
     val menuViewModel: MenuViewModel = koinViewModel()
     val categoryViewModel: CategoryViewModel = koinViewModel()
 
+    val restoreUseCase: RestoreSessionUseCase = koinInject()
+    var startDestination by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        startDestination =
+            when (val result = restoreUseCase()) {
+                is RestoreResult.Authenticated -> {
+                    val session = result.user
+                    val encodedName = session.email.substringBefore('@').replace(" ", "+")
+                    "${Routes.HOME}/${session.uid}/${session.email}/$encodedName/${session.role.name}"
+                }
+                is RestoreResult.NotAuthenticated -> Routes.LOGIN
+            }
+    }
+
+    val resolvedStart = startDestination
+    if (resolvedStart == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
     NavHost(
         navController = navController,
-        startDestination = Routes.LOGIN,
+        startDestination = resolvedStart,
     ) {
         composable(route = Routes.LOGIN) {
             val loginViewModel: LoginViewModel = koinViewModel()
@@ -108,7 +144,7 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
                 onNavigateHome = { user ->
                     val encodedName = user.name.replace(" ", "+")
                     navController.navigate(
-                        "${Routes.HOME}/${user.id}/${user.username}/$encodedName/${user.role.name}",
+                        "${Routes.HOME}/${user.id}/${user.email}/$encodedName/${user.role.name}",
                     ) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
@@ -134,7 +170,7 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
             val authenticatedUser =
                 UserModel(
                     id = userId,
-                    username = username,
+                    email = username,
                     name = userName,
                     role = userRole,
                 )
@@ -365,9 +401,17 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
         composable(route = Routes.SETTINGS) {
             SettingsScreen(
                 themeViewModel = themeViewModel,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateMenu = { navController.navigate(Routes.MENU) },
-                onNavigateCategory = { navController.navigate(Routes.CATEGORY) },
+                navigation =
+                    SettingsNavigation(
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateMenu = { navController.navigate(Routes.MENU) },
+                        onNavigateCategory = { navController.navigate(Routes.CATEGORY) },
+                        onNavigateToLogin = {
+                            navController.navigate(Routes.LOGIN) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        },
+                    ),
             )
         }
 
@@ -714,12 +758,16 @@ private fun HomeWithBottomNav(
                 SettingsScreen(
                     themeViewModel = themeViewModel,
                     modifier = Modifier.padding(bottomNavPadding),
-                    onNavigateMenu = {
-                        navController.navigate(Routes.MENU)
-                    },
-                    onNavigateCategory = {
-                        navController.navigate(Routes.CATEGORY)
-                    },
+                    navigation =
+                        SettingsNavigation(
+                            onNavigateMenu = { navController.navigate(Routes.MENU) },
+                            onNavigateCategory = { navController.navigate(Routes.CATEGORY) },
+                            onNavigateToLogin = {
+                                navController.navigate(Routes.LOGIN) {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            },
+                        ),
                 )
             }
         }

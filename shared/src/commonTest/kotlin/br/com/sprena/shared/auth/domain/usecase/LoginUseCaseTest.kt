@@ -1,108 +1,138 @@
 package br.com.sprena.shared.auth.domain.usecase
 
-import br.com.sprena.shared.auth.data.repository.MockAuthRepository
 import br.com.sprena.shared.auth.domain.model.AuthResult
+import br.com.sprena.shared.auth.domain.model.UserModel
 import br.com.sprena.shared.auth.domain.model.UserRole
+import br.com.sprena.shared.auth.domain.repository.AuthRepository
+import br.com.sprena.shared.auth.session.SessionStore
+import br.com.sprena.shared.auth.session.SessionUser
 import br.com.sprena.shared.core.logger.NoOpLogger
+import br.com.sprena.shared.core.time.Clock
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * Testes do LoginUseCase.
- *
- * Cobre:
- *  - Validação de inputs antes de chamar o repository
- *  - Delegação ao repository com inputs válidos
- *  - Retorno correto de Success/Error
- */
 class LoginUseCaseTest {
-    private val useCase = LoginUseCase(MockAuthRepository(), NoOpLogger())
+    private class FakeAuthRepository(
+        var nextResult: AuthResult =
+            AuthResult.Success(
+                UserModel(id = "u1", email = "a@b.com", name = "A", role = UserRole.ADM),
+            ),
+    ) : AuthRepository {
+        var lastEmail: String? = null
+        var lastPassword: String? = null
 
-    // ── Validação de inputs ──────────────────────────────
+        override suspend fun authenticate(
+            email: String,
+            password: String,
+        ): AuthResult {
+            lastEmail = email
+            lastPassword = password
+            return nextResult
+        }
+
+        override suspend fun sendPasswordReset(email: String) = Result.success(Unit)
+
+        override suspend fun signOut() = Unit
+
+        override fun currentUid(): String? = null
+    }
+
+    private class FakeSessionStore : SessionStore {
+        var saved: SessionUser? = null
+        var cleared = false
+
+        override suspend fun save(user: SessionUser) {
+            saved = user
+        }
+
+        override suspend fun load(): SessionUser? = saved
+
+        override suspend fun clear() {
+            saved = null
+            cleared = true
+        }
+    }
+
+    private class FixedClock(
+        private val now: Long,
+    ) : Clock {
+        override fun nowEpochMillis(): Long = now
+    }
 
     @Test
-    fun `empty username returns Error without calling repository`() =
+    fun `returns Error and does not persist when email invalid`() =
         runTest {
-            val result = useCase("", "123456")
+            val repo = FakeAuthRepository()
+            val store = FakeSessionStore()
+            val useCase = LoginUseCase(repo, store, FixedClock(1_000L), NoOpLogger())
+
+            val result = useCase("nao-eh-email", "abc123")
+
             assertTrue(result is AuthResult.Error)
+            assertNull(store.saved)
+            assertNull(repo.lastEmail)
         }
 
     @Test
-    fun `username too short returns Error`() =
+    fun `returns Error and does not persist when password invalid`() =
         runTest {
-            val result = useCase("ab", "123456")
+            val repo = FakeAuthRepository()
+            val store = FakeSessionStore()
+            val useCase = LoginUseCase(repo, store, FixedClock(1_000L), NoOpLogger())
+
+            val result = useCase("ok@ex.com", "12345") // < 6
+
             assertTrue(result is AuthResult.Error)
+            assertNull(store.saved)
         }
 
     @Test
-    fun `username too long returns Error`() =
+    fun `delegates to repository when validation passes`() =
         runTest {
-            val result = useCase("123456789", "123456")
+            val repo = FakeAuthRepository()
+            val store = FakeSessionStore()
+            val useCase = LoginUseCase(repo, store, FixedClock(1_000L), NoOpLogger())
+
+            useCase("ok@ex.com", "abc123")
+
+            assertEquals("ok@ex.com", repo.lastEmail)
+            assertEquals("abc123", repo.lastPassword)
+        }
+
+    @Test
+    fun `persists session with clock timestamp on success`() =
+        runTest {
+            val repo =
+                FakeAuthRepository(
+                    nextResult =
+                        AuthResult.Success(
+                            UserModel(id = "u42", email = "ok@ex.com", name = "P", role = UserRole.MOD),
+                        ),
+                )
+            val store = FakeSessionStore()
+            val useCase = LoginUseCase(repo, store, FixedClock(now = 9_999L), NoOpLogger())
+
+            useCase("ok@ex.com", "abc123")
+
+            assertEquals(
+                SessionUser(uid = "u42", email = "ok@ex.com", role = UserRole.MOD, lastLoginEpochMillis = 9_999L),
+                store.saved,
+            )
+        }
+
+    @Test
+    fun `does not persist when repository returns Error`() =
+        runTest {
+            val repo = FakeAuthRepository(nextResult = AuthResult.Error("falhou"))
+            val store = FakeSessionStore()
+            val useCase = LoginUseCase(repo, store, FixedClock(1_000L), NoOpLogger())
+
+            val result = useCase("ok@ex.com", "abc123")
+
             assertTrue(result is AuthResult.Error)
-        }
-
-    @Test
-    fun `password with letters returns Error`() =
-        runTest {
-            val result = useCase("admin", "abc123")
-            assertTrue(result is AuthResult.Error)
-        }
-
-    @Test
-    fun `password too short returns Error`() =
-        runTest {
-            val result = useCase("admin", "12345")
-            assertTrue(result is AuthResult.Error)
-        }
-
-    @Test
-    fun `password too long returns Error`() =
-        runTest {
-            val result = useCase("admin", "1234567")
-            assertTrue(result is AuthResult.Error)
-        }
-
-    // ── Autenticação ─────────────────────────────────────
-
-    @Test
-    fun `valid admin credentials return Success with ADM role`() =
-        runTest {
-            val result = useCase("admin", "123456")
-            assertTrue(result is AuthResult.Success)
-            assertEquals(UserRole.ADM, (result as AuthResult.Success).user.role)
-        }
-
-    @Test
-    fun `valid mod credentials return Success with MOD role`() =
-        runTest {
-            val result = useCase("mod", "654321")
-            assertTrue(result is AuthResult.Success)
-            assertEquals(UserRole.MOD, (result as AuthResult.Success).user.role)
-        }
-
-    @Test
-    fun `valid client credentials return Success with CLIENT role`() =
-        runTest {
-            val result = useCase("func", "111111")
-            assertTrue(result is AuthResult.Success)
-            assertEquals(UserRole.CLIENT, (result as AuthResult.Success).user.role)
-        }
-
-    @Test
-    fun `wrong password returns Error`() =
-        runTest {
-            val result = useCase("admin", "999999")
-            assertTrue(result is AuthResult.Error)
-            assertEquals("Senha incorreta", (result as AuthResult.Error).message)
-        }
-
-    @Test
-    fun `unknown user returns Error`() =
-        runTest {
-            val result = useCase("unknown", "123456")
-            assertTrue(result is AuthResult.Error)
-            assertEquals("Usuário não encontrado", (result as AuthResult.Error).message)
+            assertNull(store.saved)
         }
 }

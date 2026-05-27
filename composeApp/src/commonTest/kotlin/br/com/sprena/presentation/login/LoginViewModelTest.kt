@@ -1,13 +1,21 @@
 package br.com.sprena.presentation.login
 
 import app.cash.turbine.test
-import br.com.sprena.shared.auth.data.repository.MockAuthRepository
+import br.com.sprena.shared.auth.domain.model.AuthResult
+import br.com.sprena.shared.auth.domain.model.UserModel
 import br.com.sprena.shared.auth.domain.model.UserRole
+import br.com.sprena.shared.auth.domain.repository.AuthRepository
 import br.com.sprena.shared.auth.domain.usecase.LoginUseCase
+import br.com.sprena.shared.auth.domain.usecase.RequestPasswordResetUseCase
 import br.com.sprena.shared.auth.domain.validation.LoginValidator
+import br.com.sprena.shared.auth.session.SessionStore
+import br.com.sprena.shared.auth.session.SessionUser
 import br.com.sprena.shared.core.logger.NoOpLogger
+import br.com.sprena.shared.core.time.Clock
 import br.com.sprena.test.MainDispatcherEnv
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -18,45 +26,109 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * TDD — LoginViewModel (tela de autenticação com roles).
+ * TDD — LoginViewModel (autenticação Firebase Auth + reset de senha).
  *
  * Cenários cobertos:
  *  - Estado inicial (defaults)
- *  - Digitação de username: atualiza state, trunca em 8 chars
- *  - Digitação de password: filtra só dígitos, trunca em 6
+ *  - Digitação de email: atualiza state, trunca em EMAIL_MAX_LENGTH chars
+ *  - Digitação de password: atualiza state
  *  - Erros de validação inline (só exibidos quando campo não-vazio e inválido)
- *  - canSubmit: todas as combinações válido/inválido
+ *  - canSubmit: combinações válido/inválido
  *  - Toggle de visibilidade de senha
  *  - Submit com campos inválidos: erros no state + efeito ShowError
  *  - Submit com credenciais corretas: loading, NavigateHome com UserModel completo
- *  - Submit com senha errada / usuário desconhecido: ShowError
- *  - Login case-insensitive
+ *  - Submit com falha do repo: ShowError
  *  - Loading state reseta após submit (sucesso e erro)
+ *  - Fluxo de reset de senha: abrir dialog, validar email, enviar, sucesso/erro
  */
 class LoginViewModelTest {
     private val env = MainDispatcherEnv()
+
+    private class FakeAuthRepository : AuthRepository {
+        var nextResult: AuthResult =
+            AuthResult.Success(
+                UserModel(id = "u1", email = "admin@sprena.com", name = "Pedro Admin", role = UserRole.ADM),
+            )
+        var nextPasswordResetResult: Result<Unit> = Result.success(Unit)
+        var lastEmail: String? = null
+        var lastPassword: String? = null
+        var lastResetEmail: String? = null
+
+        override suspend fun authenticate(
+            email: String,
+            password: String,
+        ): AuthResult {
+            lastEmail = email
+            lastPassword = password
+            return nextResult
+        }
+
+        override suspend fun sendPasswordReset(email: String): Result<Unit> {
+            lastResetEmail = email
+            return nextPasswordResetResult
+        }
+
+        override suspend fun signOut() = Unit
+
+        override fun currentUid(): String? = null
+    }
+
+    // Simulação de erro de rede para o reset (nome contém "UnknownHostException"
+    // para acionar a branch isNetworkError do use case).
+    private class FakeUnknownHostException(
+        message: String,
+    ) : RuntimeException(message)
+
+    private class FakeSessionStore : SessionStore {
+        var saved: SessionUser? = null
+        var cleared = false
+
+        override suspend fun save(user: SessionUser) {
+            saved = user
+        }
+
+        override suspend fun load(): SessionUser? = saved
+
+        override suspend fun clear() {
+            saved = null
+            cleared = true
+        }
+    }
+
+    private class FixedClock(
+        private val now: Long,
+    ) : Clock {
+        override fun nowEpochMillis(): Long = now
+    }
+
+    private lateinit var authRepo: FakeAuthRepository
+    private lateinit var sessionStore: FakeSessionStore
     private lateinit var loginUseCase: LoginUseCase
+    private lateinit var requestPasswordReset: RequestPasswordResetUseCase
 
     @BeforeTest
     fun setUp() {
         env.install()
-        loginUseCase = LoginUseCase(MockAuthRepository(), NoOpLogger())
+        authRepo = FakeAuthRepository()
+        sessionStore = FakeSessionStore()
+        loginUseCase = LoginUseCase(authRepo, sessionStore, FixedClock(1_000L), NoOpLogger())
+        requestPasswordReset = RequestPasswordResetUseCase(authRepo, NoOpLogger())
     }
 
     @AfterTest
     fun tearDown() = env.uninstall()
 
-    private fun createViewModel() = LoginViewModel(loginUseCase)
+    private fun createViewModel() = LoginViewModel(loginUseCase, requestPasswordReset)
 
     // =========================================================================
     // Estado Inicial
     // =========================================================================
 
     @Test
-    fun `initial state has empty username`() =
+    fun `initial state has empty email`() =
         runTest {
             val vm = createViewModel()
-            assertEquals("", vm.state.first().username)
+            assertEquals("", vm.state.first().email)
         }
 
     @Test
@@ -67,10 +139,10 @@ class LoginViewModelTest {
         }
 
     @Test
-    fun `initial state has no username error`() =
+    fun `initial state has no email error`() =
         runTest {
             val vm = createViewModel()
-            assertNull(vm.state.first().usernameError)
+            assertNull(vm.state.first().emailError)
         }
 
     @Test
@@ -101,120 +173,80 @@ class LoginViewModelTest {
             assertFalse(vm.state.first().canSubmit)
         }
 
+    @Test
+    fun `initial state has password reset dialog closed`() =
+        runTest {
+            val vm = createViewModel()
+            assertFalse(vm.state.first().passwordResetDialogOpen)
+        }
+
     // =========================================================================
-    // Username — digitação e truncamento
+    // Email — digitação e truncamento
     // =========================================================================
 
     @Test
-    fun `username changed updates state`() =
+    fun `email changed updates state`() =
         runTest {
             val vm = createViewModel()
-            vm.handleIntent(LoginIntent.UsernameChanged("admin"))
-            assertEquals("admin", vm.state.first().username)
+            vm.handleIntent(LoginIntent.EmailChanged("pedro@gmail.com"))
+            assertEquals("pedro@gmail.com", vm.state.first().email)
         }
 
     @Test
-    fun `username truncated at max length`() =
+    fun `email truncated at max length`() =
         runTest {
             val vm = createViewModel()
-            val tooLong = "a".repeat(LoginValidator.USERNAME_MAX_LENGTH + 1)
-            vm.handleIntent(LoginIntent.UsernameChanged(tooLong))
+            val tooLong = "a".repeat(LoginValidator.EMAIL_MAX_LENGTH + 10)
+            vm.handleIntent(LoginIntent.EmailChanged(tooLong))
             assertEquals(
-                LoginValidator.USERNAME_MAX_LENGTH,
+                LoginValidator.EMAIL_MAX_LENGTH,
                 vm.state
                     .first()
-                    .username.length,
+                    .email.length,
             )
         }
 
-    @Test
-    fun `username at exactly max length is preserved`() =
-        runTest {
-            val vm = createViewModel()
-            val atMax = "b".repeat(LoginValidator.USERNAME_MAX_LENGTH)
-            vm.handleIntent(LoginIntent.UsernameChanged(atMax))
-            assertEquals(atMax, vm.state.first().username)
-        }
-
     // =========================================================================
-    // Username — erros de validação inline
+    // Email — erros de validação inline
     // =========================================================================
 
     @Test
-    fun `username empty does not show error`() =
+    fun `email empty does not show error`() =
         runTest {
             val vm = createViewModel()
-            vm.handleIntent(LoginIntent.UsernameChanged(""))
-            assertNull(vm.state.first().usernameError)
+            vm.handleIntent(LoginIntent.EmailChanged(""))
+            assertNull(vm.state.first().emailError)
         }
 
     @Test
-    fun `username below min length shows error`() =
+    fun `email malformed shows error`() =
         runTest {
             val vm = createViewModel()
-            val short = "a".repeat(LoginValidator.USERNAME_MIN_LENGTH - 1)
-            vm.handleIntent(LoginIntent.UsernameChanged(short))
-            assertTrue(vm.state.first().usernameError != null)
+            vm.handleIntent(LoginIntent.EmailChanged("nao-eh-email"))
+            assertTrue(vm.state.first().emailError != null)
         }
 
     @Test
-    fun `username at min length clears error`() =
+    fun `email valid clears error`() =
         runTest {
             val vm = createViewModel()
-            val atMin = "a".repeat(LoginValidator.USERNAME_MIN_LENGTH)
-            vm.handleIntent(LoginIntent.UsernameChanged(atMin))
-            assertNull(vm.state.first().usernameError)
-        }
-
-    @Test
-    fun `username valid clears error`() =
-        runTest {
-            val vm = createViewModel()
-            vm.handleIntent(LoginIntent.UsernameChanged("ab"))
-            assertTrue(vm.state.first().usernameError != null)
-            vm.handleIntent(LoginIntent.UsernameChanged("admin"))
-            assertNull(vm.state.first().usernameError)
+            vm.handleIntent(LoginIntent.EmailChanged("ruim"))
+            assertTrue(vm.state.first().emailError != null)
+            vm.handleIntent(LoginIntent.EmailChanged("pedro@gmail.com"))
+            assertNull(vm.state.first().emailError)
         }
 
     // =========================================================================
-    // Password — digitação, filtragem e truncamento
+    // Password — digitação e validação
     // =========================================================================
 
     @Test
-    fun `password changed updates state with digits only`() =
+    fun `password changed updates state`() =
         runTest {
             val vm = createViewModel()
-            vm.handleIntent(LoginIntent.PasswordChanged("123456"))
-            assertEquals("123456", vm.state.first().password)
+            vm.handleIntent(LoginIntent.PasswordChanged("abc123"))
+            assertEquals("abc123", vm.state.first().password)
         }
-
-    @Test
-    fun `password filters non-digit characters`() =
-        runTest {
-            val vm = createViewModel()
-            vm.handleIntent(LoginIntent.PasswordChanged("1a2b3c4d5e6f"))
-            assertEquals("123456", vm.state.first().password)
-        }
-
-    @Test
-    fun `password truncated at 6 digits`() =
-        runTest {
-            val vm = createViewModel()
-            vm.handleIntent(LoginIntent.PasswordChanged("1234567890"))
-            assertEquals("123456", vm.state.first().password)
-        }
-
-    @Test
-    fun `password all letters results in empty`() =
-        runTest {
-            val vm = createViewModel()
-            vm.handleIntent(LoginIntent.PasswordChanged("abcdef"))
-            assertEquals("", vm.state.first().password)
-        }
-
-    // =========================================================================
-    // Password — erros de validação inline
-    // =========================================================================
 
     @Test
     fun `password empty does not show error`() =
@@ -228,17 +260,17 @@ class LoginViewModelTest {
     fun `password below required length shows error`() =
         runTest {
             val vm = createViewModel()
-            vm.handleIntent(LoginIntent.PasswordChanged("12345"))
+            vm.handleIntent(LoginIntent.PasswordChanged("abc12"))
             assertTrue(vm.state.first().passwordError != null)
         }
 
     @Test
-    fun `password at exact length clears error`() =
+    fun `password at min length clears error`() =
         runTest {
             val vm = createViewModel()
-            vm.handleIntent(LoginIntent.PasswordChanged("12345"))
+            vm.handleIntent(LoginIntent.PasswordChanged("abc12"))
             assertTrue(vm.state.first().passwordError != null)
-            vm.handleIntent(LoginIntent.PasswordChanged("123456"))
+            vm.handleIntent(LoginIntent.PasswordChanged("abc123"))
             assertNull(vm.state.first().passwordError)
         }
 
@@ -269,68 +301,46 @@ class LoginViewModelTest {
     // =========================================================================
 
     @Test
-    fun `canSubmit false with empty username and valid password`() =
+    fun `canSubmit false with empty email and valid password`() =
         runTest {
             val vm = createViewModel()
-            vm.handleIntent(LoginIntent.PasswordChanged("123456"))
+            vm.handleIntent(LoginIntent.PasswordChanged("abc123"))
             assertFalse(vm.state.first().canSubmit)
         }
 
     @Test
-    fun `canSubmit false with valid username and empty password`() =
+    fun `canSubmit false with valid email and empty password`() =
         runTest {
             val vm = createViewModel()
-            vm.handleIntent(LoginIntent.UsernameChanged("admin"))
+            vm.handleIntent(LoginIntent.EmailChanged("pedro@gmail.com"))
             assertFalse(vm.state.first().canSubmit)
         }
 
     @Test
-    fun `canSubmit false with short username and valid password`() =
+    fun `canSubmit false with invalid email and valid password`() =
         runTest {
             val vm = createViewModel()
-            vm.handleIntent(LoginIntent.UsernameChanged("ab"))
-            vm.handleIntent(LoginIntent.PasswordChanged("123456"))
+            vm.handleIntent(LoginIntent.EmailChanged("ruim"))
+            vm.handleIntent(LoginIntent.PasswordChanged("abc123"))
             assertFalse(vm.state.first().canSubmit)
         }
 
     @Test
-    fun `canSubmit false with valid username and short password`() =
+    fun `canSubmit false with valid email and short password`() =
         runTest {
             val vm = createViewModel()
-            vm.handleIntent(LoginIntent.UsernameChanged("admin"))
-            vm.handleIntent(LoginIntent.PasswordChanged("123"))
+            vm.handleIntent(LoginIntent.EmailChanged("pedro@gmail.com"))
+            vm.handleIntent(LoginIntent.PasswordChanged("abc"))
             assertFalse(vm.state.first().canSubmit)
         }
 
     @Test
-    fun `canSubmit true with valid username and valid password`() =
+    fun `canSubmit true with valid email and valid password`() =
         runTest {
             val vm = createViewModel()
-            vm.handleIntent(LoginIntent.UsernameChanged("admin"))
-            vm.handleIntent(LoginIntent.PasswordChanged("123456"))
+            vm.handleIntent(LoginIntent.EmailChanged("pedro@gmail.com"))
+            vm.handleIntent(LoginIntent.PasswordChanged("abc123"))
             assertTrue(vm.state.first().canSubmit)
-        }
-
-    @Test
-    fun `canSubmit becomes false when username cleared after being valid`() =
-        runTest {
-            val vm = createViewModel()
-            vm.handleIntent(LoginIntent.UsernameChanged("admin"))
-            vm.handleIntent(LoginIntent.PasswordChanged("123456"))
-            assertTrue(vm.state.first().canSubmit)
-            vm.handleIntent(LoginIntent.UsernameChanged(""))
-            assertFalse(vm.state.first().canSubmit)
-        }
-
-    @Test
-    fun `canSubmit becomes false when password cleared after being valid`() =
-        runTest {
-            val vm = createViewModel()
-            vm.handleIntent(LoginIntent.UsernameChanged("admin"))
-            vm.handleIntent(LoginIntent.PasswordChanged("123456"))
-            assertTrue(vm.state.first().canSubmit)
-            vm.handleIntent(LoginIntent.PasswordChanged(""))
-            assertFalse(vm.state.first().canSubmit)
         }
 
     // =========================================================================
@@ -350,11 +360,11 @@ class LoginViewModelTest {
         }
 
     @Test
-    fun `submit with empty fields sets usernameError in state`() =
+    fun `submit with empty fields sets emailError in state`() =
         runTest {
             val vm = createViewModel()
             vm.handleIntent(LoginIntent.Submit)
-            assertTrue(vm.state.first().usernameError != null)
+            assertTrue(vm.state.first().emailError != null)
         }
 
     @Test
@@ -366,34 +376,6 @@ class LoginViewModelTest {
         }
 
     @Test
-    fun `submit with valid username but empty password sets passwordError`() =
-        runTest {
-            val vm = createViewModel()
-            vm.handleIntent(LoginIntent.UsernameChanged("admin"))
-            vm.effects.test {
-                vm.handleIntent(LoginIntent.Submit)
-                awaitItem() // ShowError
-                assertNull(vm.state.first().usernameError)
-                assertTrue(vm.state.first().passwordError != null)
-                cancelAndIgnoreRemainingEvents()
-            }
-        }
-
-    @Test
-    fun `submit with empty username but valid password sets usernameError`() =
-        runTest {
-            val vm = createViewModel()
-            vm.handleIntent(LoginIntent.PasswordChanged("123456"))
-            vm.effects.test {
-                vm.handleIntent(LoginIntent.Submit)
-                awaitItem() // ShowError
-                assertTrue(vm.state.first().usernameError != null)
-                assertNull(vm.state.first().passwordError)
-                cancelAndIgnoreRemainingEvents()
-            }
-        }
-
-    @Test
     fun `submit with invalid fields does not set isLoading`() =
         runTest {
             val vm = createViewModel()
@@ -402,67 +384,21 @@ class LoginViewModelTest {
         }
 
     // =========================================================================
-    // Submit — autenticação com sucesso (todos os roles)
+    // Submit — autenticação com sucesso
     // =========================================================================
 
     @Test
-    fun `submit admin emits NavigateHome with ADM role`() =
+    fun `submit with valid credentials emits NavigateHome with user`() =
         runTest {
             val vm = createViewModel()
             vm.effects.test {
-                vm.handleIntent(LoginIntent.UsernameChanged("admin"))
-                vm.handleIntent(LoginIntent.PasswordChanged("123456"))
+                vm.handleIntent(LoginIntent.EmailChanged("admin@sprena.com"))
+                vm.handleIntent(LoginIntent.PasswordChanged("abc123"))
                 vm.handleIntent(LoginIntent.Submit)
                 val effect = awaitItem()
                 assertTrue(effect is LoginEffect.NavigateHome)
                 assertEquals(UserRole.ADM, (effect as LoginEffect.NavigateHome).user.role)
-                cancelAndIgnoreRemainingEvents()
-            }
-        }
-
-    @Test
-    fun `submit admin returns correct user data`() =
-        runTest {
-            val vm = createViewModel()
-            vm.effects.test {
-                vm.handleIntent(LoginIntent.UsernameChanged("admin"))
-                vm.handleIntent(LoginIntent.PasswordChanged("123456"))
-                vm.handleIntent(LoginIntent.Submit)
-                val effect = awaitItem() as LoginEffect.NavigateHome
-                assertEquals("1", effect.user.id)
-                assertEquals("admin", effect.user.username)
-                assertEquals("Pedro Admin", effect.user.name)
-                assertEquals(UserRole.ADM, effect.user.role)
-                cancelAndIgnoreRemainingEvents()
-            }
-        }
-
-    @Test
-    fun `submit mod emits NavigateHome with MOD role`() =
-        runTest {
-            val vm = createViewModel()
-            vm.effects.test {
-                vm.handleIntent(LoginIntent.UsernameChanged("mod"))
-                vm.handleIntent(LoginIntent.PasswordChanged("654321"))
-                vm.handleIntent(LoginIntent.Submit)
-                val effect = awaitItem() as LoginEffect.NavigateHome
-                assertEquals(UserRole.MOD, effect.user.role)
-                assertEquals("Maria Moderadora", effect.user.name)
-                cancelAndIgnoreRemainingEvents()
-            }
-        }
-
-    @Test
-    fun `submit func emits NavigateHome with CLIENT role`() =
-        runTest {
-            val vm = createViewModel()
-            vm.effects.test {
-                vm.handleIntent(LoginIntent.UsernameChanged("func"))
-                vm.handleIntent(LoginIntent.PasswordChanged("111111"))
-                vm.handleIntent(LoginIntent.Submit)
-                val effect = awaitItem() as LoginEffect.NavigateHome
-                assertEquals(UserRole.CLIENT, effect.user.role)
-                assertEquals("João Funcionário", effect.user.name)
+                assertEquals("admin@sprena.com", effect.user.email)
                 cancelAndIgnoreRemainingEvents()
             }
         }
@@ -472,26 +408,13 @@ class LoginViewModelTest {
     // =========================================================================
 
     @Test
-    fun `submit with wrong password emits ShowError`() =
+    fun `submit with repo error emits ShowError`() =
         runTest {
+            authRepo.nextResult = AuthResult.Error("Email ou senha incorretos")
             val vm = createViewModel()
             vm.effects.test {
-                vm.handleIntent(LoginIntent.UsernameChanged("admin"))
-                vm.handleIntent(LoginIntent.PasswordChanged("999999"))
-                vm.handleIntent(LoginIntent.Submit)
-                val effect = awaitItem()
-                assertTrue(effect is LoginEffect.ShowError)
-                cancelAndIgnoreRemainingEvents()
-            }
-        }
-
-    @Test
-    fun `submit with unknown user emits ShowError`() =
-        runTest {
-            val vm = createViewModel()
-            vm.effects.test {
-                vm.handleIntent(LoginIntent.UsernameChanged("nobody"))
-                vm.handleIntent(LoginIntent.PasswordChanged("123456"))
+                vm.handleIntent(LoginIntent.EmailChanged("admin@sprena.com"))
+                vm.handleIntent(LoginIntent.PasswordChanged("abc123"))
                 vm.handleIntent(LoginIntent.Submit)
                 val effect = awaitItem()
                 assertTrue(effect is LoginEffect.ShowError)
@@ -508,8 +431,8 @@ class LoginViewModelTest {
         runTest {
             val vm = createViewModel()
             vm.effects.test {
-                vm.handleIntent(LoginIntent.UsernameChanged("admin"))
-                vm.handleIntent(LoginIntent.PasswordChanged("123456"))
+                vm.handleIntent(LoginIntent.EmailChanged("admin@sprena.com"))
+                vm.handleIntent(LoginIntent.PasswordChanged("abc123"))
                 vm.handleIntent(LoginIntent.Submit)
                 awaitItem() // NavigateHome
                 assertFalse(vm.state.first().isLoading)
@@ -520,10 +443,11 @@ class LoginViewModelTest {
     @Test
     fun `loading is false after failed submit`() =
         runTest {
+            authRepo.nextResult = AuthResult.Error("falhou")
             val vm = createViewModel()
             vm.effects.test {
-                vm.handleIntent(LoginIntent.UsernameChanged("admin"))
-                vm.handleIntent(LoginIntent.PasswordChanged("999999"))
+                vm.handleIntent(LoginIntent.EmailChanged("admin@sprena.com"))
+                vm.handleIntent(LoginIntent.PasswordChanged("abc123"))
                 vm.handleIntent(LoginIntent.Submit)
                 awaitItem() // ShowError
                 assertFalse(vm.state.first().isLoading)
@@ -532,33 +456,103 @@ class LoginViewModelTest {
         }
 
     // =========================================================================
-    // Case-insensitive login
+    // Esqueci a senha — abertura do dialog
     // =========================================================================
 
     @Test
-    fun `submit with uppercase username works`() =
+    fun `open password reset dialog sets flag true`() =
         runTest {
             val vm = createViewModel()
+            vm.handleIntent(LoginIntent.OpenPasswordResetDialog)
+            assertTrue(vm.state.first().passwordResetDialogOpen)
+        }
+
+    @Test
+    fun `open password reset dialog prefills email from login form`() =
+        runTest {
+            val vm = createViewModel()
+            vm.handleIntent(LoginIntent.EmailChanged("pedro@gmail.com"))
+            vm.handleIntent(LoginIntent.OpenPasswordResetDialog)
+            assertEquals("pedro@gmail.com", vm.state.first().passwordResetEmail)
+        }
+
+    @Test
+    fun `dismiss password reset dialog clears state`() =
+        runTest {
+            val vm = createViewModel()
+            vm.handleIntent(LoginIntent.OpenPasswordResetDialog)
+            vm.handleIntent(LoginIntent.UpdatePasswordResetEmail("x@x.com"))
+            vm.handleIntent(LoginIntent.DismissPasswordResetDialog)
+            val s = vm.state.first()
+            assertFalse(s.passwordResetDialogOpen)
+            assertEquals("", s.passwordResetEmail)
+            assertNull(s.passwordResetEmailError)
+        }
+
+    // =========================================================================
+    // Esqueci a senha — submissão
+    // =========================================================================
+
+    @Test
+    fun `submit password reset with Sent closes dialog and emits ShowPasswordResetSent`() =
+        runTest {
+            authRepo.nextPasswordResetResult = Result.success(Unit)
+            val vm = createViewModel()
             vm.effects.test {
-                vm.handleIntent(LoginIntent.UsernameChanged("ADMIN"))
-                vm.handleIntent(LoginIntent.PasswordChanged("123456"))
-                vm.handleIntent(LoginIntent.Submit)
+                vm.handleIntent(LoginIntent.OpenPasswordResetDialog)
+                vm.handleIntent(LoginIntent.UpdatePasswordResetEmail("pedro@gmail.com"))
+                vm.handleIntent(LoginIntent.SubmitPasswordReset)
                 val effect = awaitItem()
-                assertTrue(effect is LoginEffect.NavigateHome)
+                assertTrue(effect is LoginEffect.ShowPasswordResetSent)
+                assertFalse(vm.state.first().passwordResetDialogOpen)
+                assertEquals("pedro@gmail.com", authRepo.lastResetEmail)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `submit password reset with invalid email sets error without calling repo`() =
+        runTest {
+            val vm = createViewModel()
+            vm.handleIntent(LoginIntent.OpenPasswordResetDialog)
+            vm.handleIntent(LoginIntent.UpdatePasswordResetEmail("nao-eh-email"))
+            vm.handleIntent(LoginIntent.SubmitPasswordReset)
+            advanceUntilIdle()
+            val s = vm.state.first()
+            assertTrue(s.passwordResetEmailError != null)
+            assertTrue(s.passwordResetDialogOpen)
+            assertFalse(s.passwordResetSending)
+            assertNull(authRepo.lastResetEmail)
+        }
+
+    @Test
+    fun `submit password reset with network error emits ShowPasswordResetError`() =
+        runTest {
+            authRepo.nextPasswordResetResult =
+                Result.failure(FakeUnknownHostException("offline"))
+            val vm = createViewModel()
+            vm.effects.test {
+                vm.handleIntent(LoginIntent.OpenPasswordResetDialog)
+                vm.handleIntent(LoginIntent.UpdatePasswordResetEmail("pedro@gmail.com"))
+                vm.handleIntent(LoginIntent.SubmitPasswordReset)
+                val effect = awaitItem()
+                assertTrue(effect is LoginEffect.ShowPasswordResetError)
                 cancelAndIgnoreRemainingEvents()
             }
         }
 
     @Test
-    fun `submit with mixed case username works`() =
+    fun `submit password reset with unknown error emits ShowPasswordResetError`() =
         runTest {
+            authRepo.nextPasswordResetResult = Result.failure(RuntimeException("boom"))
             val vm = createViewModel()
             vm.effects.test {
-                vm.handleIntent(LoginIntent.UsernameChanged("Admin"))
-                vm.handleIntent(LoginIntent.PasswordChanged("123456"))
-                vm.handleIntent(LoginIntent.Submit)
+                vm.handleIntent(LoginIntent.OpenPasswordResetDialog)
+                vm.handleIntent(LoginIntent.UpdatePasswordResetEmail("pedro@gmail.com"))
+                vm.handleIntent(LoginIntent.SubmitPasswordReset)
                 val effect = awaitItem()
-                assertTrue(effect is LoginEffect.NavigateHome)
+                assertTrue(effect is LoginEffect.ShowPasswordResetError)
                 cancelAndIgnoreRemainingEvents()
             }
         }

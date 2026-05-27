@@ -87,3 +87,25 @@
 # Crashlytics SDK (já coberto pelo bloco geral firebase.**, reforçar para deobfuscation):
 -keepattributes SourceFile,LineNumberTable
 -keep public class * extends java.lang.Exception
+
+# ---------------------------------------------------------------------------
+# F1.3 — Firebase Auth (já coberto pelo bloco geral firebase.**)
+# ---------------------------------------------------------------------------
+-keep class com.google.firebase.auth.** { *; }
+-dontwarn com.google.firebase.auth.**
+
+# ---------------------------------------------------------------------------
+# F1.3 — Google Tink (cripto da sessão)
+# ---------------------------------------------------------------------------
+-keep class com.google.crypto.tink.** { *; }
+-keepclassmembers class com.google.crypto.tink.** { *; }
+-dontwarn com.google.crypto.tink.**
+# Protocol buffers usados pelo Tink:
+-keep class com.google.protobuf.** { *; }
+-dontwarn com.google.protobuf.**
+
+# ---------------------------------------------------------------------------
+# F1.3 — AndroidX DataStore Preferences
+# ---------------------------------------------------------------------------
+-keep class androidx.datastore.preferences.** { *; }
+-dontwarn androidx.datastore.preferences.**

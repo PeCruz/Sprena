@@ -3,40 +3,66 @@ package br.com.sprena.shared.auth.domain.usecase
 import br.com.sprena.shared.auth.domain.model.AuthResult
 import br.com.sprena.shared.auth.domain.repository.AuthRepository
 import br.com.sprena.shared.auth.domain.validation.LoginValidator
+import br.com.sprena.shared.auth.session.SessionStore
+import br.com.sprena.shared.auth.session.SessionUser
 import br.com.sprena.shared.core.logger.Logger
+import br.com.sprena.shared.core.time.Clock
 
 /**
  * Caso de uso de login.
  *
- * Responsabilidade única: validar inputs e delegar ao [AuthRepository].
- * Loga sucesso/falha SEM expor a senha (senha nunca entra na string de log).
+ * 1. Valida email e senha (ver [LoginValidator])
+ * 2. Delega ao [AuthRepository]
+ * 3. Em sucesso, persiste [SessionUser] em [SessionStore] com timestamp do [Clock]
+ *
+ * Loga warn em rejeições, info em sucesso — sempre via [Logger] com email mascarado.
  */
 class LoginUseCase(
     private val authRepository: AuthRepository,
+    private val sessionStore: SessionStore,
+    private val clock: Clock,
     private val logger: Logger,
 ) {
     suspend operator fun invoke(
-        username: String,
+        email: String,
         password: String,
     ): AuthResult {
-        val usernameResult = LoginValidator.validateUsername(username)
-        if (!usernameResult.isValid) {
-            logger.warn(TAG, "login rejected invalid username")
-            return AuthResult.Error(usernameResult.errorMessage ?: "Usuário inválido")
-        }
+        val validationError = validate(email, password)
+        if (validationError != null) return validationError
 
-        val passwordResult = LoginValidator.validatePassword(password)
-        if (!passwordResult.isValid) {
-            logger.warn(TAG, "login rejected invalid password for username=$username")
-            return AuthResult.Error(passwordResult.errorMessage ?: "Senha inválida")
-        }
-
-        val result = authRepository.authenticate(username, password)
-        when (result) {
-            is AuthResult.Success -> logger.info(TAG, "login ok username=$username")
-            is AuthResult.Error -> logger.warn(TAG, "login failed username=$username reason=${result.message}")
+        val result = authRepository.authenticate(email.trim(), password)
+        if (result is AuthResult.Success) {
+            sessionStore.save(
+                SessionUser(
+                    uid = result.user.id,
+                    email = result.user.email,
+                    role = result.user.role,
+                    lastLoginEpochMillis = clock.nowEpochMillis(),
+                ),
+            )
+            logger.info(TAG, "login ok email=$email")
+        } else {
+            logger.warn(TAG, "login failed email=$email")
         }
         return result
+    }
+
+    private fun validate(
+        email: String,
+        password: String,
+    ): AuthResult.Error? {
+        val emailResult = LoginValidator.validateEmail(email)
+        if (!emailResult.isValid) {
+            logger.warn(TAG, "login rejected invalid email")
+            return AuthResult.Error(emailResult.errorMessage ?: "Email inválido")
+        }
+        val passwordResult = LoginValidator.validatePassword(password)
+        return if (!passwordResult.isValid) {
+            logger.warn(TAG, "login rejected invalid password for email=$email")
+            AuthResult.Error(passwordResult.errorMessage ?: "Senha inválida")
+        } else {
+            null
+        }
     }
 
     private companion object {

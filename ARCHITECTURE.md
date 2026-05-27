@@ -113,5 +113,6 @@ Decisões de segurança e endurecimento de build estão documentadas em [SECURIT
 
 - **F1.1** — minificação R8, bloqueio de backup, network security config, `FLAG_SECURE`.
 - **F1.2** — logging seguro (Napier + Crashlytics) com sanitização de PII (`PiiMasker`/`PiiScrubber`) e instrumentação inicial de Repositories críticos.
+- **F1.3** — Firebase Authentication (email/senha), sessão local cifrada (Tink AEAD + DataStore Preferences, TTL 24h), reset de senha, auto-login, logout.
 
-Próximas sub-fases de F1 adicionarão Firebase Auth (F1.3), Firestore Rules + App Check (F1.4) e baseline LGPD (F1.5).
+Próximas sub-fases: F1.4 (Firestore Security Rules + App Check) e F1.5 (LGPD baseline).

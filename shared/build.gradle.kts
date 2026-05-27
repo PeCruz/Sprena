@@ -38,6 +38,11 @@ kotlin {
             implementation(project.dependencies.platform(libs.firebase.bom))
             implementation(libs.firebase.firestore)
             implementation(libs.firebase.crashlytics)
+            implementation(libs.firebase.auth)
+            implementation(libs.androidx.datastore.preferences)
+            implementation(libs.tink.android)
+            // Koin Android — para androidContext() nos modules Android
+            implementation(libs.koin.android)
         }
 
         commonTest.dependencies {

@@ -1,106 +1,88 @@
 package br.com.sprena.shared.auth.domain.validation
 
 import kotlin.test.Test
-import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * TDD — LoginValidator
- *
- * Regras:
- *  - Username: obrigatório, mín 3, máx 8
- *  - Password: obrigatório, exatamente 6 dígitos numéricos
- */
 class LoginValidatorTest {
-    // ── Username ─────────────────────────────────────────
-
+    // --- validateEmail ---
     @Test
-    fun `username empty is invalid`() {
-        val result = LoginValidator.validateUsername("")
-        assertFalse(result.isValid)
-        assertNotNull(result.errorMessage)
+    fun `validateEmail accepts a typical email`() {
+        assertTrue(LoginValidator.validateEmail("pedro@gmail.com").isValid)
     }
 
     @Test
-    fun `username blank spaces is invalid`() {
-        assertFalse(LoginValidator.validateUsername("   ").isValid)
+    fun `validateEmail rejects blank`() {
+        val result = LoginValidator.validateEmail("")
+        assertEquals(false, result.isValid)
+        assertEquals("Email é obrigatório", result.errorMessage)
     }
 
     @Test
-    fun `username with 2 chars below min is invalid`() {
-        val short = "a".repeat(LoginValidator.USERNAME_MIN_LENGTH - 1)
-        assertFalse(LoginValidator.validateUsername(short).isValid)
+    fun `validateEmail rejects whitespace only`() {
+        assertEquals(false, LoginValidator.validateEmail("   ").isValid)
     }
 
     @Test
-    fun `username with 3 chars at min boundary is valid`() {
-        val atMin = "a".repeat(LoginValidator.USERNAME_MIN_LENGTH)
-        assertTrue(LoginValidator.validateUsername(atMin).isValid)
-        assertNull(LoginValidator.validateUsername(atMin).errorMessage)
+    fun `validateEmail rejects missing arroba`() {
+        val result = LoginValidator.validateEmail("pedro.gmail.com")
+        assertEquals(false, result.isValid)
+        assertEquals("Email inválido", result.errorMessage)
     }
 
     @Test
-    fun `username with 8 chars at max boundary is valid`() {
-        val atMax = "a".repeat(LoginValidator.USERNAME_MAX_LENGTH)
-        assertTrue(LoginValidator.validateUsername(atMax).isValid)
+    fun `validateEmail rejects missing dot`() {
+        assertEquals(false, LoginValidator.validateEmail("pedro@gmail").isValid)
     }
 
     @Test
-    fun `username with 9 chars above max is invalid`() {
-        val overMax = "a".repeat(LoginValidator.USERNAME_MAX_LENGTH + 1)
-        assertFalse(LoginValidator.validateUsername(overMax).isValid)
+    fun `validateEmail rejects internal whitespace`() {
+        assertEquals(false, LoginValidator.validateEmail("pe dro@gmail.com").isValid)
     }
 
     @Test
-    fun `username with valid content is valid`() {
-        assertTrue(LoginValidator.validateUsername("admin").isValid)
+    fun `validateEmail rejects over 254 chars`() {
+        val long = "a".repeat(250) + "@b.co" // 255 chars total
+        assertEquals(false, LoginValidator.validateEmail(long).isValid)
     }
 
-    // ── Password ─────────────────────────────────────────
+    @Test
+    fun `validateEmail trims and accepts`() {
+        assertTrue(LoginValidator.validateEmail("  pedro@gmail.com  ").isValid)
+    }
+
+    // --- validatePassword ---
+    @Test
+    fun `validatePassword accepts 6 chars`() {
+        assertTrue(LoginValidator.validatePassword("abc123").isValid)
+    }
 
     @Test
-    fun `password empty is invalid`() {
+    fun `validatePassword accepts mixed chars`() {
+        assertTrue(LoginValidator.validatePassword("S3nha@x").isValid)
+    }
+
+    @Test
+    fun `validatePassword rejects blank`() {
         val result = LoginValidator.validatePassword("")
-        assertFalse(result.isValid)
-        assertNotNull(result.errorMessage)
+        assertEquals(false, result.isValid)
+        assertEquals("Senha é obrigatória", result.errorMessage)
     }
 
     @Test
-    fun `password blank spaces is invalid`() {
-        assertFalse(LoginValidator.validatePassword("     ").isValid)
+    fun `validatePassword rejects fewer than 6 chars`() {
+        val result = LoginValidator.validatePassword("abc12")
+        assertEquals(false, result.isValid)
+        assertEquals("Senha deve ter no mínimo 6 caracteres", result.errorMessage)
     }
 
     @Test
-    fun `password with 5 digits below required length is invalid`() {
-        assertFalse(LoginValidator.validatePassword("12345").isValid)
+    fun `validatePassword rejects leading whitespace`() {
+        assertEquals(false, LoginValidator.validatePassword(" abc123").isValid)
     }
 
     @Test
-    fun `password with exactly 6 digits is valid`() {
-        val result = LoginValidator.validatePassword("123456")
-        assertTrue(result.isValid)
-        assertNull(result.errorMessage)
-    }
-
-    @Test
-    fun `password with 7 digits above required length is invalid`() {
-        assertFalse(LoginValidator.validatePassword("1234567").isValid)
-    }
-
-    @Test
-    fun `password with letters is invalid`() {
-        assertFalse(LoginValidator.validatePassword("abc123").isValid)
-    }
-
-    @Test
-    fun `password with special chars is invalid`() {
-        assertFalse(LoginValidator.validatePassword("12345!").isValid)
-    }
-
-    @Test
-    fun `password with spaces is invalid`() {
-        assertFalse(LoginValidator.validatePassword("12 456").isValid)
+    fun `validatePassword rejects trailing whitespace`() {
+        assertEquals(false, LoginValidator.validatePassword("abc123 ").isValid)
     }
 }

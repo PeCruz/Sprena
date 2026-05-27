@@ -3,7 +3,9 @@ package br.com.sprena.presentation.login
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.sprena.shared.auth.domain.model.AuthResult
+import br.com.sprena.shared.auth.domain.model.PasswordResetResult
 import br.com.sprena.shared.auth.domain.usecase.LoginUseCase
+import br.com.sprena.shared.auth.domain.usecase.RequestPasswordResetUseCase
 import br.com.sprena.shared.auth.domain.validation.LoginValidator
 import br.com.sprena.shared.core.mvi.MviViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -16,6 +18,7 @@ import kotlinx.coroutines.launch
 
 class LoginViewModel(
     private val loginUseCase: LoginUseCase,
+    private val requestPasswordReset: RequestPasswordResetUseCase,
 ) : ViewModel(),
     MviViewModel<LoginState, LoginIntent, LoginEffect> {
     private val _state = MutableStateFlow(LoginState())
@@ -26,54 +29,72 @@ class LoginViewModel(
 
     override fun handleIntent(intent: LoginIntent) {
         when (intent) {
-            is LoginIntent.UsernameChanged -> {
-                val clamped = intent.value.take(LoginValidator.USERNAME_MAX_LENGTH)
-                val validation = LoginValidator.validateUsername(clamped)
-                _state.value =
-                    _state.value.copy(
-                        username = clamped,
-                        usernameError = if (clamped.isEmpty()) null else validation.errorMessage,
-                        canSubmit = canSubmit(clamped, _state.value.password),
-                        authError = null,
-                    )
-            }
-
-            is LoginIntent.PasswordChanged -> {
-                val digitsOnly =
-                    intent.value
-                        .filter { it.isDigit() }
-                        .take(LoginValidator.PASSWORD_LENGTH)
-                val validation = LoginValidator.validatePassword(digitsOnly)
-                _state.value =
-                    _state.value.copy(
-                        password = digitsOnly,
-                        passwordError = if (digitsOnly.isEmpty()) null else validation.errorMessage,
-                        canSubmit = canSubmit(_state.value.username, digitsOnly),
-                        authError = null,
-                    )
-            }
-
-            is LoginIntent.TogglePasswordVisibility -> {
+            is LoginIntent.EmailChanged -> handleEmailChanged(intent.value)
+            is LoginIntent.PasswordChanged -> handlePasswordChanged(intent.value)
+            is LoginIntent.TogglePasswordVisibility ->
                 _state.value =
                     _state.value.copy(
                         isPasswordVisible = !_state.value.isPasswordVisible,
                     )
-            }
-
             is LoginIntent.Submit -> handleSubmit()
+            is LoginIntent.OpenPasswordResetDialog ->
+                _state.value =
+                    _state.value.copy(
+                        passwordResetDialogOpen = true,
+                        passwordResetEmail = _state.value.email,
+                        passwordResetEmailError = null,
+                    )
+            is LoginIntent.UpdatePasswordResetEmail ->
+                _state.value =
+                    _state.value.copy(
+                        passwordResetEmail = intent.value,
+                        passwordResetEmailError = null,
+                    )
+            is LoginIntent.SubmitPasswordReset -> handleSubmitPasswordReset()
+            is LoginIntent.DismissPasswordResetDialog ->
+                _state.value =
+                    _state.value.copy(
+                        passwordResetDialogOpen = false,
+                        passwordResetEmail = "",
+                        passwordResetEmailError = null,
+                        passwordResetSending = false,
+                    )
         }
+    }
+
+    private fun handleEmailChanged(value: String) {
+        val clamped = value.take(LoginValidator.EMAIL_MAX_LENGTH)
+        val validation = LoginValidator.validateEmail(clamped)
+        _state.value =
+            _state.value.copy(
+                email = clamped,
+                emailError = if (clamped.isEmpty()) null else validation.errorMessage,
+                canSubmit = canSubmit(clamped, _state.value.password),
+                authError = null,
+            )
+    }
+
+    private fun handlePasswordChanged(value: String) {
+        val validation = LoginValidator.validatePassword(value)
+        _state.value =
+            _state.value.copy(
+                password = value,
+                passwordError = if (value.isEmpty()) null else validation.errorMessage,
+                canSubmit = canSubmit(_state.value.email, value),
+                authError = null,
+            )
     }
 
     private fun handleSubmit() {
         val currentState = _state.value
-        val uResult = LoginValidator.validateUsername(currentState.username)
-        val pResult = LoginValidator.validatePassword(currentState.password)
+        val emailResult = LoginValidator.validateEmail(currentState.email)
+        val passwordResult = LoginValidator.validatePassword(currentState.password)
 
-        if (!uResult.isValid || !pResult.isValid) {
+        if (!emailResult.isValid || !passwordResult.isValid) {
             _state.value =
                 currentState.copy(
-                    usernameError = uResult.errorMessage,
-                    passwordError = pResult.errorMessage,
+                    emailError = emailResult.errorMessage,
+                    passwordError = passwordResult.errorMessage,
                     authError = null,
                 )
             viewModelScope.launch {
@@ -85,7 +106,7 @@ class LoginViewModel(
         viewModelScope.launch {
             _state.value = currentState.copy(isLoading = true, authError = null)
 
-            when (val result = loginUseCase(currentState.username, currentState.password)) {
+            when (val result = loginUseCase(currentState.email, currentState.password)) {
                 is AuthResult.Success -> {
                     _state.value = _state.value.copy(isLoading = false)
                     _effects.emit(LoginEffect.NavigateHome(result.user))
@@ -102,10 +123,42 @@ class LoginViewModel(
         }
     }
 
+    private fun handleSubmitPasswordReset() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(passwordResetSending = true)
+            val result = requestPasswordReset(_state.value.passwordResetEmail)
+            _state.value = _state.value.copy(passwordResetSending = false)
+            when (result) {
+                is PasswordResetResult.Sent -> {
+                    _state.value =
+                        _state.value.copy(
+                            passwordResetDialogOpen = false,
+                            passwordResetEmail = "",
+                            passwordResetEmailError = null,
+                        )
+                    _effects.emit(LoginEffect.ShowPasswordResetSent)
+                }
+                is PasswordResetResult.InvalidEmail ->
+                    _state.value =
+                        _state.value.copy(
+                            passwordResetEmailError = result.message,
+                        )
+                is PasswordResetResult.NetworkError ->
+                    _effects.emit(
+                        LoginEffect.ShowPasswordResetError("Sem conexão. Verifique a internet"),
+                    )
+                is PasswordResetResult.UnknownError ->
+                    _effects.emit(
+                        LoginEffect.ShowPasswordResetError("Não foi possível enviar agora. Tente novamente"),
+                    )
+            }
+        }
+    }
+
     private fun canSubmit(
-        username: String,
+        email: String,
         password: String,
     ): Boolean =
-        LoginValidator.validateUsername(username).isValid &&
+        LoginValidator.validateEmail(email).isValid &&
             LoginValidator.validatePassword(password).isValid
 }

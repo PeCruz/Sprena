@@ -1,16 +1,16 @@
 package br.com.sprena.shared.auth.domain.model
 
 /**
- * Modelo de domínio do usuário autenticado.
+ * Representa o usuário autenticado no Sprena.
  *
- * @property id Identificador único.
- * @property username Login do usuário (max 8 caracteres).
- * @property name Nome completo para exibição.
- * @property role Perfil de acesso.
+ * @property id Identificador único (uid do Firebase Auth)
+ * @property email Email do usuário (login)
+ * @property name Nome para exibição na UI
+ * @property role Perfil de acesso
  */
 data class UserModel(
     val id: String,
-    val username: String,
+    val email: String,
     val name: String,
     val role: UserRole,
 )
