@@ -1,4 +1,4 @@
-# Runbook — Firebase: usuários, validação em device e deploy das rules
+# Runbook — Firebase: usuários, validação em device, rules e App Check
 
 > Sprena não tem self-signup. **Todo** usuário é criado à mão: 1 registro no Firebase
 > Authentication **e** 1 documento `users/{uid}` no Firestore. Faltando qualquer um dos dois,
@@ -258,6 +258,85 @@ Console → Firestore Database → **Rules** → histórico de versões → sele
 
 ---
 
+## Parte G — Ativar o App Check (F1.4b)
+
+O app já instala o provider de atestação no `onCreate` — isso é código, e está feito. O que esta
+parte cobre é o lado do Console, que é onde o App Check de fato passa a valer.
+
+**Ordem importa.** Registrar o token de debug *antes* de ligar a enforcement; ligar a enforcement
+*depois* de as métricas mostrarem tráfego verificado. Invertido, você derruba o seu próprio login.
+
+### G.1 — Registrar o token de debug (uma vez por máquina/emulador)
+
+Sem isso, todo build debug feito num clone novo falha a atestação. É o primeiro tropeço garantido.
+
+```bash
+./gradlew :composeApp:installDebug
+adb logcat -c
+adb logcat -s DebugAppCheckProvider
+```
+
+Abrir o app. O logcat imprime uma linha assim:
+
+```
+Enter this debug secret into the allow list in the Firebase Console for your project: 123e4567-e89b-12d3-a456-426614174000
+```
+
+Console → **App Check** → aba **Apps** → app Android → menu ⋮ → **Gerenciar tokens de depuração** →
+**Adicionar token** → colar o UUID → nomear (ex.: `pc-pedro-emulador`) → salvar.
+
+- O UUID é **por instalação**: reinstalar o app, limpar dados ou trocar de emulador gera outro.
+- Ele vale como credencial. Não colar em issue, PR ou screenshot — mesma regra do `test-users.local.md`.
+
+### G.2 — Habilitar Play Integrity (release)
+
+1. Console → **App Check** → **Apps** → app Android → **Play Integrity** → **Registrar**.
+2. Conferir que o **SHA-256 da chave de assinatura de release** está em Configurações do projeto →
+   Seus apps → app Android. Se a Play Store faz o *app signing*, o SHA que vale é o da chave de
+   **assinatura do app** no Play Console (Configuração → Integridade do app), **não** o da chave de
+   upload — trocar os dois é o erro clássico, e a atestação falha 100% em produção.
+3. Google Cloud Console → APIs e serviços → habilitar **Play Integrity API** no projeto vinculado.
+
+> Enquanto `signingConfig` do release for a chave de debug (F1.1, ver `composeApp/build.gradle.kts`),
+> o build de release **não** atesta com sucesso. Isso se resolve junto com a signing config real.
+
+### G.3 — Observar antes de ligar
+
+Console → **App Check** → aba **APIs** → **Cloud Firestore** e **Authentication**. Cada um mostra a
+divisão entre requests verificados e não verificados nas últimas 24h.
+
+Só siga para G.4 quando a fatia verificada estiver perto de 100%. Se ainda houver tráfego não
+verificado, é build antigo em uso ou token de debug não registrado — ligar agora derruba esses.
+
+### G.4 — Ligar a enforcement
+
+Na mesma aba, por produto: **Cloud Firestore** → **Aplicar**. Depois **Authentication** → **Aplicar**.
+
+Um de cada vez, validando o login em device (Parte C) entre os dois. A propagação leva alguns
+minutos.
+
+- [ ] Login em device funciona com o build debug (token registrado em G.1)
+- [ ] `adb logcat -s AppCheck` sem erro de atestação
+- [ ] Métricas seguem em ~100% verificado depois de ligar
+
+### G.5 — Reverter
+
+Mesma tela → **Desaplicar**. Efeito em minutos. É a saída se a enforcement derrubar usuários — não
+tem por que sofrer com rollback de APK.
+
+### Troubleshooting do App Check
+
+| Sintoma | Causa provável | Correção |
+|---|---|---|
+| App mostra "Não foi possível validar o app neste dispositivo" | enforcement ligada e atestação recusada | G.1 (debug) ou G.2 (release) |
+| Login falha só depois de G.4, e voltava ao desaplicar | token de debug não registrado nessa instalação | refazer G.1 — o UUID muda por instalação |
+| `code=UNAUTHENTICATED` no logcat | token de App Check ausente/inválido | distinto de `PERMISSION_DENIED`, que é rules (F1.4) |
+| Nenhum UUID aparece no logcat | build release, ou provider não instalado | conferir que é `installDebug`; tag é `DebugAppCheckProvider` |
+| Release falha atestação, debug funciona | SHA-256 errado (upload vs app signing) | G.2 passo 2 |
+| `Integrity API error (-1)` | Play Integrity API não habilitada no Cloud | G.2 passo 3 |
+
+---
+
 ## Registro local
 
 Guardar os dados reais (email, senha, UID) em **`docs/ops/test-users.local.md`** — gitignorado via
@@ -286,6 +365,8 @@ git status --short                                  # o arquivo NÃO pode aparec
 ## Referências
 
 - [SECURITY.md § F1.3](../../SECURITY.md#f13--firebase-auth--sessão-criptografada) — decisões e trade-offs
+- [SECURITY.md § F1.4b](../../SECURITY.md#f14b--firebase-app-check-play-integrity) — por que o provider é escolhido por build type
+- `composeApp/src/androidMain/.../core/security/AppCheckBootstrap.kt` — instalação do App Check
 - `shared/src/androidMain/.../auth/data/repository/FirebaseAuthRepositoryImpl.kt` — leitura do doc e mapa de erros
 - `shared/src/commonMain/.../auth/domain/model/UserRole.kt` — enum das roles
 - `shared/src/commonMain/.../auth/domain/usecase/RestoreSessionUseCase.kt` — regra do auto-login

@@ -171,6 +171,82 @@ para credencial quando o problema é autorização.
   elimina a leitura extra e permite `request.auth.token.role` direto na regra.
 
 ### Fora de escopo (F1.4b)
-**Firebase App Check** (Play Integrity + Debug Provider). Sem ele, as rules protegem *quem* acessa,
-mas não *de onde* — um cliente forjado com credencial válida ainda passa. Exige registro de SHA no
-Console e cuidado para não travar builds debug.
+**Firebase App Check** — implementado em seguida, ver seção abaixo.
+
+## F1.4b — Firebase App Check (Play Integrity)
+
+### O que motivou
+As rules de F1.4 respondem *quem* pode ler e gravar, mas não *de onde vem a chamada*. A `apiKey` do
+`google-services.json` é extraível de qualquer APK, e com ela mais uma credencial válida (a de um
+funcionário `CLIENT`, por exemplo) dá para falar com a REST API do Firestore fora do app — script,
+Postman, emulador modificado. As rules continuam valendo, mas todo o rate limiting e a lógica de
+tela deixam de existir. App Check fecha essa ponta: cada request carrega um token de atestação e o
+backend recusa o que não vier de uma instalação genuína do app.
+
+### Providers por build type
+
+| Variante | Provider | Artefato | Como o token é aceito |
+|---|---|---|---|
+| `release` | `PlayIntegrityAppCheckProviderFactory` | `firebase-appcheck-playintegrity` | Play Integrity API + SHA-256 da chave de release registrado no Console |
+| `debug` | `DebugAppCheckProviderFactory` | `firebase-appcheck-debug` (`debugImplementation`) | UUID do logcat registrado à mão no Console |
+
+A escolha **não é um `if (BuildConfig.DEBUG)`**. `appCheckProviderFactory()` tem uma implementação
+por build type (`composeApp/src/androidRelease/` e `composeApp/src/androidDebug/`), e o artefato do
+provider de debug entra só via `debugImplementation`. O release, portanto, não compila contra a
+classe insegura nem a empacota — verificável com
+`./gradlew :composeApp:dependencies --configuration releaseRuntimeClasspath`, que só lista
+`firebase-appcheck`, `-interop` e `-playintegrity`. Com um branch em runtime, a classe viajaria no
+APK de produção e a garantia seria só convenção.
+
+Instalação em `AppCheckBootstrap.init()`, chamada em `SprenaApplication.onCreate()` **antes do
+`startKoin`** — o `FirebaseFirestore` e o `FirebaseAuth` só são construídos quando o Koin resolve as
+dependências, então nenhum request escapa sem token.
+
+### Enforcement é uma chave no Console, não no código
+Instalar o provider **não protege nada sozinho**. Enquanto Firestore e Auth estiverem em modo
+monitoramento no Console, requests sem token continuam passando — de propósito, para dar tempo de
+ver na aba *Métricas* qual porcentagem de tráfego já chega verificada antes de ligar a chave.
+Procedimento completo (registro de SHA, token de debug, ordem de ativação) na
+[Parte G do runbook](./docs/ops/firebase-users-runbook.md).
+
+### Erro na UI
+Com enforcement ligado, uma atestação recusada derruba a leitura de `users/{uid}` com
+`UNAUTHENTICATED` — que antes caía no genérico **"Erro ao carregar seu perfil"** e mandava
+investigar o doc de perfil, que está intacto. Agora vira **"Não foi possível validar o app neste
+dispositivo. Atualize e tente de novo"**, com `code=UNAUTHENTICATED` no log. Note a diferença de
+ação em relação a `PERMISSION_DENIED` (F1.4): lá o admin resolve, aqui é a instalação do app que não
+foi reconhecida.
+
+### Trade-offs
+- **Debug quebra até o token ser registrado.** É o custo de não ter um bypass em runtime: quem
+  clonar o repo roda um build debug que falha a atestação até colar o UUID no Console. Documentado
+  no runbook porque é o primeiro tropeço garantido de qualquer máquina nova.
+- **Play Integrity depende do device.** Aparelho sem Google Play Services, root ou bootloader
+  destravado falha a atestação mesmo com o app legítimo. Para MVP interno é aceitável; se aparecer
+  usuário real nesse cenário, o fallback é adicionar o provider SafetyNet/reCAPTCHA ou afrouxar a
+  enforcement em Auth mantendo em Firestore.
+- **Cota da Play Integrity API**: 10 mil requests/dia no tier padrão. O SDK cacheia o token (TTL ~1h),
+  então o consumo é por sessão, não por request — folgado para a escala atual, mas é o número a
+  vigiar se o app crescer.
+- **Não cobre o insider.** App Check atesta o *app*, não a *intenção*. Um funcionário `CLIENT`
+  legítimo continua vendo a PII de `sport_clients` pelo app real — quem fecha isso é o F1.5.
+
+### Verificação manual (pré-merge)
+
+O provider de debug não pode estar no APK de release. Conferir no dex (o APK é multidex — tem que
+varrer todos, não só `classes.dex`):
+
+```bash
+cd composeApp/build/outputs/apk
+for v in debug release; do
+  f=$(ls $v/*.apk | head -1); n=0
+  for d in $(unzip -l "$f" | grep -o "classes[0-9]*\.dex" | sort -u); do
+    n=$((n + $(unzip -p "$f" "$d" | grep -ac "DebugAppCheckProvider")))
+  done
+  echo "$v: $n"
+done
+```
+
+Esperado: `debug: 5` (ou qualquer valor > 0) e **`release: 0`**. Release diferente de zero significa
+que a separação por build type foi quebrada — provavelmente alguém moveu o provider para
+`androidMain` ou trocou `debugImplementation` por `implementation`.
