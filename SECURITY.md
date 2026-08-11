@@ -78,7 +78,7 @@ Decisões de segurança aplicadas ao projeto. Cada sub-fase de F1 adiciona uma s
 
 ### Stack
 - **Firebase Authentication** (BOM 34.12.0) com email + senha. `MockAuthRepository` removido.
-- **Roles**: doc Firestore `users/{uid}` com `role: "ADM" | "MOD" | "CLIENT"`. F1.4 vai proteger via Security Rules.
+- **Roles**: doc Firestore `users/{uid}` com `role: "ADM" | "MOD" | "CLIENT"`. Protegido via Security Rules em F1.4.
 - **Sessão local**: `EncryptedSessionStore` usa Google Tink 1.13.0 (AEAD AES-256-GCM, chave no Android Keystore via `AndroidKeysetManager`) sobre `androidx.datastore:datastore-preferences`. Persiste: `uid`, `email`, `role`, `lastLoginEpochMillis`.
 - **TTL**: 24h. Validado por `SessionValidator.isExpired`.
 - **Clock**: abstração injetável (`SystemClock` em prod, `FixedClock` em testes).
@@ -96,6 +96,9 @@ Decisões de segurança aplicadas ao projeto. Cada sub-fase de F1 adiciona uma s
 - `ERROR_TOO_MANY_REQUESTS` → "Muitas tentativas. Tente em alguns minutos"
 - `FirebaseNetworkException` → "Sem conexão. Verifique a internet"
 - Outros → "Erro de autenticação"
+
+Mapeamento em `AuthErrorMapper.kt` (`mapAuthError`), coberto por `AuthErrorMapperTest`.
+Os ramos de `FirebaseFirestoreException` foram adicionados em F1.4 — ver abaixo.
 
 ### Convenção de uso
 1. Nunca logar `password` — `LoginUseCase` e `FirebaseAuthRepositoryImpl` já garantem isso.
@@ -118,3 +121,56 @@ Decisões de segurança aplicadas ao projeto. Cada sub-fase de F1 adiciona uma s
 - [ ] Settings → "Sair" → volta pra Login, auto-login desligado
 - [ ] "Esqueci a senha" → email chega
 - [ ] `session_prefs.preferences_pb` em disco é ilegível (Tink AEAD)
+
+---
+
+## F1.4 — Firestore Security Rules
+
+### O que motivou
+Login falhava com `PERMISSION_DENIED` **depois** de o Firebase Auth aceitar a senha: o banco estava
+com as regras default de *production mode* (`allow read, write: if false`), então a leitura de
+`users/{uid}` que resolve a role era negada. Nenhuma regra tinha sido escrita até aqui — o app
+dependia inteiramente do RBAC client-side, que não vale nada contra quem chama a API direto.
+
+### Modelo de acesso (`firestore.rules`, na raiz)
+
+| Path | read | write |
+|---|---|---|
+| `users/{uid}` | só o próprio dono (`request.auth.uid == uid`) | **ninguém** |
+| `sport_clients/{id}` | qualquer autenticado | só `ADM`/`MOD` |
+| qualquer outra | negado | negado |
+
+- **`users` é read-only pelo app** de propósito: provisionamento é Console/Admin SDK
+  ([runbook](./docs/ops/firebase-users-runbook.md)). Se o app pudesse escrever ali, qualquer conta
+  logada se auto-promoveria a `ADM` — a role está no mesmo doc que ela mesma controlaria.
+- **Default deny explícito**: `kanban` e `financial` ainda são in-memory. Quando migrarem para o
+  Firestore, vão bater no deny até ganharem seu próprio bloco `match`. Isso é intencional — falha
+  fechada, não aberta.
+- **`isStaff()` usa `get()`** no doc de perfil: custa 1 document access por escrita em `sport_clients`.
+  É o mesmo trade-off já aceito em F1.3 (role no Firestore em vez de Custom Claims).
+
+### Testes
+`tools/firestore-rules-tests/` — 12 casos contra o emulador (`npm run test:emulator`), rodados no CI
+no job `firestore-rules`. Projeto `demo-sprena`: emulador 100% offline, sem credencial nem
+`firebase login`. Cobre auto-promoção de role, leitura cruzada entre usuários, escrita por `CLIENT`,
+usuário autenticado sem doc de perfil e coleção não mapeada.
+
+Deploy: `firebase deploy --only firestore:rules --project <projeto>`.
+O `.firebaserc` é gitignorado (mesma postura do `google-services.json`) — daí o `--project` explícito.
+
+### Erro na UI
+`PERMISSION_DENIED` agora vira **"Conta sem permissão de acesso. Contate o administrador"** em vez do
+genérico "Erro de autenticação", e o log carrega `code=PERMISSION_DENIED`. Sem isso, o sintoma aponta
+para credencial quando o problema é autorização.
+
+### Trade-offs
+- **Leitura de `sport_clients` liberada para qualquer autenticado**: `CLIENT` (funcionário) precisa
+  ver a lista para operar. PII (CPF/telefone) fica exposta a toda conta válida — o masking/hash em
+  repouso é F1.5, e é ele que fecha essa ponta, não as rules.
+- **Role em doc vs Custom Claims**: mantido. Se o `get()` por escrita virar custo real, Custom Claims
+  elimina a leitura extra e permite `request.auth.token.role` direto na regra.
+
+### Fora de escopo (F1.4b)
+**Firebase App Check** (Play Integrity + Debug Provider). Sem ele, as rules protegem *quem* acessa,
+mas não *de onde* — um cliente forjado com credencial válida ainda passa. Exige registro de SHA no
+Console e cuidado para não travar builds debug.

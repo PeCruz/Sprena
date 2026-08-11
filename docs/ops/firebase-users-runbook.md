@@ -139,11 +139,22 @@ adb shell pm clear br.com.sprena
 | "Falha inesperada na autenticação" | Auth retornou sucesso sem `uid` (raro) | repetir; se persistir, checar `google-services.json` e o projeto Firebase |
 | **"Conta não autorizada. Contate o administrador."** | doc `users/{uid}` **não existe** — quase sempre Auto-ID em vez do UID | refazer a Parte B com o Document ID correto |
 | **"Conta sem perfil válido"** | `role` ausente, com typo, ou fora de `ADM`/`MOD`/`CLIENT` | corrigir o campo `role` no Console |
-| "Erro de autenticação" (genérico) | qualquer outra exceção — inclusive **falha na leitura do Firestore** | ver logcat: a tag `FirebaseAuthRepo` traz `cause=<NomeDaExceção>` |
+| **"Conta sem permissão de acesso. Contate o administrador"** | as Security Rules negaram a leitura de `users/{uid}` | ver bloco abaixo |
+| "Erro ao carregar seu perfil" | outra falha do Firestore na leitura do perfil | ver logcat: `FirebaseAuthRepo … code=<CODE>` |
+| "Erro de autenticação" (genérico) | qualquer outra exceção | ver logcat: a tag `FirebaseAuthRepo` traz `cause=<NomeDaExceção>` |
 
-**Armadilha para F1.4:** quando as Security Rules entrarem, um `PERMISSION_DENIED` na leitura de
-`users/{uid}` cai no `catch` genérico → o usuário vê **"Erro de autenticação"** *depois* de o Firebase Auth
-já ter aceitado a senha. Ou seja: autenticado no Firebase, mas sem sessão no app. Diagnóstico só pelo logcat.
+**`PERMISSION_DENIED` depois de a senha ser aceita** — o Auth aprovou, o Firestore recusou. Ou seja:
+autenticado no Firebase, mas sem sessão no app. Checar, nesta ordem:
+
+1. As rules foram publicadas neste projeto? `firebase deploy --only firestore:rules --project <projeto>`
+   — o Console mostra a data do último deploy em Firestore Database → Rules.
+2. O Document ID do doc de perfil bate **exatamente** com o UID do Auth? A regra é
+   `request.auth.uid == uid`; com Auto-ID ela nega mesmo com as rules corretas.
+3. Logcat confirma a origem: `FirebaseAuthRepo login failed … cause=FirebaseFirestoreException code=PERMISSION_DENIED`.
+
+O modelo de acesso completo está em [SECURITY.md](../../SECURITY.md) (seção F1.4); as regras, em
+`firestore.rules` na raiz. Mexeu nelas? Rode `npm run test:emulator` em `tools/firestore-rules-tests/`
+antes do deploy.
 
 **Nome errado na Home após auto-login:** esperado. O fluxo de restore deriva o nome do email
 (`NavGraph.kt`); o campo `name` do Firestore só aparece no login "fresco". Não é regressão.

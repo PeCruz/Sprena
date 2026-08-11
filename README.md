@@ -36,6 +36,8 @@ Coloque o arquivo `google-services.json` em `composeApp/` (não commitado — so
 | Lint Android | `./gradlew :composeApp:lint` | `docker compose run --rm android-lint` |
 | Static analysis | `./gradlew detektMetadataMain :composeApp:detektAndroidDebug :shared:detektAndroidDebug ktlintCheck` | — |
 | Format Kotlin | `./gradlew ktlintFormat` | — |
+| Testar Firestore Rules | `npm --prefix tools/firestore-rules-tests run test:emulator` | — |
+| Publicar Firestore Rules | `firebase deploy --only firestore:rules --project <projeto>` | — |
 
 ## Documentação
 

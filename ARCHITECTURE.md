@@ -114,5 +114,6 @@ Decisões de segurança e endurecimento de build estão documentadas em [SECURIT
 - **F1.1** — minificação R8, bloqueio de backup, network security config, `FLAG_SECURE`.
 - **F1.2** — logging seguro (Napier + Crashlytics) com sanitização de PII (`PiiMasker`/`PiiScrubber`) e instrumentação inicial de Repositories críticos.
 - **F1.3** — Firebase Authentication (email/senha), sessão local cifrada (Tink AEAD + DataStore Preferences, TTL 24h), reset de senha, auto-login, logout.
+- **F1.4** — Firestore Security Rules (`firestore.rules`): `users/{uid}` legível só pelo dono e nunca gravável pelo app, `sport_clients` gravável só por ADM/MOD, default deny no resto. Testadas no emulador via `tools/firestore-rules-tests`.
 
-Próximas sub-fases: F1.4 (Firestore Security Rules + App Check) e F1.5 (LGPD baseline).
+Próximas sub-fases: F1.4b (Firebase App Check) e F1.5 (LGPD baseline).
