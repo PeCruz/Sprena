@@ -25,24 +25,37 @@ internal fun mapAuthError(e: Throwable): String =
             }
         }
         is FirebaseNetworkException -> "Sem conexão. Verifique a internet"
-        is FirebaseAuthException ->
-            when (e.errorCode) {
-                "ERROR_USER_DISABLED" -> "Conta desativada. Contate o administrador"
-                "ERROR_TOO_MANY_REQUESTS" -> "Muitas tentativas. Tente em alguns minutos"
-                else -> "Erro de autenticação"
-            }
-        // Falha ao ler `users/{uid}` — acontece DEPOIS de o Auth aceitar a senha.
-        // PERMISSION_DENIED aqui é quase sempre Security Rules (F1.4) não
-        // publicadas ou negando o doc de perfil.
-        is FirebaseFirestoreException ->
-            when (e.code) {
-                FirebaseFirestoreException.Code.PERMISSION_DENIED ->
-                    "Conta sem permissão de acesso. Contate o administrador"
-                FirebaseFirestoreException.Code.UNAVAILABLE ->
-                    "Sem conexão. Verifique a internet"
-                else -> "Erro ao carregar seu perfil"
-            }
+        is FirebaseAuthException -> mapAuthCode(e.errorCode)
+        is FirebaseFirestoreException -> mapFirestoreCode(e.code)
         else -> "Erro de autenticação"
+    }
+
+private fun mapAuthCode(errorCode: String?): String =
+    when (errorCode) {
+        "ERROR_USER_DISABLED" -> "Conta desativada. Contate o administrador"
+        "ERROR_TOO_MANY_REQUESTS" -> "Muitas tentativas. Tente em alguns minutos"
+        else -> "Erro de autenticação"
+    }
+
+/**
+ * Falha ao ler `users/{uid}` — acontece DEPOIS de o Auth aceitar a senha.
+ *
+ * Os dois códigos interessantes chegam com a senha já validada, mas pedem ações
+ * opostas do usuário:
+ *  - `PERMISSION_DENIED` → Security Rules (F1.4) não publicadas ou negando o doc
+ *    de perfil. Quem resolve é o admin.
+ *  - `UNAUTHENTICATED` → App Check (F1.4b) recusando a atestação. A conta está
+ *    boa; quem não foi reconhecido é a instalação do app.
+ */
+private fun mapFirestoreCode(code: FirebaseFirestoreException.Code): String =
+    when (code) {
+        FirebaseFirestoreException.Code.PERMISSION_DENIED ->
+            "Conta sem permissão de acesso. Contate o administrador"
+        FirebaseFirestoreException.Code.UNAUTHENTICATED ->
+            "Não foi possível validar o app neste dispositivo. Atualize e tente de novo"
+        FirebaseFirestoreException.Code.UNAVAILABLE ->
+            "Sem conexão. Verifique a internet"
+        else -> "Erro ao carregar seu perfil"
     }
 
 /**
