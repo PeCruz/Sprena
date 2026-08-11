@@ -23,6 +23,8 @@ google-services.json
 *.ap_
 *.dex
 captures/
+# Saida de `assembleRelease` (APK + baseline profiles + metadata)
+composeApp/release/
 
 # --- Kotlin ---
 *.class
