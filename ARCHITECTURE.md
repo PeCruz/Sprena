@@ -82,8 +82,8 @@ interface MviViewModel<STATE : UiState, INTENT : UiIntent, EFFECT : UiEffect> {
 
 | Feature | Domain | Data | Notas |
 |---------|--------|------|-------|
-| auth | Sim | Mock | A migrar para Firebase Auth em F1 |
-| sportclient | Sim | Firestore | CPF/phone hoje em plain text — corrigir em F1 |
+| auth | Sim | Firebase Auth + Firestore | Migrado do mock em F1.3; role lida em `users/{uid}` |
+| sportclient | Sim | Firestore (**não ligado**) | `SportClientRepositoryImpl` existe e está no Koin, mas nenhum consumidor: o `SportClientViewModel` guarda os clientes só em memória. Ligar em F2 — só aí as rules de `sport_clients` passam a valer. CPF/phone em plain text, corrigir em F1.5 |
 | kanban | Só validation | Não | Lógica vive no VM — completar em F2 |
 | financial | Só validation | Não | Idem |
 | bar | Só validation | Não | Idem |
