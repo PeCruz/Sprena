@@ -40,6 +40,8 @@ Coloque o arquivo `google-services.json` em `composeApp/` (não commitado — so
 ## Documentação
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — Diagrama de módulos e fluxo MVI
+- [SECURITY.md](./SECURITY.md) — Decisões de segurança por sub-fase
+- [docs/ops/firebase-users-runbook.md](./docs/ops/firebase-users-runbook.md) — Criar usuário no Firebase Console + validar login em device
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — Como contribuir
 - [ROADMAP.md](./ROADMAP.md) — Roadmap de evolução
 - [CLAUDE.md](./CLAUDE.md) — Padrões e diretrizes para IA assistente

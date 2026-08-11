@@ -101,6 +101,7 @@ Decisões de segurança aplicadas ao projeto. Cada sub-fase de F1 adiciona uma s
 1. Nunca logar `password` — `LoginUseCase` e `FirebaseAuthRepositoryImpl` já garantem isso.
 2. Sempre mascarar email no log via `PiiMasker.email(...)`.
 3. Criar novos usuários SEMPRE pela Firebase Console (Auth + doc Firestore `users/{uid}` com role).
+   Passo-a-passo operacional: [docs/ops/firebase-users-runbook.md](./docs/ops/firebase-users-runbook.md).
 4. Em testes, injetar `FakeSessionStore` + `FixedClock` + `FakeAuthRepository`.
 
 ### Trade-offs

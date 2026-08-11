@@ -41,3 +41,10 @@ Desktop.ini
 # Keep Dockerfile and docker-compose.yml tracked
 # Ignore any local override files
 docker-compose.override.yml
+
+# --- Docs locais / segredos ---
+# Runbooks e anotações com dado real (usuários de teste, UIDs, senhas).
+# O processo genérico fica em docs/ops/*.md (versionado); o dado, em *.local.*
+*.local.md
+*.local.json
+docs/ops/*.local.*
