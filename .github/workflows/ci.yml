@@ -82,3 +82,35 @@ jobs:
             **/build/reports/
             **/build/test-results/
           retention-days: 7
+
+  firestore-rules:
+    name: Firestore Security Rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tools/firestore-rules-tests/package-lock.json
+
+      - name: Set up JDK 17
+        # O emulador do Firestore roda na JVM
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        working-directory: tools/firestore-rules-tests
+        run: npm ci
+
+      - name: Rules tests on emulator
+        # Projeto `demo-*` → emulador offline, sem credencial nem firebase login
+        working-directory: tools/firestore-rules-tests
+        run: npm run test:emulator

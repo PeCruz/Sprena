@@ -23,6 +23,8 @@ google-services.json
 *.ap_
 *.dex
 captures/
+# Saida de `assembleRelease` (APK + baseline profiles + metadata)
+composeApp/release/
 
 # --- Kotlin ---
 *.class
@@ -41,3 +43,18 @@ Desktop.ini
 # Keep Dockerfile and docker-compose.yml tracked
 # Ignore any local override files
 docker-compose.override.yml
+
+# --- Firebase ---
+# firebase.json e firestore.rules sao versionados. O .firebaserc amarra o repo
+# a um projeto real (mesma postura do google-services.json) — fica local.
+.firebaserc
+firebase-debug.log
+firestore-debug.log
+node_modules/
+
+# --- Docs locais / segredos ---
+# Runbooks e anotações com dado real (usuários de teste, UIDs, senhas).
+# O processo genérico fica em docs/ops/*.md (versionado); o dado, em *.local.*
+*.local.md
+*.local.json
+docs/ops/*.local.*

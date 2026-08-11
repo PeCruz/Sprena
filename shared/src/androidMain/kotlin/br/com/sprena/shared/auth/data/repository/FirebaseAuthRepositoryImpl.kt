@@ -6,11 +6,7 @@ import br.com.sprena.shared.auth.domain.model.UserRole
 import br.com.sprena.shared.auth.domain.repository.AuthRepository
 import br.com.sprena.shared.core.logger.Logger
 import br.com.sprena.shared.core.logger.pii.PiiMasker
-import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseAuthException
-import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
-import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
@@ -18,7 +14,7 @@ import kotlinx.coroutines.tasks.await
  * Impl Android do [AuthRepository] usando Firebase Authentication (email/senha)
  * + Firestore para resolver a role (`users/{uid}` doc).
  *
- * Erros do FirebaseAuth são mapeados para mensagens em PT-BR — ver `mapError`.
+ * Erros do Firebase (Auth e Firestore) viram mensagens em PT-BR — ver [mapAuthError].
  */
 class FirebaseAuthRepositoryImpl(
     private val auth: FirebaseAuth,
@@ -27,7 +23,7 @@ class FirebaseAuthRepositoryImpl(
 ) : AuthRepository {
     // ReturnCount: 4 distinct error paths (no uid / missing doc / invalid role / success) are
     // clearer as guards than via collapsed Result chains. TooGenericExceptionCaught: Firebase
-    // wraps many failure modes in subclasses of Exception — we map all of them via mapError.
+    // wraps many failure modes in subclasses of Exception — we map all of them via mapAuthError.
     @Suppress("ReturnCount", "TooGenericExceptionCaught")
     override suspend fun authenticate(
         email: String,
@@ -62,8 +58,13 @@ class FirebaseAuthRepositoryImpl(
             logger.info(TAG, "login ok uid=$uid email=${PiiMasker.email(email)}")
             AuthResult.Success(UserModel(id = uid, email = email, name = name, role = role))
         } catch (e: Exception) {
-            logger.warn(TAG, "login failed email=${PiiMasker.email(email)} cause=${e::class.simpleName}", e)
-            AuthResult.Error(mapError(e))
+            logger.warn(
+                TAG,
+                "login failed email=${PiiMasker.email(email)} " +
+                    "cause=${e::class.simpleName}${errorDiagnostics(e)}",
+                e,
+            )
+            AuthResult.Error(mapAuthError(e))
         }
     }
 
@@ -81,26 +82,6 @@ class FirebaseAuthRepositoryImpl(
     }
 
     override fun currentUid(): String? = auth.currentUser?.uid
-
-    private fun mapError(e: Throwable): String =
-        when (e) {
-            is FirebaseAuthInvalidUserException -> "Email ou senha incorretos"
-            is FirebaseAuthInvalidCredentialsException -> {
-                if (e.errorCode == "ERROR_INVALID_EMAIL") {
-                    "Email inválido"
-                } else {
-                    "Email ou senha incorretos"
-                }
-            }
-            is FirebaseNetworkException -> "Sem conexão. Verifique a internet"
-            is FirebaseAuthException ->
-                when (e.errorCode) {
-                    "ERROR_USER_DISABLED" -> "Conta desativada. Contate o administrador"
-                    "ERROR_TOO_MANY_REQUESTS" -> "Muitas tentativas. Tente em alguns minutos"
-                    else -> "Erro de autenticação"
-                }
-            else -> "Erro de autenticação"
-        }
 
     private companion object {
         const val TAG = "FirebaseAuthRepo"

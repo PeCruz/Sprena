@@ -36,10 +36,14 @@ Coloque o arquivo `google-services.json` em `composeApp/` (não commitado — so
 | Lint Android | `./gradlew :composeApp:lint` | `docker compose run --rm android-lint` |
 | Static analysis | `./gradlew detektMetadataMain :composeApp:detektAndroidDebug :shared:detektAndroidDebug ktlintCheck` | — |
 | Format Kotlin | `./gradlew ktlintFormat` | — |
+| Testar Firestore Rules | `npm --prefix tools/firestore-rules-tests run test:emulator` | — |
+| Publicar Firestore Rules | `firebase deploy --only firestore:rules --project <projeto>` | — |
 
 ## Documentação
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — Diagrama de módulos e fluxo MVI
+- [SECURITY.md](./SECURITY.md) — Decisões de segurança por sub-fase
+- [docs/ops/firebase-users-runbook.md](./docs/ops/firebase-users-runbook.md) — Criar usuário no Console, validar login em device e publicar as Security Rules
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — Como contribuir
 - [ROADMAP.md](./ROADMAP.md) — Roadmap de evolução
 - [CLAUDE.md](./CLAUDE.md) — Padrões e diretrizes para IA assistente
