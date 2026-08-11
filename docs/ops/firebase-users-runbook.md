@@ -1,4 +1,4 @@
-# Runbook — Criar usuário no Firebase + validar em device
+# Runbook — Firebase: usuários, validação em device e deploy das rules
 
 > Sprena não tem self-signup. **Todo** usuário é criado à mão: 1 registro no Firebase
 > Authentication **e** 1 documento `users/{uid}` no Firestore. Faltando qualquer um dos dois,
@@ -177,6 +177,84 @@ de novo (ou `adb shell pm clear br.com.sprena`).
 - **Device novo / reinstalação** — nada a fazer no Console. Basta logar; a sessão é recriada localmente.
 
 - [ ] Após qualquer mudança de role ou remoção, revalidar com a Parte C
+
+---
+
+## Parte F — Publicar as Security Rules
+
+As regras vivem em **`firestore.rules`** na raiz do repo. Editar o arquivo não muda nada em
+produção — só o deploy publica. E o contrário também vale: publicar sem rodar os testes é como
+mergear sem CI.
+
+### F.1 — Autorizar o CLI (uma vez por máquina)
+
+```bash
+npm install -g firebase-tools   # se ainda não tiver
+firebase login
+```
+
+Rode o `firebase login` num **terminal interativo de verdade** — ele abre o navegador e fecha o
+ciclo sozinho pelo localhost. Em ambiente headless (incluindo agentes de IA) ele cai num fluxo de
+código manual: imprime um *session ID* + URL, e espera o **código de autorização** que a página
+devolve **depois** do login. Session ID e código de autorização são coisas diferentes — passar o
+session ID falha com "Unable to authenticate using the provided code".
+
+Logar com a conta que é dona do projeto. Conferir:
+
+```bash
+firebase login:list
+firebase projects:list          # sprena-a9b55 tem que aparecer
+```
+
+### F.2 — Testar antes de publicar
+
+```bash
+npm --prefix tools/firestore-rules-tests install    # primeira vez
+npm --prefix tools/firestore-rules-tests run test:emulator
+```
+
+Roda a suíte contra o emulador local no projeto `demo-sprena` — offline, sem tocar em nada real.
+Esperado: `pass 12 / fail 0`. Falhou? Não publique.
+
+> Nas negações, o emulador loga `evaluation error at L<n>` seguido de `false` na mesma linha.
+> É o motor reavaliando depois de resolver o `get()` — a decisão que vale é a segunda. Não é bug.
+
+### F.3 — Publicar
+
+Da **raiz do repo** (é onde estão `firebase.json` e `firestore.rules`):
+
+```bash
+firebase deploy --only firestore:rules --project sprena-a9b55
+```
+
+O `--project` é obrigatório: o `.firebaserc` é gitignorado de propósito, mesma postura do
+`google-services.json`.
+
+Saída esperada:
+
+```
++  cloud.firestore: rules file firestore.rules compiled successfully
++  firestore: released rules firestore.rules to cloud.firestore
++  Deploy complete!
+```
+
+- [ ] Console → Firestore Database → aba **Rules**: conteúdo bate com o arquivo e a data do último
+      deploy é de agora
+- [ ] Login em device continua funcionando (Parte C)
+
+### F.4 — Reverter
+
+Console → Firestore Database → **Rules** → histórico de versões → selecionar a anterior →
+**Restore**. O Firebase versiona cada deploy; a volta é um clique.
+
+### Troubleshooting do deploy
+
+| Erro | Causa | Correção |
+|---|---|---|
+| `Failed to get Firebase project sprena-a9b55` | logado com a conta Google errada | `firebase logout` e refazer F.1 |
+| `Missing permissions required for functions deploy` | conta sem papel de Editor/Owner no projeto | pedir acesso ao dono do projeto |
+| `Unable to authenticate using the provided code` | passou o *session ID* em vez do código de autorização | refazer F.1 num terminal interativo |
+| compilação falhou | erro de sintaxe nas rules | rodar F.2 — o emulador aponta linha e coluna |
 
 ---
 
