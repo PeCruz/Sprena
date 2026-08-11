@@ -1,0 +1,65 @@
+rules_version = '2';
+
+// =============================================================================
+// Sprena — Firestore Security Rules (F1.4)
+//
+// Deploy: firebase deploy --only firestore:rules --project <projeto>
+// Testes: cd tools/firestore-rules-tests && npm run test:emulator
+//
+// Estas regras sao a unica barreira server-side. O RBAC no app (F2,
+// RoleGuardedUseCase) e conveniencia de UX — quem chamar a API do Firestore
+// direto passa por aqui, nao pelo app.
+// =============================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Doc de perfil do requisitante, ou null se ele nao tiver um.
+    // Custa 1 document access por request que invoca — trade-off aceito em
+    // SECURITY.md (role no Firestore em vez de Custom Claims).
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    // `&&` faz curto-circuito: sem login nao chama get(), e sem doc nao le .data
+    // (acessar .data de null e evaluation error, que negaria por acidente).
+    //
+    // NOTA: em request NEGADO que passa por aqui, o emulador loga
+    // "evaluation error at L<n>" seguido de "false" na mesma linha. E o motor
+    // avaliando antes de resolver o get() e reavaliando depois — a decisao que
+    // vale e a segunda. Nao e bug da regra: escrita de ADM/MOD passa (ver
+    // casos 8a/8b em tools/firestore-rules-tests/rules.test.mjs).
+    function isStaff() {
+      return isSignedIn()
+        && profile() != null
+        && profile().data.role in ['ADM', 'MOD'];
+    }
+
+    // Perfil do usuario — lido no login para resolver a role
+    // (FirebaseAuthRepositoryImpl.authenticate).
+    //
+    // Escrita bloqueada para todo mundo: usuarios sao provisionados pelo Console
+    // ou Admin SDK (docs/ops/firebase-users-runbook.md). Sem isso, qualquer
+    // usuario logado poderia se auto-promover a ADM.
+    match /users/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Clientes esportivos — contem PII (CPF, telefone).
+    // Leitura para qualquer autenticado; escrita so ADM/MOD.
+    match /sport_clients/{clientId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isStaff();
+    }
+
+    // Default deny. kanban e financial ainda sao in-memory; quando migrarem
+    // para o Firestore vao bater aqui ate ganharem o proprio bloco `match`.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
