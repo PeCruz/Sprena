@@ -72,4 +72,13 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    testOptions {
+        unitTests {
+            // As exceções do Firebase têm inicializador estático que toca o framework
+            // (android.util.SparseArray). Sem isto, só instanciá-las num unit test já
+            // estoura "Method ... not mocked". Ver AuthErrorMapperTest.
+            isReturnDefaultValues = true
+        }
+    }
 }
