@@ -1,6 +1,7 @@
 package br.com.sprena
 
 import android.app.Application
+import br.com.sprena.core.security.AppCheckBootstrap
 import br.com.sprena.di.appModule
 import br.com.sprena.di.platformModule
 import br.com.sprena.shared.auth.di.sessionModule
@@ -15,8 +16,8 @@ import org.koin.core.logger.Level
 /**
  * Application class — ponto de entrada do app Android.
  *
- * Inicializa o stack de logging (Napier + Crashlytics) e o Koin com todos os
- * módulos de DI na ordem correta:
+ * Inicializa o stack de logging (Napier + Crashlytics), o App Check e o Koin
+ * com todos os módulos de DI na ordem correta:
  *  1. [loggerModule]     → Logger (Napier + Crashlytics)
  *  2. [platformModule]   → Firebase Firestore (Android-specific)
  *  3. [sharedModules]    → domínios compartilhados (kanban, financial)
@@ -27,6 +28,11 @@ class SprenaApplication : Application() {
         super.onCreate()
 
         LoggerBootstrap.init(isDebug = BuildConfig.DEBUG)
+
+        // Antes do startKoin: o Firestore/Auth só são construídos quando o Koin
+        // resolve as dependências, então instalar aqui garante que nenhum request
+        // sai sem token de atestação.
+        AppCheckBootstrap.init()
 
         startKoin {
             androidLogger(Level.DEBUG)
