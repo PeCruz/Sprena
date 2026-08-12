@@ -21,6 +21,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +41,8 @@ import br.com.sprena.presentation.bar.clientdetail.ClientDetailSheet
 import br.com.sprena.presentation.bar.clientdetail.ClientDetailViewModel
 import br.com.sprena.presentation.category.CategoryScreen
 import br.com.sprena.presentation.category.CategoryViewModel
+import br.com.sprena.presentation.consent.ConsentScreen
+import br.com.sprena.presentation.consent.ConsentViewModel
 import br.com.sprena.presentation.core.navigation.BottomNavIntent
 import br.com.sprena.presentation.core.navigation.BottomNavViewModel
 import br.com.sprena.presentation.core.navigation.BottomTab
@@ -77,6 +80,10 @@ import br.com.sprena.shared.auth.domain.model.RestoreResult
 import br.com.sprena.shared.auth.domain.model.UserModel
 import br.com.sprena.shared.auth.domain.model.UserRole
 import br.com.sprena.shared.auth.domain.usecase.RestoreSessionUseCase
+import br.com.sprena.shared.auth.session.SessionUser
+import br.com.sprena.shared.privacy.domain.model.ConsentStatus
+import br.com.sprena.shared.privacy.domain.usecase.CheckConsentUseCase
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -93,7 +100,25 @@ object Routes {
     const val SETTINGS = "settings"
     const val MENU = "menu"
     const val CATEGORY = "category"
+    const val CONSENT = "consent"
 }
+
+/** Monta a rota da Home com os argumentos que ela espera no path. */
+private fun homeRoute(
+    uid: String,
+    email: String,
+    name: String,
+    role: UserRole,
+): String = "${Routes.HOME}/$uid/$email/${name.replace(" ", "+")}/${role.name}"
+
+/** Rota da Home a partir da sessão persistida — o nome sai do prefixo do email. */
+private fun homeRouteFor(session: SessionUser): String =
+    homeRoute(
+        uid = session.uid,
+        email = session.email,
+        name = session.email.substringBefore('@'),
+        role = session.role,
+    )
 
 /**
  * Grafo de navegacao principal.
@@ -107,6 +132,7 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
     val categoryViewModel: CategoryViewModel = koinViewModel()
 
     val restoreUseCase: RestoreSessionUseCase = koinInject()
+    val checkConsent: CheckConsentUseCase = koinInject()
     var startDestination by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
@@ -114,8 +140,13 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
             when (val result = restoreUseCase()) {
                 is RestoreResult.Authenticated -> {
                     val session = result.user
-                    val encodedName = session.email.substringBefore('@').replace(" ", "+")
-                    "${Routes.HOME}/${session.uid}/${session.email}/$encodedName/${session.role.name}"
+                    // Gate fail-closed: só Granted entra na Home. Required e
+                    // Unavailable (falha de leitura) vão para o consentimento.
+                    if (checkConsent(session.uid) is ConsentStatus.Granted) {
+                        homeRouteFor(session)
+                    } else {
+                        Routes.CONSENT
+                    }
                 }
                 is RestoreResult.NotAuthenticated -> Routes.LOGIN
             }
@@ -138,15 +169,43 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
     ) {
         composable(route = Routes.LOGIN) {
             val loginViewModel: LoginViewModel = koinViewModel()
+            val scope = rememberCoroutineScope()
             LoginScreen(
                 viewModel = loginViewModel,
                 themeViewModel = themeViewModel,
                 onNavigateHome = { user ->
-                    val encodedName = user.name.replace(" ", "+")
-                    navController.navigate(
-                        "${Routes.HOME}/${user.id}/${user.email}/$encodedName/${user.role.name}",
-                    ) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    scope.launch {
+                        val destination =
+                            if (checkConsent(user.id) is ConsentStatus.Granted) {
+                                homeRoute(
+                                    uid = user.id,
+                                    email = user.email,
+                                    name = user.name,
+                                    role = user.role,
+                                )
+                            } else {
+                                Routes.CONSENT
+                            }
+                        navController.navigate(destination) {
+                            popUpTo(Routes.LOGIN) { inclusive = true }
+                        }
+                    }
+                },
+            )
+        }
+
+        composable(route = Routes.CONSENT) {
+            val consentViewModel: ConsentViewModel = koinViewModel()
+            ConsentScreen(
+                viewModel = consentViewModel,
+                onNavigateHome = { session ->
+                    navController.navigate(homeRouteFor(session)) {
+                        popUpTo(Routes.CONSENT) { inclusive = true }
+                    }
+                },
+                onNavigateLogin = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(0) { inclusive = true }
                     }
                 },
             )
