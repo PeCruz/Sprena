@@ -14,7 +14,19 @@
 - Acesso ao projeto **`sprena-a9b55`** no [Firebase Console](https://console.firebase.google.com/).
 - `composeApp/google-services.json` presente localmente (gitignorado — ver [README](../../README.md#setup)).
 - Device físico ou emulador **com Google Play Services** (Firebase Auth não funciona em imagem AOSP pura).
-- `adb` no PATH (`adb devices` deve listar o aparelho).
+- `adb` acessível (`adb devices` deve listar o aparelho).
+
+> **Windows/PowerShell:** o `adb` normalmente **não** está no PATH. Ele vem com o Android SDK em
+> `%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe`. Os comandos deste runbook estão em sintaxe
+> POSIX; no PowerShell, resolva o caminho uma vez por terminal e chame com o operador `&`:
+>
+> ```powershell
+> $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+> & $adb devices
+> ```
+>
+> Se não estiver lá, procure com `Get-ChildItem "$env:LOCALAPPDATA\Android" -Recurse -Filter adb.exe`.
+> Daqui em diante, onde se lê `adb`, use `& $adb`.
 
 ---
 
@@ -270,10 +282,27 @@ parte cobre é o lado do Console, que é onde o App Check de fato passa a valer.
 
 Sem isso, todo build debug feito num clone novo falha a atestação. É o primeiro tropeço garantido.
 
+> **Quando fazer:** enquanto a enforcement estiver desligada (antes de G.4), o app funciona sem
+> token registrado — o backend ainda aceita request não verificado. Registrar **antes** de ligar a
+> chave é justamente o que evita você derrubar o próprio login no passo seguinte.
+
+Precisa de um device ou emulador **com Google Play Services** conectado (`adb devices` tem que
+listar). O código do App Check vive em `composeApp/src/androidDebug` e `src/androidMain` — se a
+branch em uso não tiver o `AppCheckBootstrap`, nenhum UUID vai aparecer.
+
 ```bash
 ./gradlew :composeApp:installDebug
 adb logcat -c
 adb logcat -s DebugAppCheckProvider
+```
+
+No PowerShell (ver [Pré-requisitos](#pré-requisitos) sobre o caminho do `adb`):
+
+```powershell
+./gradlew :composeApp:installDebug
+$adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+& $adb logcat -c
+& $adb logcat -s DebugAppCheckProvider
 ```
 
 Abrir o app. O logcat imprime uma linha assim:
@@ -331,7 +360,8 @@ tem por que sofrer com rollback de APK.
 | App mostra "Não foi possível validar o app neste dispositivo" | enforcement ligada e atestação recusada | G.1 (debug) ou G.2 (release) |
 | Login falha só depois de G.4, e voltava ao desaplicar | token de debug não registrado nessa instalação | refazer G.1 — o UUID muda por instalação |
 | `code=UNAUTHENTICATED` no logcat | token de App Check ausente/inválido | distinto de `PERMISSION_DENIED`, que é rules (F1.4) |
-| Nenhum UUID aparece no logcat | build release, ou provider não instalado | conferir que é `installDebug`; tag é `DebugAppCheckProvider` |
+| Nenhum UUID aparece no logcat | build release, branch sem o `AppCheckBootstrap`, ou nada conectado | conferir `adb devices`, que foi `installDebug` e que a tag é `DebugAppCheckProvider` |
+| `adb` não é reconhecido como comando | não está no PATH (padrão no Windows) | ver [Pré-requisitos](#pré-requisitos) |
 | Release falha atestação, debug funciona | SHA-256 errado (upload vs app signing) | G.2 passo 2 |
 | `Integrity API error (-1)` | Play Integrity API não habilitada no Cloud | G.2 passo 3 |
 
