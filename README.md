@@ -13,7 +13,7 @@ Construído com **Kotlin Multiplatform** + **Compose Multiplatform** seguindo Cl
 
 ## Requisitos
 
-- JDK 17+
+- JDK 17+ (JDK 21+ para rodar os testes de Firestore Rules no emulador)
 - Android SDK 35 (compile) / minSdk 26
 - Docker (opcional — para builds isolados)
 
