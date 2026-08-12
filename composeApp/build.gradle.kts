@@ -74,6 +74,14 @@ kotlin {
     }
 }
 
+// F1.5: a política de privacidade é um arquivo em composeResources/files.
+// Pacote fixado explicitamente para o import não depender de heurística do plugin.
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "br.com.sprena.resources"
+    generateResClass = always
+}
+
 android {
     namespace = "br.com.sprena"
     compileSdk = 35
