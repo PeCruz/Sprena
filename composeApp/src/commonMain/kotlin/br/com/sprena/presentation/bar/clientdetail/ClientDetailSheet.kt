@@ -16,8 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -45,6 +43,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -142,16 +142,15 @@ fun ClientDetailSheet(
                 if (state.canRevealCpf) {
                     IconButton(
                         onClick = { viewModel.handleIntent(ClientDetailIntent.ToggleCpfReveal) },
+                        modifier =
+                            Modifier.semantics {
+                                contentDescription =
+                                    if (state.isCpfRevealed) "Ocultar CPF" else "Revelar CPF"
+                            },
                     ) {
-                        Icon(
-                            imageVector =
-                                if (state.isCpfRevealed) {
-                                    Icons.Default.VisibilityOff
-                                } else {
-                                    Icons.Default.Visibility
-                                },
-                            contentDescription =
-                                if (state.isCpfRevealed) "Ocultar CPF" else "Revelar CPF",
+                        Text(
+                            text = if (state.isCpfRevealed) "🙈" else "👁",
+                            style = MaterialTheme.typography.bodyLarge,
                         )
                     }
                 }
