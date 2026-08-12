@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -131,11 +133,29 @@ fun ClientDetailSheet(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text(
-                text = "CPF: ${state.clientCpf}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "CPF: ${state.displayCpf}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (state.canRevealCpf) {
+                    IconButton(
+                        onClick = { viewModel.handleIntent(ClientDetailIntent.ToggleCpfReveal) },
+                    ) {
+                        Icon(
+                            imageVector =
+                                if (state.isCpfRevealed) {
+                                    Icons.Default.VisibilityOff
+                                } else {
+                                    Icons.Default.Visibility
+                                },
+                            contentDescription =
+                                if (state.isCpfRevealed) "Ocultar CPF" else "Revelar CPF",
+                        )
+                    }
+                }
+            }
             state.clientEmail?.let { email ->
                 Text(
                     text = "Email: $email",

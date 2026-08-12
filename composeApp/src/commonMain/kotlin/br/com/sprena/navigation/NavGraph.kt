@@ -81,6 +81,7 @@ import br.com.sprena.shared.auth.domain.model.RestoreResult
 import br.com.sprena.shared.auth.domain.model.UserModel
 import br.com.sprena.shared.auth.domain.model.UserRole
 import br.com.sprena.shared.auth.domain.usecase.RestoreSessionUseCase
+import br.com.sprena.shared.auth.session.SessionStore
 import br.com.sprena.shared.auth.session.SessionUser
 import br.com.sprena.shared.privacy.domain.model.ConsentStatus
 import br.com.sprena.shared.privacy.domain.usecase.CheckConsentUseCase
@@ -921,9 +922,10 @@ private fun HomeWithBottomNav(
     if (barState.selectedClient != null) {
         val selectedClient = barState.selectedClient!!
         val clientDetailSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val sessionStore: SessionStore = koinInject()
         val clientDetailViewModel =
             remember(selectedClient.id) {
-                ClientDetailViewModel(client = selectedClient)
+                ClientDetailViewModel(client = selectedClient, sessionStore = sessionStore)
             }
         ClientDetailSheet(
             viewModel = clientDetailViewModel,

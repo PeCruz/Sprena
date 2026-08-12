@@ -9,6 +9,9 @@ private const val FULLY_MASKED = "***.***.***-**"
  * Aceita entrada crua ou já pontuada — só os dígitos importam. Qualquer entrada
  * que não normalize para exatamente 11 dígitos vira máscara completa: entrada
  * malformada não pode vazar dígito parcial.
+ *
+ * Não confundir com [br.com.sprena.shared.core.logger.pii.PiiMasker.cpf], que mascara CPF com
+ * outra regra (preserva só os 2 últimos dígitos) e serve para logs, não para exibição em tela.
  */
 fun maskCpf(raw: String): String {
     val digits = raw.filter { it.isDigit() }
