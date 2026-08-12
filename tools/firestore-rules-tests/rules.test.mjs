@@ -8,6 +8,7 @@
  * Modelo de acesso sob teste:
  *  - users/{uid}          → cada um le so o proprio doc; escrita e Console/Admin SDK apenas
  *  - sport_clients/{id}   → leitura para qualquer autenticado; escrita so ADM/MOD
+ *  - user_consents/{uid}  → cada um le e grava so o proprio aceite; history e append-only
  *  - qualquer outra path  → default deny
  */
 import { after, before, beforeEach, describe, it } from 'node:test';
@@ -17,7 +18,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 
 const RULES_PATH = new URL('../../firestore.rules', import.meta.url);
 
@@ -114,6 +115,57 @@ describe('sport_clients/{id}', () => {
     const db = as(GHOST_UID);
     await assertSucceeds(getDoc(doc(db, 'sport_clients', 'c1')));
     await assertFails(setDoc(doc(db, 'sport_clients', 'c_novo'), { name: 'Novo' }));
+  });
+});
+
+describe('user_consents/{uid}', () => {
+  const VERSION = '2026-08-12';
+  const payload = () => ({
+    uid: CLIENT_UID,
+    policyVersion: VERSION,
+    acceptedAt: serverTimestamp(),
+    appVersion: '0.1.0',
+  });
+
+  it('11. le o proprio registro de consentimento — inclusive quando nao existe', async () => {
+    await assertSucceeds(getDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID)));
+  });
+
+  it('12. nega ler o consentimento de outro usuario', async () => {
+    await assertFails(getDoc(doc(as(CLIENT_UID), 'user_consents', ADM_UID)));
+  });
+
+  it('13. cria o proprio consentimento com payload valido', async () => {
+    await assertSucceeds(setDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID), payload()));
+  });
+
+  it('14. nega criar consentimento em nome de outro uid', async () => {
+    await assertFails(
+      setDoc(doc(as(CLIENT_UID), 'user_consents', ADM_UID), { ...payload(), uid: ADM_UID }),
+    );
+  });
+
+  it('15. nega delete do proprio consentimento', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'user_consents', CLIENT_UID), {
+        uid: CLIENT_UID,
+        policyVersion: VERSION,
+      });
+    });
+    await assertFails(deleteDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID)));
+  });
+
+  it('16. nega update no historico — a trilha e append-only', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'user_consents', CLIENT_UID, 'history', VERSION), {
+        policyVersion: VERSION,
+      });
+    });
+    await assertFails(
+      updateDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID, 'history', VERSION), {
+        policyVersion: 'adulterado',
+      }),
+    );
   });
 });
 
