@@ -3,6 +3,7 @@ package br.com.sprena.di
 import br.com.sprena.presentation.bar.BarViewModel
 import br.com.sprena.presentation.bar.addclient.AddClientViewModel
 import br.com.sprena.presentation.category.CategoryViewModel
+import br.com.sprena.presentation.consent.ConsentViewModel
 import br.com.sprena.presentation.core.navigation.BottomNavViewModel
 import br.com.sprena.presentation.core.theme.ThemeViewModel
 import br.com.sprena.presentation.eventos.EventosViewModel
@@ -43,4 +44,11 @@ fun appModule() =
         viewModel { EventosViewModel() }
         viewModel { CreateEventViewModel() }
         viewModel { SettingsViewModel(sessionStore = get(), logout = get()) }
+        viewModel {
+            ConsentViewModel(
+                policyLoader = get(),
+                acceptConsent = get(),
+                sessionStore = get(),
+            )
+        }
     }
