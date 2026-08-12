@@ -166,8 +166,11 @@ class ConsentViewModelTest {
             vm.handleIntent(ConsentIntent.ToggleRead)
             advanceUntilIdle()
 
-            vm.handleIntent(ConsentIntent.Accept)
-            advanceUntilIdle()
+            vm.effects.test {
+                vm.handleIntent(ConsentIntent.Accept)
+                advanceUntilIdle()
+                expectNoEvents()
+            }
 
             val state = vm.state.first()
             assertNotNull(state.error)
