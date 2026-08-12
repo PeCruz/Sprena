@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -86,6 +87,8 @@ fun SettingsScreen(
             ComandasSection(onNavigateMenu = navigation.onNavigateMenu)
             Spacer(modifier = Modifier.height(8.dp))
             FinanceiroSection(onNavigateCategory = navigation.onNavigateCategory)
+            Spacer(modifier = Modifier.height(8.dp))
+            PrivacidadeSection(onNavigatePrivacyPolicy = navigation.onNavigatePrivacyPolicy)
         }
     }
 }
@@ -192,6 +195,24 @@ private fun FinanceiroSection(onNavigateCategory: () -> Unit) {
         title = "Categorias",
         subtitle = "Gerenciar categorias de transações",
         onClick = onNavigateCategory,
+    )
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+}
+
+@Composable
+private fun PrivacidadeSection(onNavigatePrivacyPolicy: () -> Unit) {
+    SectionTitle(title = "Privacidade")
+    SettingsItem(
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        },
+        title = "Política de Privacidade",
+        subtitle = "Como seus dados são tratados",
+        onClick = onNavigatePrivacyPolicy,
     )
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }

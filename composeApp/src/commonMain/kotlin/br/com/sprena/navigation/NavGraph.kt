@@ -68,6 +68,7 @@ import br.com.sprena.presentation.login.LoginScreen
 import br.com.sprena.presentation.login.LoginViewModel
 import br.com.sprena.presentation.menu.MenuScreen
 import br.com.sprena.presentation.menu.MenuViewModel
+import br.com.sprena.presentation.privacy.PrivacyPolicyScreen
 import br.com.sprena.presentation.settings.SettingsNavigation
 import br.com.sprena.presentation.settings.SettingsScreen
 import br.com.sprena.presentation.sportclient.SportClient
@@ -101,6 +102,7 @@ object Routes {
     const val MENU = "menu"
     const val CATEGORY = "category"
     const val CONSENT = "consent"
+    const val PRIVACY_POLICY = "privacy_policy"
 }
 
 /** Monta a rota da Home com os argumentos que ela espera no path. */
@@ -470,6 +472,7 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
                                 popUpTo(0) { inclusive = true }
                             }
                         },
+                        onNavigatePrivacyPolicy = { navController.navigate(Routes.PRIVACY_POLICY) },
                     ),
             )
         }
@@ -486,6 +489,13 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
             CategoryScreen(
                 viewModel = categoryViewModel,
                 themeViewModel = themeViewModel,
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(route = Routes.PRIVACY_POLICY) {
+            PrivacyPolicyScreen(
+                loader = koinInject(),
                 onNavigateBack = { navController.popBackStack() },
             )
         }
@@ -826,6 +836,7 @@ private fun HomeWithBottomNav(
                                     popUpTo(0) { inclusive = true }
                                 }
                             },
+                            onNavigatePrivacyPolicy = { navController.navigate(Routes.PRIVACY_POLICY) },
                         ),
                 )
             }
