@@ -116,4 +116,9 @@ Decisões de segurança e endurecimento de build estão documentadas em [SECURIT
 - **F1.3** — Firebase Authentication (email/senha), sessão local cifrada (Tink AEAD + DataStore Preferences, TTL 24h), reset de senha, auto-login, logout.
 - **F1.4** — Firestore Security Rules (`firestore.rules`): `users/{uid}` legível só pelo dono e nunca gravável pelo app, `sport_clients` gravável só por ADM/MOD, default deny no resto. Testadas no emulador via `tools/firestore-rules-tests`.
 
-Próximas sub-fases: F1.4b (Firebase App Check) e F1.5 (LGPD baseline).
+- **F1.4b** — Firebase App Check: Play Integrity em release, Debug Provider em debug, escolhidos por
+  build type (`composeApp/src/androidRelease` e `src/androidDebug`) para que o provider inseguro não
+  exista no APK de produção. Instalado em `AppCheckBootstrap` antes do `startKoin`. A *enforcement*
+  é ativada no Console — ver [Parte G do runbook](./docs/ops/firebase-users-runbook.md).
+
+Próxima sub-fase: F1.5 (LGPD baseline).

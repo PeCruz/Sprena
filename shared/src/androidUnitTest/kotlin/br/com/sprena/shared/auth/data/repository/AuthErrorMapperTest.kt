@@ -73,6 +73,18 @@ class AuthErrorMapperTest {
         assertEquals("Sem conexão. Verifique a internet", mapAuthError(e))
     }
 
+    // F1.4b: com App Check em enforcement, um token de atestação ausente ou
+    // recusado derruba a leitura de `users/{uid}` com UNAUTHENTICATED. Antes
+    // deste caso a mensagem era "Erro ao carregar seu perfil", que manda o
+    // usuário (e o suporte) investigar o lugar errado — o perfil está intacto,
+    // quem foi recusado foi o app.
+    @Test
+    fun `token de atestacao recusado aponta para o app e nao para o perfil`() {
+        val e = firestoreException(FirebaseFirestoreException.Code.UNAUTHENTICATED)
+
+        assertEquals("Não foi possível validar o app neste dispositivo. Atualize e tente de novo", mapAuthError(e))
+    }
+
     @Test
     fun `outra falha do firestore aponta para o perfil`() {
         val e = firestoreException(FirebaseFirestoreException.Code.DATA_LOSS)

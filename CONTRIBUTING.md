@@ -2,7 +2,8 @@
 
 ## Setup local
 
-1. JDK 17 instalado (`java -version` deve mostrar 17.x)
+1. JDK 17+ instalado (`java -version`). O build Gradle usa toolchain 17; rodar os testes de
+   Firestore Rules localmente exige JDK 21+, porque o `firebase-tools` recusa runtimes anteriores
 2. Android SDK 35 instalado via Android Studio ou `sdkmanager`
 3. Clonar e abrir no Android Studio: `File → Open → Kanoas`
 4. Sincronizar Gradle (Android Studio faz automaticamente)

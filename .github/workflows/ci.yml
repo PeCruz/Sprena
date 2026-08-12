@@ -99,12 +99,13 @@ jobs:
           cache: npm
           cache-dependency-path: tools/firestore-rules-tests/package-lock.json
 
-      - name: Set up JDK 17
-        # O emulador do Firestore roda na JVM
+      - name: Set up JDK 21
+        # O emulador do Firestore roda na JVM. firebase-tools >= 15.x exige JDK 21+
+        # (o build Gradle continua em 17 — são runtimes independentes).
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Install dependencies
         working-directory: tools/firestore-rules-tests

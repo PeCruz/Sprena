@@ -59,6 +59,11 @@ kotlin {
             implementation(project.dependencies.platform(libs.firebase.bom))
             implementation(libs.firebase.firestore)
             implementation(libs.firebase.auth)
+
+            // F1.4b: App Check. O provider de debug entra só na variante debug
+            // (ver bloco `dependencies` no fim do arquivo) para que a classe do
+            // provider inseguro nem exista no APK de release.
+            implementation(libs.firebase.appcheck.playintegrity)
         }
 
         commonTest.dependencies {
@@ -108,4 +113,11 @@ android {
             isShrinkResources = false
         }
     }
+}
+
+dependencies {
+    // F1.4b: DebugAppCheckProviderFactory só na variante debug. Isso é o que
+    // torna `src/androidDebug` vs `src/androidRelease` uma garantia de compilação:
+    // o release não tem como referenciar o provider de debug.
+    debugImplementation(libs.firebase.appcheck.debug)
 }

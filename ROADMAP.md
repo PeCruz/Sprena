@@ -9,12 +9,12 @@ Roadmap de evolução do MVP até nível production-ready. As fases são indepen
 - Hygiene: CODEOWNERS, PR template, .editorconfig
 
 ## F1 — Segurança crítica + LGPD baseline
-- Build hardening: R8/Proguard, `allowBackup=false`, networkSecurityConfig
-- Firestore Security Rules + Firebase App Check
-- Auth real (Firebase Auth) substituindo o mock; sessão em DataStore criptografado
-- Consentimento LGPD + política de privacidade + masking de CPF
-- FLAG_SECURE em telas sensíveis
-- Logging seguro (Napier + Crashlytics) com sanitização de PII
+- ✅ **F1.1** — Build hardening: R8/Proguard, `allowBackup=false`, networkSecurityConfig, FLAG_SECURE
+- ✅ **F1.2** — Logging seguro (Napier + Crashlytics) com sanitização de PII
+- ✅ **F1.3** — Auth real (Firebase Auth) substituindo o mock; sessão em DataStore criptografado
+- ✅ **F1.4** — Firestore Security Rules (testadas no emulador, no CI)
+- ✅ **F1.4b** — Firebase App Check (Play Integrity/release, Debug Provider/debug)
+- ⬜ **F1.5** — Consentimento LGPD + política de privacidade + masking de CPF
 
 ## F2 — Completar Clean Architecture
 - Para cada feature (`kanban`, `financial`, `bar`, `menu`):
@@ -52,4 +52,9 @@ Roadmap de evolução do MVP até nível production-ready. As fases são indepen
 
 ---
 
-**Status atual:** F0 em execução. Demais fases pendentes de priorização do mantenedor.
+**Status atual:** F0 concluída. F1 quase fechada — falta só F1.5 (LGPD baseline). F2–F6 pendentes
+de priorização do mantenedor.
+
+**Pendência operacional:** o App Check (F1.4b) está no código, mas a *enforcement* de Firestore e
+Auth é uma chave no Firebase Console — enquanto não for ligada (Parte G do
+[runbook](./docs/ops/firebase-users-runbook.md)), a proteção não está valendo em produção.
