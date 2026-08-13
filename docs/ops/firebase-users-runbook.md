@@ -226,7 +226,7 @@ npm --prefix tools/firestore-rules-tests run test:emulator
 ```
 
 Roda a suíte contra o emulador local no projeto `demo-sprena` — offline, sem tocar em nada real.
-Esperado: `pass 12 / fail 0`. Falhou? Não publique.
+Esperado: `pass 30 / fail 0`. Falhou? Não publique.
 
 > Nas negações, o emulador loga `evaluation error at L<n>` seguido de `false` na mesma linha.
 > É o motor reavaliando depois de resolver o `get()` — a decisão que vale é a segunda. Não é bug.
@@ -258,6 +258,45 @@ Saída esperada:
 
 Console → Firestore Database → **Rules** → histórico de versões → selecionar a anterior →
 **Restore**. O Firebase versiona cada deploy; a volta é um clique.
+
+### F.5 — Ordem de release: rules primeiro, app depois
+
+> ⚠️ **Bloqueante de release.** Uma versão do app que estreia uma coleção nova só pode chegar aos
+> usuários **depois** de as rules dessa coleção estarem publicadas. Inverter a ordem tira **todos os
+> usuários existentes** do ar — não é degradação parcial, é bloqueio total.
+
+O caso concreto é o gate de consentimento (F1.5). Se o APK com o gate for distribuído antes do
+deploy das rules:
+
+1. o app lê `user_consents/{uid}` e bate no `match /{document=**} { allow read, write: if false }`;
+2. a leitura falha com `PERMISSION_DENIED` → `CheckConsentUseCase` devolve `ConsentStatus.Unavailable`;
+3. o gate é **fail-closed**: `Unavailable` nunca vira acesso, então o usuário cai na tela de
+   consentimento;
+4. o aceite também é negado pela mesma razão — a gravação bate no default-deny.
+
+Resultado: **todo usuário já cadastrado fica sem acesso ao app**, inclusive quem nunca teve nada a
+ver com a mudança, e sem nenhum caminho para frente dentro do app. Não é "um retry falhou".
+
+**Ordem obrigatória de cada release que toca em `firestore.rules`:**
+
+| # | Passo | Como validar antes de seguir |
+|---|---|---|
+| 1 | Rodar a suíte de rules (F.2) | `pass 30 / fail 0` |
+| 2 | `firebase deploy --only firestore:rules --project sprena-a9b55` (F.3) | Console → Firestore → Rules: conteúdo e data do deploy conferem |
+| 3 | Validar em device com o **build novo**, ainda não distribuído | login entra na Home; aceite grava `user_consents/{uid}` e um doc em `history/` |
+| 4 | Só então publicar/distribuir o APK | — |
+
+- [ ] Rules publicadas **antes** da distribuição do app
+- [ ] Um usuário existente (que já aceitou) entra na Home sem passar pelo gate
+- [ ] Um usuário novo aceita e o aceite grava sem erro
+
+**Se a ordem foi invertida e os usuários já estão travados:** publicar as rules (passo 2) resolve na
+hora, sem rollback de APK e sem ação do usuário — o `Retry` da tela de consentimento reconsulta o
+aceite e libera quem já tinha aceitado. Rollback das rules (F.4) é o caminho contrário e **não**
+ajuda aqui.
+
+> A ordem inversa (app antes das rules) é segura só quando a versão nova **não** lê nem grava em
+> coleção alguma que ainda não esteja liberada. Na dúvida, trate como bloqueante.
 
 ### Troubleshooting do deploy
 

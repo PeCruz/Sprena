@@ -63,6 +63,9 @@ mantenedor.
 Auth é uma chave no Firebase Console — enquanto não for ligada (Parte G do
 [runbook](./docs/ops/firebase-users-runbook.md)), a proteção não está valendo em produção.
 
-As rules de `user_consents` (F1.5) só valem em produção depois de
-`firebase deploy --only firestore:rules --project <projeto>` — até lá, o ambiente de produção segue
-com as rules publicadas antes desta sub-fase, e o aceite falha ao gravar.
+**Ordem de release de F1.5 (bloqueante):** as rules de `user_consents` precisam ser publicadas
+(`firebase deploy --only firestore:rules --project <projeto>`) **antes** de o APK com o gate de
+consentimento chegar aos usuários. Na ordem inversa, a leitura de `user_consents` bate no
+default-deny, o gate fail-closed trata isso como bloqueio e **todos os usuários existentes ficam sem
+acesso ao app** — o aceite também é negado, então não há saída pela própria tela. Passo a passo e
+recuperação na Parte F.5 do [runbook](./docs/ops/firebase-users-runbook.md).
