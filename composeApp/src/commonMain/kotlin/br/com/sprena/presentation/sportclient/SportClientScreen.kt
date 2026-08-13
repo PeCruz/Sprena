@@ -54,6 +54,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -192,10 +194,10 @@ fun SportClientScreen(
     }
 
     // --- Read-only Detail Dialog ---
-    val selectedClient = state.selectedClient
-    if (selectedClient != null) {
+    if (state.selectedClient != null) {
         SportClientDetailDialog(
-            client = selectedClient,
+            state = state,
+            onToggleCpfReveal = { viewModel.handleIntent(SportClientIntent.ToggleCpfReveal) },
             onDismiss = { viewModel.handleIntent(SportClientIntent.DismissClientDetail) },
             onEdit = { client ->
                 viewModel.handleIntent(SportClientIntent.EditClientClicked(client))
@@ -926,34 +928,23 @@ private fun AddSportClientDialog(
 
 @Composable
 private fun SportClientDetailDialog(
-    client: SportClient,
+    state: SportClientState,
+    onToggleCpfReveal: () -> Unit,
     onDismiss: () -> Unit,
     onEdit: (SportClient) -> Unit,
     onDelete: (String) -> Unit,
 ) {
+    val client = state.selectedClient ?: return
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     if (showDeleteConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text("Excluir Cliente") },
-            text = { Text("Deseja realmente excluir \"${client.name}\"?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeleteConfirmation = false
-                    onDelete(client.id)
-                }) {
-                    Text(
-                        "Excluir",
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
+        DeleteSportClientConfirmDialog(
+            clientName = client.name,
+            onConfirm = {
+                showDeleteConfirmation = false
+                onDelete(client.id)
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirmation = false }) {
-                    Text("Cancelar")
-                }
-            },
+            onCancel = { showDeleteConfirmation = false },
         )
         return
     }
@@ -961,53 +952,21 @@ private fun SportClientDetailDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(client.name, modifier = Modifier.weight(1f))
-                IconButton(onClick = { onEdit(client) }) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Editar",
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                IconButton(onClick = { showDeleteConfirmation = true }) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Excluir",
-                        tint = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
+            SportClientDetailTitle(
+                clientName = client.name,
+                onEdit = { onEdit(client) },
+                onDelete = { showDeleteConfirmation = true },
+            )
         },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                if (client.apelido.isNotBlank()) {
-                    DetailRow(label = "Apelido", value = client.apelido)
-                }
-                DetailRow(label = "CPF", value = formatCpf(client.cpf))
-                DetailRow(label = "Telefone", value = formatPhone(client.phone))
-                DetailRow(
-                    label = "Modalidade",
-                    value = modalitiesLabel(client.modalities),
+                SportClientDetailFields(
+                    client = client,
+                    displayCpf = state.displayCpf,
+                    canRevealCpf = state.canRevealCpf,
+                    isCpfRevealed = state.isCpfRevealed,
+                    onToggleCpfReveal = onToggleCpfReveal,
                 )
-                DetailRow(label = "Frequência", value = "${client.attendance}x por semana")
-                DetailRow(
-                    label = "Pagamento",
-                    value = paymentMethodLabel(client.paymentMethod),
-                )
-                DetailRow(
-                    label = "Valor",
-                    value = formatCurrency(client.cashAmountCents),
-                )
-                if (client.paymentHistory.isNotEmpty()) {
-                    DetailRow(
-                        label = "Meses pagos",
-                        value = client.paymentHistory.joinToString(", "),
-                    )
-                }
             }
         },
         confirmButton = {
@@ -1016,6 +975,135 @@ private fun SportClientDetailDialog(
             }
         },
     )
+}
+
+/** Confirmação de exclusão do cliente, disparada pelo ícone de lixeira do detalhe. */
+@Composable
+private fun DeleteSportClientConfirmDialog(
+    clientName: String,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text("Excluir Cliente") },
+        text = { Text("Deseja realmente excluir \"$clientName\"?") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    "Excluir",
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) {
+                Text("Cancelar")
+            }
+        },
+    )
+}
+
+/** Cabeçalho do detalhe: nome do cliente + ações de editar e excluir. */
+@Composable
+private fun SportClientDetailTitle(
+    clientName: String,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(clientName, modifier = Modifier.weight(1f))
+        IconButton(onClick = onEdit) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = "Editar",
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+        IconButton(onClick = onDelete) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = "Excluir",
+                tint = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+/**
+ * Campos do detalhe read-only. O CPF vem pronto do state ([displayCpf]) — a tela
+ * nunca formata o número completo por conta própria.
+ */
+@Composable
+private fun SportClientDetailFields(
+    client: SportClient,
+    displayCpf: String,
+    canRevealCpf: Boolean,
+    isCpfRevealed: Boolean,
+    onToggleCpfReveal: () -> Unit,
+) {
+    if (client.apelido.isNotBlank()) {
+        DetailRow(label = "Apelido", value = client.apelido)
+    }
+    CpfDetailRow(
+        displayCpf = displayCpf,
+        canRevealCpf = canRevealCpf,
+        isCpfRevealed = isCpfRevealed,
+        onToggleCpfReveal = onToggleCpfReveal,
+    )
+    DetailRow(label = "Telefone", value = formatPhone(client.phone))
+    DetailRow(
+        label = "Modalidade",
+        value = modalitiesLabel(client.modalities),
+    )
+    DetailRow(label = "Frequência", value = "${client.attendance}x por semana")
+    DetailRow(
+        label = "Pagamento",
+        value = paymentMethodLabel(client.paymentMethod),
+    )
+    DetailRow(
+        label = "Valor",
+        value = formatCurrency(client.cashAmountCents),
+    )
+    if (client.paymentHistory.isNotEmpty()) {
+        DetailRow(
+            label = "Meses pagos",
+            value = client.paymentHistory.joinToString(", "),
+        )
+    }
+}
+
+/**
+ * Linha do CPF com o botão de revelar. O botão só existe para quem o state já
+ * autorizou; sem [canRevealCpf] não há sequer o gesto disponível.
+ */
+@Composable
+private fun CpfDetailRow(
+    displayCpf: String,
+    canRevealCpf: Boolean,
+    isCpfRevealed: Boolean,
+    onToggleCpfReveal: () -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        DetailRow(label = "CPF", value = displayCpf)
+        if (canRevealCpf) {
+            IconButton(
+                onClick = onToggleCpfReveal,
+                modifier =
+                    Modifier.semantics {
+                        contentDescription = if (isCpfRevealed) "Ocultar CPF" else "Revelar CPF"
+                    },
+            ) {
+                Text(
+                    text = if (isCpfRevealed) "🙈" else "👁",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -1034,11 +1122,6 @@ private fun DetailRow(
             style = MaterialTheme.typography.bodyMedium,
         )
     }
-}
-
-private fun formatCpf(digits: String): String {
-    if (digits.length != 11) return digits
-    return "${digits.substring(0, 3)}.${digits.substring(3, 6)}.${digits.substring(6, 9)}-${digits.substring(9)}"
 }
 
 private fun formatPhone(digits: String): String {

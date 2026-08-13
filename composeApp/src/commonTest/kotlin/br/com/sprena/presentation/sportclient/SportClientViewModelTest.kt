@@ -1,9 +1,14 @@
 package br.com.sprena.presentation.sportclient
 
+import br.com.sprena.shared.auth.domain.model.UserRole
+import br.com.sprena.shared.auth.session.SessionStore
+import br.com.sprena.shared.auth.session.SessionUser
 import br.com.sprena.shared.sportclient.domain.validation.PaymentMethod
 import br.com.sprena.shared.sportclient.domain.validation.SportModality
 import br.com.sprena.test.MainDispatcherEnv
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -34,6 +39,7 @@ import kotlin.test.assertTrue
  * - Editar, deletar, dialogs
  * - Integridade dos dados (campos mantidos corretamente)
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class SportClientViewModelTest {
     private val env = MainDispatcherEnv()
 
@@ -41,7 +47,26 @@ class SportClientViewModelTest {
 
     @AfterTest fun tearDown() = env.uninstall()
 
-    private fun createVm(): SportClientViewModel = SportClientViewModel()
+    private class FakeSessionStore(
+        private val role: UserRole?,
+    ) : SessionStore {
+        override suspend fun save(user: SessionUser) = Unit
+
+        override suspend fun load(): SessionUser? =
+            role?.let {
+                SessionUser(
+                    uid = "uid_1",
+                    email = "user@sprena.com",
+                    role = it,
+                    lastLoginEpochMillis = 1L,
+                )
+            }
+
+        override suspend fun clear() = Unit
+    }
+
+    private fun createVm(role: UserRole? = UserRole.CLIENT): SportClientViewModel =
+        SportClientViewModel(sessionStore = FakeSessionStore(role))
 
     private val sampleClient =
         SportClient(
@@ -597,5 +622,103 @@ class SportClientViewModelTest {
                     .filteredClients
                     .isEmpty(),
             )
+        }
+
+    // =========================================================================
+    // CPF — mascarado por padrão, revelação restrita a ADM/MOD (F1.5)
+    // =========================================================================
+
+    private val cpfClient = sampleClient.copy(cpf = "12345678900")
+
+    private fun openDetail(vm: SportClientViewModel) {
+        vm.handleIntent(SportClientIntent.ClientAdded(cpfClient))
+        vm.handleIntent(SportClientIntent.ClientClicked(cpfClient))
+    }
+
+    @Test
+    fun `CPF aparece mascarado por padrao no detalhe`() =
+        runTest {
+            val vm = createVm(role = UserRole.ADM)
+            advanceUntilIdle()
+            openDetail(vm)
+
+            val state = vm.state.first()
+            assertTrue(state.canRevealCpf)
+            assertFalse(state.isCpfRevealed)
+            assertEquals("***.***.789-00", state.displayCpf)
+        }
+
+    @Test
+    fun `CLIENT nao pode revelar o CPF no detalhe`() =
+        runTest {
+            val vm = createVm(role = UserRole.CLIENT)
+            advanceUntilIdle()
+            openDetail(vm)
+
+            vm.handleIntent(SportClientIntent.ToggleCpfReveal)
+            advanceUntilIdle()
+
+            val state = vm.state.first()
+            assertFalse(state.canRevealCpf)
+            assertFalse(state.isCpfRevealed)
+            assertEquals("***.***.789-00", state.displayCpf)
+        }
+
+    @Test
+    fun `ADM revela o CPF completo no detalhe`() =
+        runTest {
+            val vm = createVm(role = UserRole.ADM)
+            advanceUntilIdle()
+            openDetail(vm)
+
+            vm.handleIntent(SportClientIntent.ToggleCpfReveal)
+            advanceUntilIdle()
+
+            assertEquals("123.456.789-00", vm.state.first().displayCpf)
+        }
+
+    @Test
+    fun `MOD revela o CPF completo no detalhe`() =
+        runTest {
+            val vm = createVm(role = UserRole.MOD)
+            advanceUntilIdle()
+            openDetail(vm)
+
+            vm.handleIntent(SportClientIntent.ToggleCpfReveal)
+            advanceUntilIdle()
+
+            assertEquals("123.456.789-00", vm.state.first().displayCpf)
+        }
+
+    @Test
+    fun `sem sessao o CPF permanece mascarado no detalhe`() =
+        runTest {
+            val vm = createVm(role = null)
+            advanceUntilIdle()
+            openDetail(vm)
+
+            vm.handleIntent(SportClientIntent.ToggleCpfReveal)
+            advanceUntilIdle()
+
+            val state = vm.state.first()
+            assertFalse(state.canRevealCpf)
+            assertEquals("***.***.789-00", state.displayCpf)
+        }
+
+    @Test
+    fun `reabrir o detalhe volta a mascarar o CPF revelado`() =
+        runTest {
+            val vm = createVm(role = UserRole.ADM)
+            advanceUntilIdle()
+            openDetail(vm)
+            vm.handleIntent(SportClientIntent.ToggleCpfReveal)
+            advanceUntilIdle()
+            assertEquals("123.456.789-00", vm.state.first().displayCpf)
+
+            vm.handleIntent(SportClientIntent.DismissClientDetail)
+            vm.handleIntent(SportClientIntent.ClientClicked(cpfClient))
+            advanceUntilIdle()
+
+            assertEquals("***.***.789-00", vm.state.first().displayCpf)
         }
 }

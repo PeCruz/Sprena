@@ -40,7 +40,7 @@ fun appModule() =
         viewModelOf(::AddClientViewModel)
         viewModelOf(::MenuViewModel)
         viewModelOf(::CategoryViewModel)
-        viewModelOf(::SportClientViewModel)
+        viewModel { SportClientViewModel(sessionStore = get()) }
         viewModel { EventosViewModel() }
         viewModel { CreateEventViewModel() }
         viewModel { SettingsViewModel(sessionStore = get(), logout = get()) }

@@ -1,6 +1,8 @@
 package br.com.sprena.presentation.sportclient
 
 import br.com.sprena.shared.core.mvi.UiState
+import br.com.sprena.shared.core.privacy.formatCpf
+import br.com.sprena.shared.core.privacy.maskCpf
 import br.com.sprena.shared.sportclient.domain.validation.PaymentMethod
 import br.com.sprena.shared.sportclient.domain.validation.SportModality
 
@@ -37,5 +39,18 @@ data class SportClientState(
     val isLoading: Boolean = false,
     val isAddDialogVisible: Boolean = false,
     val selectedClient: SportClient? = null,
+    val isCpfRevealed: Boolean = false,
+    val canRevealCpf: Boolean = false,
     val error: String? = null,
-) : UiState
+) : UiState {
+    /**
+     * CPF do cliente selecionado como deve aparecer no diálogo de detalhe.
+     * Mascarado por padrão; só ADM/MOD conseguem revelar — [isCpfRevealed] nunca é
+     * ligado sem [canRevealCpf] (a decisão é do [SportClientViewModel], não da UI).
+     */
+    val displayCpf: String
+        get() {
+            val cpf = selectedClient?.cpf ?: return ""
+            return if (isCpfRevealed) formatCpf(cpf) else maskCpf(cpf)
+        }
+}
