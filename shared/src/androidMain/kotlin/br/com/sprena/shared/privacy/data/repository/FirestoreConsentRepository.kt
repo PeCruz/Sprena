@@ -12,8 +12,15 @@ import kotlinx.coroutines.tasks.await
  * Persistência do aceite em `user_consents/{uid}`.
  *
  * A gravação é um batch: o doc corrente (sobrescrito a cada nova versão) e um doc
- * em `history/{policyVersion}` que nunca é alterado — as rules de F1.5 negam
- * update e delete nele.
+ * novo em `history/{acceptanceId}`, com id gerado pelo Firestore, que nunca é
+ * alterado — as rules de F1.5 negam update e delete nele.
+ *
+ * O id é automático de propósito. Com `history/{policyVersion}`, reaceitar a mesma
+ * versão viraria `set` sobre doc existente — que em Rules conta como `update` e é
+ * negado, derrubando o batch inteiro (ele é atômico). Como o gate é fail-closed,
+ * isso prendia o usuário na tela de consentimento sem saída em qualquer cenário de
+ * reaceite: falha transitória de leitura, doc raiz apagado no Console, retry de
+ * rede. Append puro elimina o conflito e é a semântica correta de trilha auditável.
  */
 class FirestoreConsentRepository(
     private val firestore: FirebaseFirestore,
@@ -37,7 +44,8 @@ class FirestoreConsentRepository(
     ): Result<Unit> =
         runCatching {
             val root = firestore.collection(COLLECTION).document(uid)
-            val history = root.collection(HISTORY).document(policyVersion)
+            // document() sem argumento = id automático: cada aceite é um doc novo.
+            val history = root.collection(HISTORY).document()
             val batch = firestore.batch()
             batch.set(
                 root,

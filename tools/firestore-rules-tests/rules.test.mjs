@@ -18,7 +18,18 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  Timestamp,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 
 const RULES_PATH = new URL('../../firestore.rules', import.meta.url);
 
@@ -155,17 +166,57 @@ describe('user_consents/{uid}', () => {
     await assertFails(deleteDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID)));
   });
 
-  it('16. nega update no historico — a trilha e append-only', async () => {
+  /** Doc de historico ja gravado, com id automatico como em producao. */
+  const seedHistory = async (id = 'acceptance_1') => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), 'user_consents', CLIENT_UID, 'history', VERSION), {
+      await setDoc(doc(ctx.firestore(), 'user_consents', CLIENT_UID, 'history', id), {
         policyVersion: VERSION,
+        acceptedAt: serverTimestamp(),
       });
     });
+    return id;
+  };
+
+  it('16. nega update no historico — a trilha e append-only', async () => {
+    const id = await seedHistory();
     await assertFails(
-      updateDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID, 'history', VERSION), {
+      updateDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID, 'history', id), {
         policyVersion: 'adulterado',
       }),
     );
+  });
+
+  it('17. aceita append no historico com id automatico', async () => {
+    await assertSucceeds(
+      addDoc(collection(as(CLIENT_UID), 'user_consents', CLIENT_UID, 'history'), {
+        policyVersion: VERSION,
+        acceptedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  it('18. reaceitar a mesma versao acrescenta um doc, nao conflita', async () => {
+    const db = as(CLIENT_UID);
+    const history = collection(db, 'user_consents', CLIENT_UID, 'history');
+    const entry = () => ({ policyVersion: VERSION, acceptedAt: serverTimestamp() });
+
+    await assertSucceeds(addDoc(history, entry()));
+    await assertSucceeds(addDoc(history, entry()));
+
+    const snapshot = await getDocs(history);
+    if (snapshot.size !== 2) {
+      throw new Error(`esperava 2 docs de historico, veio ${snapshot.size}`);
+    }
+  });
+
+  it('19. nega delete no historico', async () => {
+    const id = await seedHistory();
+    await assertFails(deleteDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID, 'history', id)));
+  });
+
+  it('20. nega ler o historico de outro usuario', async () => {
+    const id = await seedHistory();
+    await assertFails(getDoc(doc(as(ADM_UID), 'user_consents', CLIENT_UID, 'history', id)));
   });
 });
 

@@ -66,6 +66,12 @@ service cloud.firestore {
     // A subcolecao history e append-only: e ela que sustenta o onus da prova do
     // consentimento (LGPD art. 8 §1) quando a politica ganha versao nova e o doc
     // corrente e sobrescrito.
+    //
+    // O id do doc de historico e automatico, NAO a versao da politica. Com o id
+    // igual a versao, reaceitar a mesma versao seria `set` sobre doc existente —
+    // que aqui conta como `update` e e negado, derrubando o batch inteiro e
+    // prendendo o usuario no gate fail-closed. Cada aceite e uma insercao nova; a
+    // versao vai no campo `policyVersion`, validado como string nao vazia.
     match /user_consents/{uid} {
       allow read: if isSignedIn() && request.auth.uid == uid;
       allow create, update: if isSignedIn()
@@ -76,11 +82,12 @@ service cloud.firestore {
         && request.resource.data.acceptedAt == request.time;
       allow delete: if false;
 
-      match /history/{policyVersion} {
+      match /history/{acceptanceId} {
         allow read: if isSignedIn() && request.auth.uid == uid;
         allow create: if isSignedIn()
           && request.auth.uid == uid
-          && request.resource.data.policyVersion == policyVersion
+          && request.resource.data.policyVersion is string
+          && request.resource.data.policyVersion.size() > 0
           && request.resource.data.acceptedAt == request.time;
         allow update, delete: if false;
       }
