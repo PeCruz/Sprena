@@ -89,6 +89,7 @@ interface MviViewModel<STATE : UiState, INTENT : UiIntent, EFFECT : UiEffect> {
 | bar | Só validation | Não | Idem |
 | menu | Só validation | Não | Idem |
 | eventos | Só presentation | Não | Sem shared/domain ainda |
+| privacy | Sim | Firestore (androidMain) | Domain 100% em `shared/commonMain` (`ConsentRecord`, `ConsentStatus`, `PrivacyPolicy`, `ConsentRepository`, `CheckConsentUseCase`, `AcceptConsentUseCase`); impl Firestore (`FirestoreConsentRepository` + `ConsentDto`) só em `shared/androidMain`, ligada em `PlatformModule.android.kt`. Gate consome o use case no `NavGraph.kt` (cold start e pós-login); leitura da política fora do gate em `PrivacyPolicyScreen` |
 
 ## Decisões arquiteturais (ADRs leves)
 
@@ -120,5 +121,11 @@ Decisões de segurança e endurecimento de build estão documentadas em [SECURIT
   build type (`composeApp/src/androidRelease` e `src/androidDebug`) para que o provider inseguro não
   exista no APK de produção. Instalado em `AppCheckBootstrap` antes do `startKoin`. A *enforcement*
   é ativada no Console — ver [Parte G do runbook](./docs/ops/firebase-users-runbook.md).
+- **F1.5** — Baseline LGPD: módulo `shared/privacy` (domain em commonMain, impl Firestore em
+  androidMain), coleção `user_consents/{uid}` + subcoleção `history` (append-only) em
+  `firestore.rules`, gate fail-closed no `NavGraph.kt` (só `ConsentStatus.Granted` chega na Home),
+  política versionada (`PrivacyPolicy.VERSION`) embarcada em `composeResources` e lida por
+  `PolicyTextLoader`, e masking de CPF (`shared/core/privacy/CpfMasker`) com revelação restrita a
+  ADM/MOD decidida no ViewModel.
 
-Próxima sub-fase: F1.5 (LGPD baseline).
+F1 está fechada (F1.1–F1.5). Próxima sub-fase: F1.6 (direitos do titular, LGPD art. 18).
