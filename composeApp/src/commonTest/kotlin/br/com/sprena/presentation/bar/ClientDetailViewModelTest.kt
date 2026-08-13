@@ -965,6 +965,32 @@ class ClientDetailViewModelTest {
         }
 
     @Test
+    fun `ADM comeca com o CPF mascarado antes do primeiro toggle`() =
+        runTest {
+            val vm = viewModel(client = sampleClient.copy(cpf = "12345678900"), role = UserRole.ADM)
+            advanceUntilIdle()
+
+            // O invariante é "mascarado por padrão para quem PODE revelar" — o caso
+            // acima roda com CLIENT, que nem chega a ter o gesto disponível.
+            val state = vm.state.first()
+            assertTrue(state.canRevealCpf)
+            assertFalse(state.isCpfRevealed)
+            assertEquals("***.***.789-00", state.displayCpf)
+        }
+
+    @Test
+    fun `MOD comeca com o CPF mascarado antes do primeiro toggle`() =
+        runTest {
+            val vm = viewModel(client = sampleClient.copy(cpf = "12345678900"), role = UserRole.MOD)
+            advanceUntilIdle()
+
+            val state = vm.state.first()
+            assertTrue(state.canRevealCpf)
+            assertFalse(state.isCpfRevealed)
+            assertEquals("***.***.789-00", state.displayCpf)
+        }
+
+    @Test
     fun `CLIENT nao pode revelar o CPF`() =
         runTest {
             val vm = viewModel(client = sampleClient.copy(cpf = "12345678900"), role = UserRole.CLIENT)
