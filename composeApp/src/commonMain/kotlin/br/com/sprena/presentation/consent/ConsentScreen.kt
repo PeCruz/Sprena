@@ -75,6 +75,7 @@ fun ConsentScreen(
                         state = state,
                         onToggleRead = { viewModel.handleIntent(ConsentIntent.ToggleRead) },
                         onAccept = { viewModel.handleIntent(ConsentIntent.Accept) },
+                        onRetry = { viewModel.handleIntent(ConsentIntent.Retry) },
                     )
             }
         }
@@ -123,6 +124,7 @@ private fun ColumnScope.ConsentAcceptanceSection(
     state: ConsentState,
     onToggleRead: () -> Unit,
     onAccept: () -> Unit,
+    onRetry: () -> Unit,
 ) {
     Text(
         text = state.policyText,
@@ -144,12 +146,17 @@ private fun ColumnScope.ConsentAcceptanceSection(
         Text("Li e concordo com a Política de Privacidade")
     }
 
-    if (state.error != null) {
+    // Falha de gravação do aceite ou de leitura do consentimento (Unavailable):
+    // nos dois casos o "tentar de novo" é a única ação que faz sentido oferecer.
+    state.error?.let { message ->
         Text(
-            text = state.error ?: "",
+            text = message,
             color = MaterialTheme.colorScheme.error,
             style = MaterialTheme.typography.bodySmall,
         )
+        TextButton(onClick = onRetry) {
+            Text("Tentar de novo")
+        }
     }
 
     Button(

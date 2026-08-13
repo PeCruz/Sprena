@@ -48,6 +48,7 @@ fun appModule() =
             ConsentViewModel(
                 policyLoader = get(),
                 acceptConsent = get(),
+                checkConsent = get(),
                 sessionStore = get(),
             )
         }

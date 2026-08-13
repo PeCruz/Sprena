@@ -7,8 +7,10 @@ import br.com.sprena.shared.auth.session.SessionStore
 import br.com.sprena.shared.auth.session.SessionUser
 import br.com.sprena.shared.core.logger.NoOpLogger
 import br.com.sprena.shared.privacy.domain.model.ConsentRecord
+import br.com.sprena.shared.privacy.domain.model.PrivacyPolicy
 import br.com.sprena.shared.privacy.domain.repository.ConsentRepository
 import br.com.sprena.shared.privacy.domain.usecase.AcceptConsentUseCase
+import br.com.sprena.shared.privacy.domain.usecase.CheckConsentUseCase
 import br.com.sprena.test.MainDispatcherEnv
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -53,14 +55,23 @@ class ConsentViewModelTest {
 
     private class FakeConsentRepo(
         var acceptResult: Result<Unit> = Result.success(Unit),
+        var currentResult: Result<ConsentRecord?> = Result.success(null),
     ) : ConsentRepository {
-        override suspend fun current(uid: String): Result<ConsentRecord?> = Result.success(null)
+        override suspend fun current(uid: String): Result<ConsentRecord?> = currentResult
 
         override suspend fun accept(
             uid: String,
             policyVersion: String,
         ): Result<Unit> = acceptResult
     }
+
+    /** Aceite já registrado na versão vigente — o caso `ConsentStatus.Granted`. */
+    private fun grantedRecord() =
+        ConsentRecord(
+            uid = session.uid,
+            policyVersion = PrivacyPolicy.VERSION,
+            acceptedAtEpochMillis = 1L,
+        )
 
     private class FakeStore(
         var current: SessionUser?,
@@ -83,6 +94,7 @@ class ConsentViewModelTest {
     ) = ConsentViewModel(
         policyLoader = loader,
         acceptConsent = AcceptConsentUseCase(repository = repo, logger = NoOpLogger()),
+        checkConsent = CheckConsentUseCase(repository = repo, logger = NoOpLogger()),
         sessionStore = store,
     )
 
@@ -175,6 +187,89 @@ class ConsentViewModelTest {
             val state = vm.state.first()
             assertNotNull(state.error)
             assertFalse(state.isAccepting)
+        }
+
+    // =========================================================================
+    // Reconsulta do consentimento no init e no retry
+    // =========================================================================
+
+    @Test
+    fun `consentimento ja concedido navega direto para a home`() =
+        runTest {
+            val repo = FakeConsentRepo(currentResult = Result.success(grantedRecord()))
+            val vm = viewModel(repo = repo)
+
+            vm.effects.test {
+                advanceUntilIdle()
+                assertEquals(ConsentEffect.NavigateHome(session), awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `falha de leitura do consentimento fica visivel e nao navega`() =
+        runTest {
+            val repo = FakeConsentRepo(currentResult = Result.failure(RuntimeException("offline")))
+            val vm = viewModel(repo = repo)
+
+            vm.effects.test {
+                advanceUntilIdle()
+                expectNoEvents()
+            }
+
+            val state = vm.state.first()
+            assertNotNull(state.error)
+            assertFalse(state.isLoading)
+            // O texto carregou: o bloqueio é da leitura do aceite, não da política.
+            assertTrue(state.policyText.isNotBlank())
+        }
+
+    @Test
+    fun `consentimento pendente mantem a tela pedindo o aceite`() =
+        runTest {
+            val repo = FakeConsentRepo(currentResult = Result.success(null))
+            val vm = viewModel(repo = repo)
+
+            vm.effects.test {
+                advanceUntilIdle()
+                expectNoEvents()
+            }
+
+            val state = vm.state.first()
+            assertEquals(null, state.error)
+            assertTrue(state.policyText.isNotBlank())
+        }
+
+    @Test
+    fun `retry depois de falha de leitura navega quando o aceite reaparece`() =
+        runTest {
+            val repo = FakeConsentRepo(currentResult = Result.failure(RuntimeException("offline")))
+            val vm = viewModel(repo = repo)
+            advanceUntilIdle()
+            assertNotNull(vm.state.first().error)
+
+            repo.currentResult = Result.success(grantedRecord())
+
+            vm.effects.test {
+                vm.handleIntent(ConsentIntent.Retry)
+                advanceUntilIdle()
+                assertEquals(ConsentEffect.NavigateHome(session), awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `sessao ausente nao consulta consentimento e segue na tela`() =
+        runTest {
+            val repo = FakeConsentRepo(currentResult = Result.success(grantedRecord()))
+            val vm = viewModel(repo = repo, store = FakeStore(null))
+
+            vm.effects.test {
+                advanceUntilIdle()
+                expectNoEvents()
+            }
+
+            assertEquals(null, vm.state.first().error)
         }
 
     @Test
