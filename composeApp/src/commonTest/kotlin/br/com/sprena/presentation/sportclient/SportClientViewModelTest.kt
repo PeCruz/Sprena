@@ -508,8 +508,10 @@ class SportClientViewModelTest {
     @Test
     fun `DismissAddDialog hides dialog`() =
         runTest {
-            val vm = createVm()
+            val vm = createVm(role = UserRole.ADM)
+            advanceUntilIdle()
             vm.handleIntent(SportClientIntent.AddClientClicked)
+            assertTrue(vm.state.first().isAddDialogVisible)
             vm.handleIntent(SportClientIntent.DismissAddDialog)
             assertFalse(vm.state.first().isAddDialogVisible)
         }
@@ -770,6 +772,19 @@ class SportClientViewModelTest {
             advanceUntilIdle()
             vm.handleIntent(SportClientIntent.AddClientClicked)
             assertFalse(vm.state.first().isAddDialogVisible)
+        }
+
+    @Test
+    fun `ADM disparando EditClientClicked emite NavigateToEdit com o cliente certo`() =
+        runTest {
+            val vm = createVm(role = UserRole.ADM)
+            advanceUntilIdle()
+            openDetail(vm)
+
+            vm.effects.test {
+                vm.handleIntent(SportClientIntent.EditClientClicked(cpfClient))
+                assertEquals(SportClientEffect.NavigateToEdit(cpfClient), awaitItem())
+            }
         }
 
     @Test
