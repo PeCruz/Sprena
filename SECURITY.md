@@ -345,9 +345,19 @@ anterior (ele fica em `history`). Procedimento documentado em `docs/legal/privac
     (`composeApp/src/commonMain/kotlin/br/com/sprena/presentation/sportclient/`). Este é a aba HOME
     de ADM, MOD **e** CLIENT, então era o caminho de maior exposição: até F1.5 ele exibia o CPF
     completo para qualquer role. Reabrir o diálogo volta ao mascarado, mesmo para ADM/MOD.
-- Campos de **edição** de cliente (`SportClientEditScreen`) seguem com o CPF completo, sem masking:
-  as rules de F1.4 já exigem `isStaff()` (ADM/MOD) para escrever em `sport_clients`, então quem edita
-  já passou pelo mesmo crivo de role que libera a revelação.
+- Campos de **edição** de cliente (`SportClientEditScreen`) seguem com o CPF completo, sem masking.
+  Isso só é seguro porque a **visibilidade das ações de escrita** (adicionar, editar, excluir) é
+  gate no `SportClientViewModel`, via `SportClientState.canManageClients` — resolvida no `init` a
+  partir da mesma role da sessão, mas como campo próprio, independente de `canRevealCpf` (autorizações
+  diferentes; hoje coincidem no mesmo conjunto de roles só por coincidência). Sem isso, um `CLIENT`
+  conseguia abrir o lápis do diálogo de detalhe e ver o CPF completo no formulário de edição, mesmo
+  sem conseguir gravar — a política de privacidade afirma que "a visualização do número completo é
+  restrita a ADM/MOD", e isso vale para qualquer tela, não só o diálogo read-only. Defesa em
+  profundidade, igual ao toggle de CPF: os intents de escrita (`AddClientClicked`,
+  `EditClientClicked`, `ClientDeleted`) são ignorados no `handleIntent` quando `canManageClients` é
+  `false` — esconder o botão na UI não é a única barreira. As Firestore Rules de F1.4 (`isStaff()`
+  para escrever em `sport_clients`) continuam sendo a barreira de servidor: mesmo que a UI falhasse
+  em esconder algo, a gravação de um `CLIENT` seria recusada lá.
 
 ### Limite conhecido
 O masking é controle de **UI**, não de dado em repouso. As rules de `sport_clients` (F1.4) permitem
@@ -373,8 +383,12 @@ armazená-lo com hash/criptografia em repouso, é decisão de F2/RBAC — fora d
 - [ ] "Sair" na tela de consentimento volta ao Login e não faz auto-login ao reabrir
 - [ ] Detalhe de cliente com sessão `CLIENT` (comanda **e** aba Clientes): CPF mascarado, sem opção
   de revelar
+- [ ] Aba Clientes com sessão `CLIENT`: sem FAB de adicionar, e o diálogo de detalhe sem lápis de
+  editar nem lixeira de excluir
 - [ ] Detalhe de cliente com sessão `ADM`/`MOD` (comanda **e** aba Clientes): CPF mascarado por
   padrão, revelável pelo botão 👁, e mascarado de novo ao reabrir
+- [ ] Aba Clientes com sessão `ADM`/`MOD`: FAB de adicionar visível, diálogo de detalhe com lápis e
+  lixeira funcionando
 - [ ] Texto integral da política visível na própria tela de consentimento, antes de aceitar
   (é lá que ele precisa estar — com o aceite pendente o usuário não alcança o Settings)
 - [ ] Depois do aceite: Settings → Política de Privacidade abre o mesmo texto, para releitura

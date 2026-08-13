@@ -129,15 +129,20 @@ fun SportClientScreen(
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                FilledIconButton(
-                    onClick = { viewModel.handleIntent(SportClientIntent.AddClientClicked) },
-                    modifier = Modifier.size(48.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Adicionar cliente",
-                    )
+                // FAB de adicionar cliente: só para quem o state autorizou a escrever
+                // (ADM/MOD). Esconder aqui é só a primeira barreira — o intent
+                // AddClientClicked também é ignorado no ViewModel sem essa permissão.
+                if (state.canManageClients) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    FilledIconButton(
+                        onClick = { viewModel.handleIntent(SportClientIntent.AddClientClicked) },
+                        modifier = Modifier.size(48.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Adicionar cliente",
+                        )
+                    }
                 }
             }
 
@@ -954,6 +959,7 @@ private fun SportClientDetailDialog(
         title = {
             SportClientDetailTitle(
                 clientName = client.name,
+                canManageClients = state.canManageClients,
                 onEdit = { onEdit(client) },
                 onDelete = { showDeleteConfirmation = true },
             )
@@ -1004,10 +1010,17 @@ private fun DeleteSportClientConfirmDialog(
     )
 }
 
-/** Cabeçalho do detalhe: nome do cliente + ações de editar e excluir. */
+/**
+ * Cabeçalho do detalhe: nome do cliente + ações de editar e excluir. As ações só
+ * aparecem para quem o state autorizou a escrever ([SportClientState.canManageClients]);
+ * o ViewModel ignora [SportClientIntent.EditClientClicked] e [SportClientIntent.ClientDeleted]
+ * de qualquer forma, então esconder o botão fecha o vazamento de visualização sem ser a
+ * única barreira.
+ */
 @Composable
 private fun SportClientDetailTitle(
     clientName: String,
+    canManageClients: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -1016,19 +1029,21 @@ private fun SportClientDetailTitle(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(clientName, modifier = Modifier.weight(1f))
-        IconButton(onClick = onEdit) {
-            Icon(
-                imageVector = Icons.Default.Edit,
-                contentDescription = "Editar",
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        }
-        IconButton(onClick = onDelete) {
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = "Excluir",
-                tint = MaterialTheme.colorScheme.error,
-            )
+        if (canManageClients) {
+            IconButton(onClick = onEdit) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Editar",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Excluir",
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
         }
     }
 }

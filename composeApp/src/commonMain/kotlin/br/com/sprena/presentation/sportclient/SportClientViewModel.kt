@@ -16,8 +16,11 @@ import kotlinx.coroutines.launch
 /**
  * ViewModel da tela Home — gestão de clientes de esportes.
  *
- * A permissão de revelar o CPF é resolvida aqui, a partir da role da sessão: a UI
- * só renderiza o que o state já decidiu (F1.5).
+ * A permissão de revelar o CPF ([SportClientState.canRevealCpf]) e a permissão de
+ * escrever (adicionar/editar/excluir cliente, [SportClientState.canManageClients]) são
+ * resolvidas aqui, a partir da role da sessão: a UI só renderiza o que o state já
+ * decidiu (F1.5). São duas autorizações independentes — cada uma com seu próprio
+ * conjunto de roles — mesmo hoje tendo o mesmo resultado para ADM/MOD/CLIENT.
  */
 class SportClientViewModel(
     private val sessionStore: SessionStore,
@@ -32,7 +35,11 @@ class SportClientViewModel(
     init {
         viewModelScope.launch {
             val role = sessionStore.load()?.role
-            _state.value = _state.value.copy(canRevealCpf = role != null && role in STAFF_ROLES)
+            _state.value =
+                _state.value.copy(
+                    canRevealCpf = role != null && role in CPF_REVEAL_ROLES,
+                    canManageClients = role != null && role in CLIENT_MANAGEMENT_ROLES,
+                )
         }
     }
 
@@ -43,9 +50,7 @@ class SportClientViewModel(
                 recomputeFiltered()
             }
 
-            is SportClientIntent.AddClientClicked -> {
-                _state.value = _state.value.copy(isAddDialogVisible = true)
-            }
+            is SportClientIntent.AddClientClicked -> onAddClientClicked()
 
             is SportClientIntent.DismissAddDialog -> {
                 _state.value = _state.value.copy(isAddDialogVisible = false)
@@ -70,12 +75,7 @@ class SportClientViewModel(
                 _state.value = _state.value.copy(selectedClient = null, isCpfRevealed = false)
             }
 
-            is SportClientIntent.EditClientClicked -> {
-                _state.value = _state.value.copy(selectedClient = null, isCpfRevealed = false)
-                viewModelScope.launch {
-                    _effects.emit(SportClientEffect.NavigateToEdit(intent.client))
-                }
-            }
+            is SportClientIntent.EditClientClicked -> onEditClientClicked(intent.client)
 
             is SportClientIntent.ClientUpdated -> {
                 val updated =
@@ -91,10 +91,35 @@ class SportClientViewModel(
                 recomputeFiltered()
             }
 
-            is SportClientIntent.ClientDeleted -> deleteClient(intent.clientId)
+            is SportClientIntent.ClientDeleted -> onClientDeleted(intent.clientId)
 
             is SportClientIntent.ToggleCpfReveal -> toggleCpfReveal()
         }
+    }
+
+    /** Ignorado sem permissão: esconder o FAB na UI não pode ser a única barreira. */
+    private fun onAddClientClicked() {
+        if (_state.value.canManageClients) {
+            _state.value = _state.value.copy(isAddDialogVisible = true)
+        }
+    }
+
+    /**
+     * Ignorado sem permissão: as Firestore Rules já recusam a escrita para quem não é
+     * ADM/MOD, mas o formulário de edição não pode nem abrir.
+     */
+    private fun onEditClientClicked(client: SportClient) {
+        if (_state.value.canManageClients) {
+            _state.value = _state.value.copy(selectedClient = null, isCpfRevealed = false)
+            viewModelScope.launch {
+                _effects.emit(SportClientEffect.NavigateToEdit(client))
+            }
+        }
+    }
+
+    /** Ignorado sem permissão, pelo mesmo motivo dos demais intents de escrita. */
+    private fun onClientDeleted(clientId: String) {
+        if (_state.value.canManageClients) deleteClient(clientId)
     }
 
     /** Remove o cliente e, se ele estava aberto no detalhe, fecha e remascara o CPF. */
@@ -135,6 +160,14 @@ class SportClientViewModel(
     }
 
     private companion object {
-        val STAFF_ROLES = setOf(UserRole.ADM, UserRole.MOD)
+        /** Quem pode revelar o CPF completo no diálogo de detalhe. */
+        val CPF_REVEAL_ROLES = setOf(UserRole.ADM, UserRole.MOD)
+
+        /**
+         * Quem pode adicionar, editar ou excluir clientes. Hoje coincide com
+         * [CPF_REVEAL_ROLES], mas é uma autorização separada — não reaproveitar uma
+         * lista para a outra.
+         */
+        val CLIENT_MANAGEMENT_ROLES = setOf(UserRole.ADM, UserRole.MOD)
     }
 }

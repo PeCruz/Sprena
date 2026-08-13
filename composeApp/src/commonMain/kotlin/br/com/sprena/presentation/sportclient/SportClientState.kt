@@ -41,6 +41,14 @@ data class SportClientState(
     val selectedClient: SportClient? = null,
     val isCpfRevealed: Boolean = false,
     val canRevealCpf: Boolean = false,
+    /**
+     * Autoriza as ações de ESCRITA da tela (adicionar, editar, excluir cliente) — resolvida
+     * pelo [SportClientViewModel] a partir da role da sessão, assim como [canRevealCpf]. São
+     * autorizações distintas que hoje coincidem no mesmo conjunto de roles (ADM/MOD) só por
+     * coincidência: não reaproveitar uma para decidir a outra, para que uma mudança futura em
+     * uma não quebre silenciosamente a outra.
+     */
+    val canManageClients: Boolean = false,
     val error: String? = null,
 ) : UiState {
     /**
