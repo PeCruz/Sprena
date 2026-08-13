@@ -50,6 +50,7 @@ fun appModule() =
                 acceptConsent = get(),
                 checkConsent = get(),
                 sessionStore = get(),
+                logout = get(),
             )
         }
     }

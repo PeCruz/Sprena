@@ -2,7 +2,10 @@ package br.com.sprena.presentation.consent
 
 import app.cash.turbine.test
 import br.com.sprena.presentation.privacy.PolicyTextLoader
+import br.com.sprena.shared.auth.domain.model.AuthResult
 import br.com.sprena.shared.auth.domain.model.UserRole
+import br.com.sprena.shared.auth.domain.repository.AuthRepository
+import br.com.sprena.shared.auth.domain.usecase.LogoutUseCase
 import br.com.sprena.shared.auth.session.SessionStore
 import br.com.sprena.shared.auth.session.SessionUser
 import br.com.sprena.shared.core.logger.NoOpLogger
@@ -87,15 +90,41 @@ class ConsentViewModelTest {
         }
     }
 
+    private class FakeAuthRepo(
+        var signedOut: Boolean = false,
+        var signOutFailure: Throwable? = null,
+    ) : AuthRepository {
+        override suspend fun authenticate(
+            email: String,
+            password: String,
+        ): AuthResult = throw UnsupportedOperationException("não usado no gate")
+
+        override suspend fun sendPasswordReset(email: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun signOut() {
+            signOutFailure?.let { throw it }
+            signedOut = true
+        }
+
+        override fun currentUid(): String? = null
+    }
+
     private fun viewModel(
         loader: FakeLoader = FakeLoader(),
         repo: FakeConsentRepo = FakeConsentRepo(),
         store: FakeStore = FakeStore(session),
+        authRepo: FakeAuthRepo = FakeAuthRepo(),
     ) = ConsentViewModel(
         policyLoader = loader,
         acceptConsent = AcceptConsentUseCase(repository = repo, logger = NoOpLogger()),
         checkConsent = CheckConsentUseCase(repository = repo, logger = NoOpLogger()),
         sessionStore = store,
+        logout =
+            LogoutUseCase(
+                authRepository = authRepo,
+                sessionStore = store,
+                logger = NoOpLogger(),
+            ),
     )
 
     @Test
@@ -187,6 +216,44 @@ class ConsentViewModelTest {
             val state = vm.state.first()
             assertNotNull(state.error)
             assertFalse(state.isAccepting)
+        }
+
+    // =========================================================================
+    // Saída de emergência — "Sair" sem aceitar
+    // =========================================================================
+
+    @Test
+    fun `sair encerra a sessao e volta para o login`() =
+        runTest {
+            val authRepo = FakeAuthRepo()
+            val store = FakeStore(session)
+            val vm = viewModel(store = store, authRepo = authRepo)
+            advanceUntilIdle()
+
+            vm.effects.test {
+                vm.handleIntent(ConsentIntent.Logout)
+                advanceUntilIdle()
+                assertEquals(ConsentEffect.NavigateLogin, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            assertTrue(authRepo.signedOut)
+            assertEquals(null, store.load())
+        }
+
+    @Test
+    fun `sair volta para o login mesmo se o signOut falhar`() =
+        runTest {
+            val authRepo = FakeAuthRepo(signOutFailure = RuntimeException("offline"))
+            val vm = viewModel(authRepo = authRepo)
+            advanceUntilIdle()
+
+            vm.effects.test {
+                vm.handleIntent(ConsentIntent.Logout)
+                advanceUntilIdle()
+                assertEquals(ConsentEffect.NavigateLogin, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 
     // =========================================================================

@@ -3,6 +3,7 @@ package br.com.sprena.presentation.consent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.sprena.presentation.privacy.PolicyTextLoader
+import br.com.sprena.shared.auth.domain.usecase.LogoutUseCase
 import br.com.sprena.shared.auth.session.SessionStore
 import br.com.sprena.shared.core.mvi.MviViewModel
 import br.com.sprena.shared.privacy.domain.model.ConsentStatus
@@ -27,6 +28,7 @@ class ConsentViewModel(
     private val acceptConsent: AcceptConsentUseCase,
     private val checkConsent: CheckConsentUseCase,
     private val sessionStore: SessionStore,
+    private val logout: LogoutUseCase,
 ) : ViewModel(),
     MviViewModel<ConsentState, ConsentIntent, ConsentEffect> {
     private val _state = MutableStateFlow(ConsentState())
@@ -47,6 +49,21 @@ class ConsentViewModel(
             is ConsentIntent.Retry -> refresh()
 
             is ConsentIntent.Accept -> accept()
+
+            is ConsentIntent.Logout -> logoutAndLeave()
+        }
+    }
+
+    /**
+     * Saída de emergência do gate. A navegação para o login acontece mesmo se o
+     * `signOut` falhar: prender no consentimento quem pediu para sair é exatamente
+     * o beco sem saída que este botão existe para eliminar. A sessão local é limpa
+     * pelo próprio [LogoutUseCase].
+     */
+    private fun logoutAndLeave() {
+        viewModelScope.launch {
+            runCatching { logout() }
+            _effects.emit(ConsentEffect.NavigateLogin)
         }
     }
 

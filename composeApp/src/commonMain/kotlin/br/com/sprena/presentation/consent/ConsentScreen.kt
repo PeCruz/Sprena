@@ -31,6 +31,10 @@ import br.com.sprena.shared.auth.session.SessionUser
  *
  * Não há botão de voltar nem de recusar: recusar é fechar o app. Isso é
  * deliberado — sem aceite não há base legal para operar os dados.
+ *
+ * Há, porém, "Sair": quem não aceita ainda precisa poder encerrar a sessão e
+ * trocar de conta. Sem isso, um usuário bloqueado no gate fica sem nenhuma ação
+ * possível além de aceitar.
  */
 @Composable
 fun ConsentScreen(
@@ -58,9 +62,8 @@ fun ConsentScreen(
                     .padding(horizontal = 24.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                text = "Antes de continuar",
-                style = MaterialTheme.typography.headlineSmall,
+            ConsentHeader(
+                onLogout = { viewModel.handleIntent(ConsentIntent.Logout) },
             )
 
             when {
@@ -78,6 +81,28 @@ fun ConsentScreen(
                         onRetry = { viewModel.handleIntent(ConsentIntent.Retry) },
                     )
             }
+        }
+    }
+}
+
+/**
+ * Título da tela + "Sair". O botão fica fora do `when` de propósito: ele precisa
+ * existir também durante o carregamento e no estado de erro, que é justamente
+ * quando o usuário pode estar preso.
+ */
+@Composable
+private fun ConsentHeader(onLogout: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "Antes de continuar",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onLogout) {
+            Text("Sair")
         }
     }
 }
