@@ -2,6 +2,7 @@ package br.com.sprena.presentation.consent
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -63,64 +64,99 @@ fun ConsentScreen(
             )
 
             when {
-                state.isLoading -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
-
-                state.policyText.isBlank() -> {
-                    Text(
-                        text = state.error ?: "Não foi possível carregar a política.",
-                        color = MaterialTheme.colorScheme.error,
+                state.isLoading -> LoadingSection()
+                state.policyText.isBlank() ->
+                    PolicyLoadErrorSection(
+                        error = state.error,
+                        onRetry = { viewModel.handleIntent(ConsentIntent.Retry) },
                     )
-                    TextButton(onClick = { viewModel.handleIntent(ConsentIntent.Retry) }) {
-                        Text("Tentar de novo")
-                    }
-                }
-
-                else -> {
-                    Text(
-                        text = state.policyText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .verticalScroll(rememberScrollState()),
+                else ->
+                    ConsentAcceptanceSection(
+                        state = state,
+                        onToggleRead = { viewModel.handleIntent(ConsentIntent.ToggleRead) },
+                        onAccept = { viewModel.handleIntent(ConsentIntent.Accept) },
                     )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(
-                            checked = state.hasRead,
-                            onCheckedChange = { viewModel.handleIntent(ConsentIntent.ToggleRead) },
-                        )
-                        Text("Li e concordo com a Política de Privacidade")
-                    }
-
-                    if (state.error != null) {
-                        Text(
-                            text = state.error ?: "",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-
-                    Button(
-                        onClick = { viewModel.handleIntent(ConsentIntent.Accept) },
-                        enabled = state.canAccept,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(if (state.isAccepting) "Registrando..." else "Aceitar e continuar")
-                    }
-                }
             }
         }
+    }
+}
+
+/**
+ * Indicador de carregamento exibido enquanto a política de privacidade é buscada.
+ */
+@Composable
+private fun LoadingSection() {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        CircularProgressIndicator()
+    }
+}
+
+/**
+ * Mensagem exibida quando a política não pôde ser carregada, com botão para tentar de novo.
+ */
+@Composable
+private fun PolicyLoadErrorSection(
+    error: String?,
+    onRetry: () -> Unit,
+) {
+    Text(
+        text = error ?: "Não foi possível carregar a política.",
+        color = MaterialTheme.colorScheme.error,
+    )
+    TextButton(onClick = onRetry) {
+        Text("Tentar de novo")
+    }
+}
+
+/**
+ * Texto da política, checkbox de leitura e botão de aceite — fluxo principal do gate.
+ *
+ * Extensão de [ColumnScope] porque o texto da política usa `weight(1f)` para ocupar
+ * o espaço restante da coluna, empurrando o botão de aceite para o fim da tela.
+ */
+@Composable
+private fun ColumnScope.ConsentAcceptanceSection(
+    state: ConsentState,
+    onToggleRead: () -> Unit,
+    onAccept: () -> Unit,
+) {
+    Text(
+        text = state.policyText,
+        style = MaterialTheme.typography.bodyMedium,
+        modifier =
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+    )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(
+            checked = state.hasRead,
+            onCheckedChange = { onToggleRead() },
+        )
+        Text("Li e concordo com a Política de Privacidade")
+    }
+
+    if (state.error != null) {
+        Text(
+            text = state.error ?: "",
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
+
+    Button(
+        onClick = onAccept,
+        enabled = state.canAccept,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(if (state.isAccepting) "Registrando..." else "Aceitar e continuar")
     }
 }

@@ -13,8 +13,10 @@ import com.google.firebase.firestore.DocumentSnapshot
  */
 object ConsentDto {
     fun fromSnapshot(snapshot: DocumentSnapshot): ConsentRecord? {
-        val uid = snapshot.getString("uid") ?: return null
-        val version = snapshot.getString("policyVersion") ?: return null
+        val uid = snapshot.getString("uid")
+        val version = snapshot.getString("policyVersion")
+        if (uid == null || version == null) return null
+
         val acceptedAt = snapshot.get("acceptedAt") as? Timestamp
         return ConsentRecord(
             uid = uid,
