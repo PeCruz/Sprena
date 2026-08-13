@@ -218,6 +218,67 @@ describe('user_consents/{uid}', () => {
     const id = await seedHistory();
     await assertFails(getDoc(doc(as(ADM_UID), 'user_consents', CLIENT_UID, 'history', id)));
   });
+
+  // ---------------------------------------------------------------------------
+  // Anti-adulteracao — as clausulas que sustentam o valor probatorio do registro.
+  // Sem elas o aceite continua sendo gravado, mas deixa de provar o que alega:
+  // quando foi dado (acceptedAt) e a que texto se refere (policyVersion).
+  // ---------------------------------------------------------------------------
+
+  /** Timestamp escolhido pelo cliente — o vetor de backdating. */
+  const forgedTime = () => Timestamp.fromDate(new Date('2020-01-01T00:00:00Z'));
+
+  it('21. nega acceptedAt com timestamp do cliente — anti-backdating', async () => {
+    await assertFails(
+      setDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID), {
+        ...payload(),
+        acceptedAt: forgedTime(),
+      }),
+    );
+  });
+
+  it('22. nega acceptedAt forjado tambem no historico', async () => {
+    await assertFails(
+      addDoc(collection(as(CLIENT_UID), 'user_consents', CLIENT_UID, 'history'), {
+        policyVersion: VERSION,
+        acceptedAt: forgedTime(),
+      }),
+    );
+  });
+
+  it('23. nega acceptedAt ausente', async () => {
+    const { acceptedAt, ...semTimestamp } = payload();
+    await assertFails(setDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID), semTimestamp));
+  });
+
+  it('24. nega policyVersion vazia', async () => {
+    await assertFails(
+      setDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID), { ...payload(), policyVersion: '' }),
+    );
+  });
+
+  it('25. nega policyVersion de tipo errado', async () => {
+    await assertFails(
+      setDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID), { ...payload(), policyVersion: 42 }),
+    );
+  });
+
+  it('26. nega policyVersion vazia ou de tipo errado no historico', async () => {
+    const history = collection(as(CLIENT_UID), 'user_consents', CLIENT_UID, 'history');
+    await assertFails(addDoc(history, { policyVersion: '', acceptedAt: serverTimestamp() }));
+    await assertFails(addDoc(history, { policyVersion: 42, acceptedAt: serverTimestamp() }));
+  });
+
+  it('27. nega campo uid divergente do dono do doc', async () => {
+    await assertFails(
+      setDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID), { ...payload(), uid: ADM_UID }),
+    );
+  });
+
+  it('28. nega gravar consentimento sem autenticacao', async () => {
+    await assertFails(setDoc(doc(anon(), 'user_consents', CLIENT_UID), payload()));
+    await assertFails(getDoc(doc(anon(), 'user_consents', CLIENT_UID)));
+  });
 });
 
 describe('default deny', () => {
