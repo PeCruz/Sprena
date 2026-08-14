@@ -15,7 +15,14 @@ duas verdades e a chance de divergirem.
    `shared/src/commonMain/kotlin/br/com/sprena/shared/privacy/domain/model/PrivacyPolicy.kt`
    com o mesmo valor
 4. Publicar o app — todos os usuários reaceitam no próximo acesso, e o aceite anterior fica
-   preservado em `user_consents/{uid}/history/{policyVersion}`
+   preservado em `user_consents/{uid}/history/{id}`, com **id automático**. O id não é a versão
+   da política: com `history/{policyVersion}`, reaceitar a mesma versão seria `set` sobre doc
+   existente, que em Rules conta como `update` e é negado, derrubando o batch atômico e
+   prendendo o usuário no gate fail-closed (corrigido em `cb08a8e`).
+
+> **Sequenciamento.** O bump e a coleta do dado novo têm que sair na **mesma release**. Bumpar
+> antes de coletar descreve algo que ainda não acontece; coletar antes de bumpar é o problema de
+> LGPD de verdade — o usuário teria consentido com um texto que não menciona o dado.
 
 ## Publicação como URL pública
 

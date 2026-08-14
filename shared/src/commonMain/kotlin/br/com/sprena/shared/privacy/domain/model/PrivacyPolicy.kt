@@ -8,5 +8,5 @@ package br.com.sprena.shared.privacy.domain.model
  * Mudou o texto → muda esta constante → todos os usuários reaceitam.
  */
 object PrivacyPolicy {
-    const val VERSION = "2026-08-12"
+    const val VERSION = "2026-08-14"
 }
