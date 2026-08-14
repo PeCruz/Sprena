@@ -392,3 +392,209 @@ armazená-lo com hash/criptografia em repouso, é decisão de F2/RBAC — fora d
 - [ ] Texto integral da política visível na própria tela de consentimento, antes de aceitar
   (é lá que ele precisa estar — com o aceite pendente o usuário não alcança o Settings)
 - [ ] Depois do aceite: Settings → Política de Privacidade abre o mesmo texto, para releitura
+
+---
+
+## F1.6a â€” Direitos do titular sobre a prÃ³pria conta (LGPD art. 18)
+
+### Base legal e escopo
+
+TrÃªs direitos do art. 18 passam a ser exercÃ­veis dentro do app: **acesso** (II, tela de perfil),
+**portabilidade** (V, exportaÃ§Ã£o em JSON) e **eliminaÃ§Ã£o** (VI, exclusÃ£o de conta). A exclusÃ£o
+in-app Ã© tambÃ©m **exigÃªncia da Play Store** para apps com login â€” sem ela a publicaÃ§Ã£o Ã© reprovada.
+
+Escopo Ã© a **prÃ³pria conta do usuÃ¡rio do app**. Os `sport_clients` continuam sob responsabilidade do
+operador: sÃ£o titulares terceiros, e os direitos deles sÃ£o exercidos junto ao controlador, como a
+polÃ­tica sempre disse. Multi-tenancy e o papel `USER` ficam para F1.7 (ver *Fora de escopo*).
+
+A retenÃ§Ã£o de lanÃ§amentos financeiros anonimizados se apoia na **LGPD art. 16, I** (cumprimento de
+obrigaÃ§Ã£o legal pelo controlador).
+
+### Onde vivem os dados autodeclarados
+
+`users/{uid}` **nÃ£o mudou**: continua `allow write: if false`, com `role`, `name` e `email`
+provisionados pelo Console/Admin SDK. Os campos que o titular declara sobre si â€” `apelido`, `cpf`,
+`phone`, `modalities` â€” vivem numa coleÃ§Ã£o separada, `user_profiles/{uid}`.
+
+A separaÃ§Ã£o Ã© a mesma decisÃ£o de F1.5 (Â§ *Por que nÃ£o em `users/{uid}`*), levada adiante. O
+contra-argumento "uma allowlist `hasOnly()` resolve" Ã© verdadeiro hoje; o ponto decisivo Ã© **F1.7**,
+que precisarÃ¡ guardar quais estabelecimentos cada MOD gerencia. Um `establishmentIds` parece campo
+de perfil mas Ã© **autorizaÃ§Ã£o** â€” se entrar na allowlist por reflexo, um moderador concede a si
+mesmo qualquer estabelecimento, sem quebrar teste nenhum. Com os documentos apartados, a palavra
+`role` nunca aparece na coleÃ§Ã£o que o cliente escreve, entÃ£o nÃ£o hÃ¡ allowlist a esquecer.
+
+O documento Ã© **inteiramente opcional e nÃ£o tem backfill**: quem nunca editou nÃ£o tem o doc, e a UI
+mostra "NÃ£o informado". `create` Ã© permitido (ao contrÃ¡rio de `users`) exatamente por isso.
+
+### O que a tela expÃµe
+
+Papel, nome, apelido, e-mail, CPF, telefone e modalidades. CPF e telefone aparecem **mascarados**,
+com botÃ£o de revelar.
+
+Aqui `canReveal` Ã© **sempre verdadeiro**, e isso Ã© deliberadamente diferente de
+`SportClientState.canRevealCpf`: naquele caso a pergunta Ã© "este usuÃ¡rio pode ver o CPF de outra
+pessoa?", e a resposta depende da role. Aqui a autorizaÃ§Ã£o Ã© **propriedade** â€” o dado Ã© do prÃ³prio
+titular. A mÃ¡scara existe contra ombro e gravaÃ§Ã£o de tela, nÃ£o contra o dono. `FLAG_SECURE` (F1.1)
+jÃ¡ bloqueia screenshot.
+
+### ExclusÃ£o via Cloud Function, e nÃ£o pelo cliente
+
+As rules negam `delete` em `users`, `user_consents` e `user_profiles`, e o usuÃ¡rio do Firebase Auth
+sÃ³ cai por Admin SDK. O callable `deleteMyAccount` (`functions/src/`) Ã© o Ãºnico caminho.
+
+Ele roda **sem payload**: o uid vem sÃ³ de `request.auth.uid`, e qualquer chave em `request.data` Ã©
+recusada com `invalid-argument`. Aceitar um `uid` no corpo seria a escalada de privilÃ©gio Ã³bvia;
+negar explicitamente documenta que a possibilidade foi considerada. HÃ¡ teste cobrindo o vetor.
+
+### Ordem de exclusÃ£o (os 8 passos)
+
+| # | Passo | Por que nesta posiÃ§Ã£o |
+|---|---|---|
+| 1 | ler `users/{uid}` e `user_consents/{uid}` | a versÃ£o de polÃ­tica vai para a trilha; ler depois de apagar Ã© tarde |
+| 2 | `anonymizeFinancial(uid)` | anonimizar exige a identidade que os passos seguintes destroem |
+| 3 | `user_consents/{uid}/history/*` (lotes de 500) | antes do pai: apagar o pai primeiro deixaria a subcoleÃ§Ã£o viva e **invisÃ­vel no Console**, e o operador acreditaria que o dado sumiu |
+| 4 | `user_consents/{uid}` | â€” |
+| 5 | `user_profiles/{uid}` | â€” |
+| 6 | `users/{uid}` | â€” |
+| 7 | `account_deletions/{uid}` | trilha de auditoria |
+| 8 | `admin.auth().deleteUser(uid)` | **por Ãºltimo**: assim que o usuÃ¡rio some, o token morre e qualquer retry vira `unauthenticated`. Antes, uma falha no meio deixaria os dados no Firestore e o titular sem caminho para pedir de novo |
+
+Idempotente: delete de doc inexistente Ã© no-op e `auth/user-not-found` conta como sucesso. Ã‰ isso que
+torna seguro reexecutar a funÃ§Ã£o sobre um uid Ã³rfÃ£o (runbook, H.7).
+
+### O que fica: `account_deletions/{uid}`
+
+Trilha **sem PII** â€” nem e-mail, nem nome, nem CPF. Guarda `uid`, `deletedAt`,
+`policyVersionAtDeletion`, `financialAnonymized`, `consentHistoryDeleted` e `appCheckVerified`. Ã‰
+prova de que a exclusÃ£o aconteceu, nÃ£o backup dela. Cliente nÃ£o lÃª nem grava (regra escrita Ã  mÃ£o,
+alÃ©m do default deny).
+
+### AnonimizaÃ§Ã£o financeira â€” o que existe e o que nÃ£o existe
+
+A polÃ­tica Ã©: os lanÃ§amentos **permanecem** para integridade contÃ¡bil, mas perdem o vÃ­nculo com o
+titular (art. 16, I).
+
+**Hoje a funÃ§Ã£o anonimiza ZERO registros.** `financial`, `bar` e `menu` sÃ£o in-memory no app e nÃ£o
+existem no Firestore â€” nÃ£o hÃ¡ o que anonimizar. Sem esta frase, esta seÃ§Ã£o afirmaria um controle
+inexistente. O campo `financialAnonymized` na trilha Ã© o que torna a afirmaÃ§Ã£o falsificÃ¡vel:
+enquanto for `0`, o controle Ã© declaradamente vazio.
+
+`anonymizeFinancial.ts` existe agora, e nÃ£o depois, por dois motivos: ele precisa rodar **antes** dos
+deletes (passo 2), e quando F2 migrar essas coleÃ§Ãµes para o Firestore a implementaÃ§Ã£o entra ali sem
+que nada mais do fluxo mude.
+
+### App Check no callable
+
+`enforceAppCheck` estÃ¡ ligado em produÃ§Ã£o e **independe** da chave de enforcement do Console (que
+segue desligada â€” ver pendÃªncia do ROADMAP). ConsequÃªncia operacional: um build debug sem token de
+App Check registrado recebe `unauthenticated` e parece bug (runbook, G.1).
+
+**Limite conhecido:** o emulador de Functions *aplica* `enforceAppCheck`, e fornecer um token vÃ¡lido
+na suÃ­te exigiria montar `initializeAppCheck` no cliente de teste â€” o que testaria o App Check, nÃ£o
+a exclusÃ£o. Por isso a enforcement Ã© desligada **apenas** sob `FUNCTIONS_EMULATOR`. Os testes provam
+a lÃ³gica de exclusÃ£o; a enforcement se verifica em device (runbook, H.6).
+
+### RegiÃ£o
+
+`FUNCTIONS_REGION` estÃ¡ declarada **nos dois lados** â€” `functions/src/index.ts` e
+`composeApp/src/androidMain/.../PlatformModule.android.kt` â€” e precisam bater. DivergÃªncia devolve
+`NOT_FOUND` no cliente, indistinguÃ­vel de "funÃ§Ã£o nÃ£o deployada": o sintoma nÃ£o aponta para a causa,
+por isso as duas constantes estÃ£o documentadas juntas aqui.
+
+### ExportaÃ§Ã£o
+
+**Entra:** identidade da conta, perfil autodeclarado com CPF e telefone **completos** (mascarar nÃ£o
+seria portabilidade â€” o destinatÃ¡rio Ã© o dono do dado) e a trilha de consentimento.
+
+**Nunca entra:** qualquer documento de `sport_clients`. SÃ£o dados de terceiros, e exportÃ¡-los pela
+porta de "meus dados" seria vazamento com aparÃªncia de direito. `ExportMyDataUseCase` nÃ£o recebe
+`SportClientRepository` â€” **a omissÃ£o Ã© a garantia**, e hÃ¡ teste travando a regressÃ£o. TambÃ©m ficam
+de fora token do Firebase, keyset do Tink, conteÃºdo do `session_prefs` e token do App Check.
+
+**Risco do arquivo em claro:** o JSON vai para onde o titular mandar no share sheet. MitigaÃ§Ãµes: o
+cache de export Ã© limpo a cada uso, o `FileProvider` Ã© `exported="false"` com caminho restrito a
+`cache/exports`, e hÃ¡ diÃ¡logo de confirmaÃ§Ã£o avisando que o arquivo contÃ©m CPF e telefone sem
+mÃ¡scara.
+
+### RessurreiÃ§Ã£o pÃ³s-exclusÃ£o (corrigido)
+
+Se o processo morresse entre o sucesso do callable e o `sessionStore.clear()`, o cold start
+encontraria sessÃ£o nÃ£o expirada (TTL 24h) e `currentUid()` ainda devolveria o uid â€” o SDK mantÃ©m o
+usuÃ¡rio local atÃ© renovar o token. O gate leria `user_consents`, nÃ£o acharia, e jogaria o titular na
+tela de consentimento **de uma conta excluÃ­da**, onde "Aceitar" recriaria o documento.
+
+Esse Ã© exatamente o roteiro que um revisor da Play executa: *excluir conta, reabrir o app*.
+
+`AuthRepository.refreshToken()`, consumido por `RestoreSessionUseCase`, fecha a janela.
+**Contrato deliberado: falha de rede devolve sucesso.** Tratar rede como "conta inexistente"
+deslogaria todo mundo que abrisse o app offline â€” mesma classe de erro do incidente descrito na
+Parte F.5 do runbook. Dois testes cobrem os dois lados.
+
+BÃ´nus: o operador excluir um usuÃ¡rio pelo Console tambÃ©m passa a refletir no app, em vez de esperar
+o TTL de 24h.
+
+### Estado degradado conhecido
+
+Se o passo 8 falhar depois do 6, os dados foram apagados e o usuÃ¡rio do Auth sobreviveu. O login bate
+em `doc.exists() == false` â†’ "Conta nÃ£o autorizada. Contate o administrador." Sem crash e sem
+vazamento, mas o Auth user Ã³rfÃ£o precisa de limpeza manual. `account_deletions` Ã© o que permite
+detectar; o procedimento estÃ¡ em H.7.
+
+### Fora de escopo (F1.7)
+
+- **Estabelecimentos (multi-tenancy)** e o escopo do MOD por estabelecimento. O conceito nÃ£o existe
+  no cÃ³digo: `sport_clients` Ã© uma coleÃ§Ã£o global plana. A seÃ§Ã£o "Estabelecimentos" **nÃ£o Ã©
+  renderizada** na tela de perfil â€” uma linha "em breve" numa tela cujo propÃ³sito Ã© "estes sÃ£o os
+  dados que temos sobre vocÃª" anuncia dado que o app nÃ£o sabe produzir, e lÃª como produto inacabado
+  para um revisor da Play.
+- **Papel `USER`** (o jogador): documentado, **nÃ£o implementado**. Adicionar a constante cedo Ã©
+  ativamente perigoso â€” `FirebaseAuthRepositoryImpl` resolve a role com `UserRole.valueOf`, e
+  `firestore.rules` dÃ¡ `allow read: if isSignedIn()` em `sport_clients`. Um typo no Console
+  produziria um "jogador" com leitura do CPF e telefone de **todos** os clientes. Hoje `USER` no
+  documento derruba o login com "Conta sem perfil vÃ¡lido", e essa falha Ã© a proteÃ§Ã£o. A constante
+  entra em F1.7, no mesmo commit das rules que a restringem.
+- **Matriz de permissÃµes** (alvo, nÃ£o estado atual):
+
+| Papel | Hoje | Alvo (F1.7) |
+|---|---|---|
+| `ADM` | tudo | tudo, em todos os estabelecimentos |
+| `MOD` | igual a ADM nas rules (`isStaff()`) | seu(s) estabelecimento(s): financeiro, cardÃ¡pio, categoria |
+| `CLIENT` ("FuncionÃ¡rio") | lÃª `sport_clients`, sem escrita | comandas + consulta de clientes do seu estabelecimento |
+| `USER` (jogador) | **nÃ£o existe** â€” derruba o login | sÃ³ consulta de eventos, prÃ³pria comanda, prÃ³prio perfil |
+
+> Hoje as rules **nÃ£o** distinguem MOD por estabelecimento e **nÃ£o** conhecem `USER`.
+
+### Ordem de release (bloqueante)
+
+Publicar **rules e Cloud Function antes** de distribuir o APK.
+
+Rules na ordem invertida travam todo mundo (bloqueio total, mesma liÃ§Ã£o de F1.5). A CF na ordem
+invertida degrada sÃ³ o botÃ£o de exclusÃ£o â€” mas Ã© justamente o botÃ£o que a review da Play vai testar,
+que Ã© o motivo de a fase existir. Passo a passo na Parte H do
+[runbook](./docs/ops/firebase-users-runbook.md).
+
+### VerificaÃ§Ã£o manual (prÃ©-merge)
+
+- [ ] `./gradlew ktlintCheck detektMetadataMain :composeApp:detektAndroidDebug :shared:detektAndroidDebug :composeApp:testDebugUnitTest :shared:testDebugUnitTest` verde
+- [ ] `cd tools/firestore-rules-tests && npm run test:emulator` â€” `fail 0`
+- [ ] `cd functions && npm run test:emulator` â€” `fail 0`
+- [ ] **Rules e Cloud Function publicadas antes de distribuir o app** â€” ver ordem de release acima
+- [ ] Aba inferior mostra "Perfil" (Ã­cone de pessoa), e ConfiguraÃ§Ãµes abre por dentro dela com seta
+  de voltar
+- [ ] Perfil recÃ©m-provisionado (sem `user_profiles`) abre sem erro, com "NÃ£o informado" nos campos
+  autodeclarados
+- [ ] Preencher apelido, CPF, telefone e modalidades, salvar, e reabrir o app: os valores persistiram
+- [ ] CPF e telefone comeÃ§am mascarados e revelam no botÃ£o ðŸ‘; ao reabrir a tela voltam mascarados
+- [ ] CPF com menos de 11 dÃ­gitos Ã© recusado no formulÃ¡rio, sem tocar a rede
+- [ ] "Redefinir senha" dispara o e-mail do Firebase e mostra a confirmaÃ§Ã£o
+- [ ] "Exportar meus dados" mostra o aviso, abre o share sheet e gera um JSON legÃ­vel
+- [ ] O JSON exportado **nÃ£o contÃ©m** nada de `sport_clients` e traz CPF e telefone sem mÃ¡scara
+- [ ] "Excluir conta" sÃ³ habilita depois de digitar `EXCLUIR`
+- [ ] Excluir uma conta de teste: `users`, `user_profiles`, `user_consents` e o `history` sumiram no
+  Console, e `account_deletions/{uid}` existe **sem PII**
+- [ ] Reabrir o app depois de excluir cai no **Login**, nÃ£o no gate de consentimento
+- [ ] Abrir o app offline com sessÃ£o vÃ¡lida **nÃ£o** desloga
+- [ ] Tentar logar com a credencial da conta excluÃ­da mostra mensagem de erro coerente
+- [ ] Aceite da nova versÃ£o da polÃ­tica (2026-08-14) Ã© solicitado no prÃ³ximo acesso, e o aceite
+  anterior continua no `history`
+
