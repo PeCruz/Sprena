@@ -24,4 +24,24 @@ object ConsentDto {
             acceptedAtEpochMillis = acceptedAt?.toDate()?.time ?: 0L,
         )
     }
+
+    /**
+     * Mapeia um doc de `user_consents/{uid}/history/{id}`.
+     *
+     * O doc de histórico **não** tem campo `uid` — a rule de F1.5 não o exige lá, porque
+     * o dono já está no path. O uid vem por parâmetro para o domínio não precisar saber
+     * dessa assimetria.
+     */
+    fun fromHistorySnapshot(
+        uid: String,
+        snapshot: DocumentSnapshot,
+    ): ConsentRecord? {
+        val version = snapshot.getString("policyVersion") ?: return null
+        val acceptedAt = snapshot.get("acceptedAt") as? Timestamp
+        return ConsentRecord(
+            uid = uid,
+            policyVersion = version,
+            acceptedAtEpochMillis = acceptedAt?.toDate()?.time ?: 0L,
+        )
+    }
 }
