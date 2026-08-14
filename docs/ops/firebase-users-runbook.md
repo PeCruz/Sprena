@@ -226,7 +226,8 @@ npm --prefix tools/firestore-rules-tests run test:emulator
 ```
 
 Roda a suíte contra o emulador local no projeto `demo-sprena` — offline, sem tocar em nada real.
-Esperado: `pass 30 / fail 0`. Falhou? Não publique.
+Esperado: `fail 0`. Falhou? Não publique. (O total de casos cresce a cada fase — o que importa é
+que nenhum falhe, não o número.)
 
 > Nas negações, o emulador loga `evaluation error at L<n>` seguido de `false` na mesma linha.
 > É o motor reavaliando depois de resolver o `get()` — a decisão que vale é a segunda. Não é bug.
@@ -281,7 +282,7 @@ ver com a mudança, e sem nenhum caminho para frente dentro do app. Não é "um 
 
 | # | Passo | Como validar antes de seguir |
 |---|---|---|
-| 1 | Rodar a suíte de rules (F.2) | `pass 30 / fail 0` |
+| 1 | Rodar a suíte de rules (F.2) | `fail 0` |
 | 2 | `firebase deploy --only firestore:rules --project sprena-a9b55` (F.3) | Console → Firestore → Rules: conteúdo e data do deploy conferem |
 | 3 | Validar em device com o **build novo**, ainda não distribuído | login entra na Home; aceite grava `user_consents/{uid}` e um doc em `history/` |
 | 4 | Só então publicar/distribuir o APK | — |

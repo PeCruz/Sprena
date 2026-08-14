@@ -370,8 +370,8 @@ armazená-lo com hash/criptografia em repouso, é decisão de F2/RBAC — fora d
 - [ ] `./gradlew :shared:testDebugUnitTest :composeApp:testDebugUnitTest` — testes de `CpfMasker`,
   `CheckConsentUseCase`/`AcceptConsentUseCase`, `ConsentViewModel` e masking no
   `ClientDetailViewModel` e no `SportClientViewModel` passam
-- [ ] `cd tools/firestore-rules-tests && npm run test:emulator` — 30 casos passam, incluindo os 18 de
-  `user_consents/{uid}` (ownership, append-only e anti-adulteração)
+- [ ] `cd tools/firestore-rules-tests && npm run test:emulator` — a suíte passa inteira, incluindo os
+  18 casos de `user_consents/{uid}` (ownership, append-only e anti-adulteração)
 - [ ] **Rules publicadas antes de distribuir o app** — ver ordem de release acima
 - [ ] Login novo (sem doc em `user_consents`) cai na tela de consentimento, não na Home
 - [ ] Aceitar grava `user_consents/{uid}` e um doc novo em `user_consents/{uid}/history/` no mesmo
