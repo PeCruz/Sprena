@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Único caminho exposto pelo FileProvider (F1.6a): o diretório de exportação dentro do
+  cache. Nada mais do app fica acessível por URI, e o provider é `exported="false"` —
+  o acesso só existe via a permissão temporária concedida no Intent de compartilhamento.
+-->
+<paths>
+    <cache-path name="exports" path="exports/" />
+</paths>
