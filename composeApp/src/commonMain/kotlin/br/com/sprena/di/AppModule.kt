@@ -18,6 +18,7 @@ import br.com.sprena.presentation.login.LoginViewModel
 import br.com.sprena.presentation.menu.MenuViewModel
 import br.com.sprena.presentation.privacy.ComposeResourcePolicyTextLoader
 import br.com.sprena.presentation.privacy.PolicyTextLoader
+import br.com.sprena.presentation.profile.ProfileViewModel
 import br.com.sprena.presentation.settings.SettingsViewModel
 import br.com.sprena.presentation.sportclient.SportClientViewModel
 import org.koin.core.module.dsl.viewModel
@@ -50,6 +51,16 @@ fun appModule() =
                 acceptConsent = get(),
                 checkConsent = get(),
                 sessionStore = get(),
+                logout = get(),
+            )
+        }
+        viewModel {
+            ProfileViewModel(
+                getProfile = get(),
+                saveProfile = get(),
+                exportMyData = get(),
+                deleteMyAccount = get(),
+                requestPasswordReset = get(),
                 logout = get(),
             )
         }
