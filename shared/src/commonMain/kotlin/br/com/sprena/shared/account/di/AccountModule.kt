@@ -1,5 +1,6 @@
 package br.com.sprena.shared.account.di
 
+import br.com.sprena.shared.account.domain.usecase.ExportMyDataUseCase
 import br.com.sprena.shared.account.domain.usecase.GetMyProfileUseCase
 import br.com.sprena.shared.account.domain.usecase.SaveMyProfileUseCase
 import org.koin.dsl.module
@@ -16,4 +17,13 @@ fun accountModule() =
     module {
         factory { GetMyProfileUseCase(repository = get(), sessionStore = get(), logger = get()) }
         factory { SaveMyProfileUseCase(repository = get(), sessionStore = get(), logger = get()) }
+        factory {
+            ExportMyDataUseCase(
+                profileRepository = get(),
+                consentRepository = get(),
+                sessionStore = get(),
+                clock = get(),
+                logger = get(),
+            )
+        }
     }

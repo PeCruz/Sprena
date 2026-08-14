@@ -4,6 +4,7 @@ import br.com.sprena.shared.account.domain.model.ProfilePatch
 import br.com.sprena.shared.account.domain.model.ProfileSaveResult
 import br.com.sprena.shared.auth.domain.model.UserRole
 import br.com.sprena.shared.auth.session.SessionUser
+import br.com.sprena.shared.core.logger.NoOpLogger
 import br.com.sprena.shared.sportclient.domain.validation.SportModality
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test

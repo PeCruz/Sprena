@@ -7,7 +7,7 @@ import br.com.sprena.shared.account.domain.repository.UserProfileRepository
 import br.com.sprena.shared.auth.domain.model.UserRole
 import br.com.sprena.shared.auth.session.SessionStore
 import br.com.sprena.shared.auth.session.SessionUser
-import br.com.sprena.shared.core.logger.Logger
+import br.com.sprena.shared.core.logger.NoOpLogger
 import br.com.sprena.shared.sportclient.domain.validation.SportModality
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -150,30 +150,4 @@ internal class FakeSessionStore(
         cleared = true
         current = null
     }
-}
-
-internal class NoOpLogger : Logger {
-    override fun debug(
-        tag: String,
-        message: String,
-        throwable: Throwable?,
-    ) = Unit
-
-    override fun info(
-        tag: String,
-        message: String,
-        throwable: Throwable?,
-    ) = Unit
-
-    override fun warn(
-        tag: String,
-        message: String,
-        throwable: Throwable?,
-    ) = Unit
-
-    override fun error(
-        tag: String,
-        message: String,
-        throwable: Throwable?,
-    ) = Unit
 }
