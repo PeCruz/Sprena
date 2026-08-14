@@ -115,3 +115,47 @@ jobs:
         # Projeto `demo-*` → emulador offline, sem credencial nem firebase login
         working-directory: tools/firestore-rules-tests
         run: npm run test:emulator
+
+  cloud-functions:
+    name: Cloud Functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Set up JDK 21
+        # Os emuladores de Auth, Firestore e Functions rodam na JVM.
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Install dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Lint
+        working-directory: functions
+        run: npm run lint
+
+      - name: Build
+        # O `predeploy` do firebase.json também compila, mas descobrir um tsc quebrado
+        # só no `firebase deploy` significa uma release parada — melhor falhar no PR.
+        working-directory: functions
+        run: npm run build
+
+      - name: Deletion tests on emulator
+        # Projeto `demo-*` → emuladores offline, sem credencial nem firebase login.
+        # A enforcement do App Check não é exercida aqui (ver src/index.ts) — ela é
+        # verificada em device, no passo H.6 do runbook.
+        working-directory: functions
+        run: npm run test:emulator
