@@ -9,6 +9,8 @@
  *  - users/{uid}          → cada um le so o proprio doc; escrita e Console/Admin SDK apenas
  *  - sport_clients/{id}   → leitura para qualquer autenticado; escrita so ADM/MOD
  *  - user_consents/{uid}  → cada um le e grava so o proprio aceite; history e append-only
+ *  - user_profiles/{uid}  → cada um le e grava so o proprio perfil autodeclarado (F1.6a)
+ *  - account_deletions/{} → so o Admin SDK dentro da Cloud Function; cliente nao toca
  *  - qualquer outra path  → default deny
  */
 import { after, before, beforeEach, describe, it } from 'node:test';
@@ -278,6 +280,117 @@ describe('user_consents/{uid}', () => {
   it('28. nega gravar consentimento sem autenticacao', async () => {
     await assertFails(setDoc(doc(anon(), 'user_consents', CLIENT_UID), payload()));
     await assertFails(getDoc(doc(anon(), 'user_consents', CLIENT_UID)));
+  });
+});
+
+/**
+ * F1.6a — perfil autodeclarado do titular.
+ *
+ * A colecao e separada de `users/{uid}` de proposito: la vive a role, e a rule de F1.4
+ * nega toda escrita justamente para impedir auto-promocao. Aqui nao existe campo `role`,
+ * entao nenhuma allowlist pode ser esquecida quando F1.7 adicionar `establishmentIds`.
+ * O caso 41 e o que prova que essa garantia continua de pe.
+ */
+describe('user_profiles/{uid}', () => {
+  const profile = (extra = {}) => ({
+    apelido: 'Pe',
+    cpf: '12345678900',
+    phone: '11987654321',
+    modalities: ['VOLEI'],
+    updatedAt: serverTimestamp(),
+    ...extra,
+  });
+
+  it('29. permite ler o proprio perfil mesmo quando nao existe', async () => {
+    // Doc ausente precisa devolver sucesso com snapshot vazio, nao permission-denied:
+    // e assim que o app distingue "nunca preencheu" de "sem permissao".
+    await assertSucceeds(getDoc(doc(as(CLIENT_UID), 'user_profiles', CLIENT_UID)));
+  });
+
+  it('30. nega ler o perfil de outro usuario', async () => {
+    await assertFails(getDoc(doc(as(CLIENT_UID), 'user_profiles', ADM_UID)));
+  });
+
+  it('31. permite criar o proprio perfil — o doc nasce no primeiro save', async () => {
+    await assertSucceeds(setDoc(doc(as(CLIENT_UID), 'user_profiles', CLIENT_UID), profile()));
+  });
+
+  it('32. permite atualizar o proprio perfil ja existente', async () => {
+    const db = as(CLIENT_UID);
+    await assertSucceeds(setDoc(doc(db, 'user_profiles', CLIENT_UID), profile()));
+    await assertSucceeds(
+      setDoc(doc(db, 'user_profiles', CLIENT_UID), profile({ apelido: 'Pedro' })),
+    );
+  });
+
+  it('33. nega criar perfil em nome de outro uid', async () => {
+    await assertFails(setDoc(doc(as(CLIENT_UID), 'user_profiles', ADM_UID), profile()));
+  });
+
+  it('34. nega campo desconhecido — role e isAdmin nao entram por aqui', async () => {
+    const db = as(CLIENT_UID);
+    await assertFails(
+      setDoc(doc(db, 'user_profiles', CLIENT_UID), profile({ role: 'ADM' })),
+    );
+    await assertFails(
+      setDoc(doc(db, 'user_profiles', CLIENT_UID), profile({ isAdmin: true })),
+    );
+  });
+
+  it('35. nega updatedAt forjado pelo cliente', async () => {
+    await assertFails(
+      setDoc(
+        doc(as(CLIENT_UID), 'user_profiles', CLIENT_UID),
+        profile({ updatedAt: Timestamp.fromDate(new Date('2020-01-01T00:00:00Z')) }),
+      ),
+    );
+  });
+
+  it('36. nega updatedAt ausente', async () => {
+    const { updatedAt, ...semTimestamp } = profile();
+    await assertFails(setDoc(doc(as(CLIENT_UID), 'user_profiles', CLIENT_UID), semTimestamp));
+  });
+
+  it('37. nega tipos errados em cpf e modalities', async () => {
+    const db = as(CLIENT_UID);
+    await assertFails(setDoc(doc(db, 'user_profiles', CLIENT_UID), profile({ cpf: 12345678900 })));
+    await assertFails(
+      setDoc(doc(db, 'user_profiles', CLIENT_UID), profile({ modalities: 'VOLEI' })),
+    );
+  });
+
+  it('38. nega modalities com mais de 10 itens', async () => {
+    const demais = Array.from({ length: 11 }, (_, i) => `M${i}`);
+    await assertFails(
+      setDoc(doc(as(CLIENT_UID), 'user_profiles', CLIENT_UID), profile({ modalities: demais })),
+    );
+  });
+
+  it('39. nega delete do proprio perfil — a exclusao passa pela Cloud Function', async () => {
+    const db = as(CLIENT_UID);
+    await assertSucceeds(setDoc(doc(db, 'user_profiles', CLIENT_UID), profile()));
+    await assertFails(deleteDoc(doc(db, 'user_profiles', CLIENT_UID)));
+  });
+
+  it('40. nega leitura e escrita sem autenticacao', async () => {
+    await assertFails(getDoc(doc(anon(), 'user_profiles', CLIENT_UID)));
+    await assertFails(setDoc(doc(anon(), 'user_profiles', CLIENT_UID), profile()));
+  });
+
+  it('41. abrir user_profiles nao afrouxou users — auto-promocao continua negada', async () => {
+    const db = as(CLIENT_UID);
+    await assertSucceeds(setDoc(doc(db, 'user_profiles', CLIENT_UID), profile()));
+    await assertFails(updateDoc(doc(db, 'users', CLIENT_UID), { role: 'ADM' }));
+    await assertFails(setDoc(doc(db, 'users', CLIENT_UID), { role: 'ADM', name: 'Client' }));
+  });
+});
+
+describe('account_deletions/{uid}', () => {
+  it('42. nega leitura e escrita para o dono e para ADM — trilha e do Admin SDK', async () => {
+    await assertFails(getDoc(doc(as(CLIENT_UID), 'account_deletions', CLIENT_UID)));
+    await assertFails(setDoc(doc(as(CLIENT_UID), 'account_deletions', CLIENT_UID), { uid: CLIENT_UID }));
+    await assertFails(getDoc(doc(as(ADM_UID), 'account_deletions', CLIENT_UID)));
+    await assertFails(setDoc(doc(as(ADM_UID), 'account_deletions', CLIENT_UID), { uid: CLIENT_UID }));
   });
 });
 
