@@ -13,7 +13,7 @@ import kotlin.test.assertNotEquals
 /**
  * TDD — BottomNavViewModel (barra de navegação inferior).
  *
- * Ordem das abas: HOME, EVENTOS, BAR, FINANCIAL, SETTINGS
+ * Ordem das abas: HOME, EVENTOS, BAR, FINANCIAL, PROFILE
  *
  * Cenários cobertos:
  * - Tab inicial é HOME
@@ -131,24 +131,24 @@ class BottomNavViewModelTest {
         }
 
     // =========================================================================
-    // SETTINGS tab
+    // PROFILE tab (era SETTINGS ate F1.6a)
     // =========================================================================
 
     @Test
-    fun `selecting SETTINGS tab updates state`() =
+    fun `selecting PROFILE tab updates state`() =
         runTest {
             val vm = BottomNavViewModel()
-            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.SETTINGS))
-            assertEquals(BottomTab.SETTINGS, vm.state.first().current)
+            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.PROFILE))
+            assertEquals(BottomTab.PROFILE, vm.state.first().current)
         }
 
     @Test
-    fun `selecting SETTINGS tab emits NavigateTo effect`() =
+    fun `selecting PROFILE tab emits NavigateTo effect`() =
         runTest {
             val vm = BottomNavViewModel()
             vm.effects.test {
-                vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.SETTINGS))
-                assertEquals(BottomNavEffect.NavigateTo(BottomTab.SETTINGS), awaitItem())
+                vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.PROFILE))
+                assertEquals(BottomNavEffect.NavigateTo(BottomTab.PROFILE), awaitItem())
                 cancelAndIgnoreRemainingEvents()
             }
         }
@@ -158,10 +158,10 @@ class BottomNavViewModelTest {
     // =========================================================================
 
     @Test
-    fun `selecting HOME after SETTINGS reverts state`() =
+    fun `selecting HOME after PROFILE reverts state`() =
         runTest {
             val vm = BottomNavViewModel()
-            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.SETTINGS))
+            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.PROFILE))
             vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.HOME))
             assertEquals(BottomTab.HOME, vm.state.first().current)
         }
@@ -185,7 +185,7 @@ class BottomNavViewModelTest {
                     BottomTab.EVENTOS,
                     BottomTab.BAR,
                     BottomTab.FINANCIAL,
-                    BottomTab.SETTINGS,
+                    BottomTab.PROFILE,
                 )
             for (tab in tabs) {
                 vm.handleIntent(BottomNavIntent.TabSelected(tab))
