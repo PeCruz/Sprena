@@ -114,4 +114,6 @@ internal class FakeAuthRepository : AuthRepository {
     }
 
     override fun currentUid(): String? = if (signedOut) null else "uid-1"
+
+    override suspend fun refreshToken(): Result<Unit> = Result.success(Unit)
 }

@@ -26,6 +26,9 @@ class LogoutUseCaseTest {
         }
 
         override fun currentUid(): String? = null
+
+        // Só RestoreSessionUseCase consulta o refresh; estes fluxos não.
+        override suspend fun refreshToken(): Result<Unit> = Result.success(Unit)
     }
 
     private class FakeStore(
