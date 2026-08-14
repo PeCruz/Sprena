@@ -1,9 +1,15 @@
 package br.com.sprena.presentation.sportclient
 
+import app.cash.turbine.test
+import br.com.sprena.shared.auth.domain.model.UserRole
+import br.com.sprena.shared.auth.session.SessionStore
+import br.com.sprena.shared.auth.session.SessionUser
 import br.com.sprena.shared.sportclient.domain.validation.PaymentMethod
 import br.com.sprena.shared.sportclient.domain.validation.SportModality
 import br.com.sprena.test.MainDispatcherEnv
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -34,6 +40,7 @@ import kotlin.test.assertTrue
  * - Editar, deletar, dialogs
  * - Integridade dos dados (campos mantidos corretamente)
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class SportClientViewModelTest {
     private val env = MainDispatcherEnv()
 
@@ -41,7 +48,26 @@ class SportClientViewModelTest {
 
     @AfterTest fun tearDown() = env.uninstall()
 
-    private fun createVm(): SportClientViewModel = SportClientViewModel()
+    private class FakeSessionStore(
+        private val role: UserRole?,
+    ) : SessionStore {
+        override suspend fun save(user: SessionUser) = Unit
+
+        override suspend fun load(): SessionUser? =
+            role?.let {
+                SessionUser(
+                    uid = "uid_1",
+                    email = "user@sprena.com",
+                    role = it,
+                    lastLoginEpochMillis = 1L,
+                )
+            }
+
+        override suspend fun clear() = Unit
+    }
+
+    private fun createVm(role: UserRole? = UserRole.CLIENT): SportClientViewModel =
+        SportClientViewModel(sessionStore = FakeSessionStore(role))
 
     private val sampleClient =
         SportClient(
@@ -473,7 +499,8 @@ class SportClientViewModelTest {
     @Test
     fun `AddClientClicked shows dialog`() =
         runTest {
-            val vm = createVm()
+            val vm = createVm(role = UserRole.ADM)
+            advanceUntilIdle()
             vm.handleIntent(SportClientIntent.AddClientClicked)
             assertTrue(vm.state.first().isAddDialogVisible)
         }
@@ -481,8 +508,10 @@ class SportClientViewModelTest {
     @Test
     fun `DismissAddDialog hides dialog`() =
         runTest {
-            val vm = createVm()
+            val vm = createVm(role = UserRole.ADM)
+            advanceUntilIdle()
             vm.handleIntent(SportClientIntent.AddClientClicked)
+            assertTrue(vm.state.first().isAddDialogVisible)
             vm.handleIntent(SportClientIntent.DismissAddDialog)
             assertFalse(vm.state.first().isAddDialogVisible)
         }
@@ -566,7 +595,8 @@ class SportClientViewModelTest {
     @Test
     fun `ClientDeleted removes client from list`() =
         runTest {
-            val vm = createVm()
+            val vm = createVm(role = UserRole.ADM)
+            advanceUntilIdle()
             vm.handleIntent(SportClientIntent.ClientAdded(sampleClient))
             vm.handleIntent(SportClientIntent.ClientAdded(sampleClient2))
             vm.handleIntent(SportClientIntent.ClientDeleted("sport_1"))
@@ -578,7 +608,8 @@ class SportClientViewModelTest {
     @Test
     fun `ClientDeleted clears selectedClient if same`() =
         runTest {
-            val vm = createVm()
+            val vm = createVm(role = UserRole.ADM)
+            advanceUntilIdle()
             vm.handleIntent(SportClientIntent.ClientAdded(sampleClient))
             vm.handleIntent(SportClientIntent.ClientClicked(sampleClient))
             vm.handleIntent(SportClientIntent.ClientDeleted("sport_1"))
@@ -588,7 +619,8 @@ class SportClientViewModelTest {
     @Test
     fun `ClientDeleted updates filtered list`() =
         runTest {
-            val vm = createVm()
+            val vm = createVm(role = UserRole.ADM)
+            advanceUntilIdle()
             vm.handleIntent(SportClientIntent.ClientAdded(sampleClient))
             vm.handleIntent(SportClientIntent.ClientDeleted("sport_1"))
             assertTrue(
@@ -596,6 +628,196 @@ class SportClientViewModelTest {
                     .first()
                     .filteredClients
                     .isEmpty(),
+            )
+        }
+
+    // =========================================================================
+    // CPF — mascarado por padrão, revelação restrita a ADM/MOD (F1.5)
+    // =========================================================================
+
+    private val cpfClient = sampleClient.copy(cpf = "12345678900")
+
+    private fun openDetail(vm: SportClientViewModel) {
+        vm.handleIntent(SportClientIntent.ClientAdded(cpfClient))
+        vm.handleIntent(SportClientIntent.ClientClicked(cpfClient))
+    }
+
+    @Test
+    fun `CPF aparece mascarado por padrao no detalhe`() =
+        runTest {
+            val vm = createVm(role = UserRole.ADM)
+            advanceUntilIdle()
+            openDetail(vm)
+
+            val state = vm.state.first()
+            assertTrue(state.canRevealCpf)
+            assertFalse(state.isCpfRevealed)
+            assertEquals("***.***.789-00", state.displayCpf)
+        }
+
+    @Test
+    fun `CLIENT nao pode revelar o CPF no detalhe`() =
+        runTest {
+            val vm = createVm(role = UserRole.CLIENT)
+            advanceUntilIdle()
+            openDetail(vm)
+
+            vm.handleIntent(SportClientIntent.ToggleCpfReveal)
+            advanceUntilIdle()
+
+            val state = vm.state.first()
+            assertFalse(state.canRevealCpf)
+            assertFalse(state.isCpfRevealed)
+            assertEquals("***.***.789-00", state.displayCpf)
+        }
+
+    @Test
+    fun `ADM revela o CPF completo no detalhe`() =
+        runTest {
+            val vm = createVm(role = UserRole.ADM)
+            advanceUntilIdle()
+            openDetail(vm)
+
+            vm.handleIntent(SportClientIntent.ToggleCpfReveal)
+            advanceUntilIdle()
+
+            assertEquals("123.456.789-00", vm.state.first().displayCpf)
+        }
+
+    @Test
+    fun `MOD revela o CPF completo no detalhe`() =
+        runTest {
+            val vm = createVm(role = UserRole.MOD)
+            advanceUntilIdle()
+            openDetail(vm)
+
+            vm.handleIntent(SportClientIntent.ToggleCpfReveal)
+            advanceUntilIdle()
+
+            assertEquals("123.456.789-00", vm.state.first().displayCpf)
+        }
+
+    @Test
+    fun `sem sessao o CPF permanece mascarado no detalhe`() =
+        runTest {
+            val vm = createVm(role = null)
+            advanceUntilIdle()
+            openDetail(vm)
+
+            vm.handleIntent(SportClientIntent.ToggleCpfReveal)
+            advanceUntilIdle()
+
+            val state = vm.state.first()
+            assertFalse(state.canRevealCpf)
+            assertEquals("***.***.789-00", state.displayCpf)
+        }
+
+    @Test
+    fun `reabrir o detalhe volta a mascarar o CPF revelado`() =
+        runTest {
+            val vm = createVm(role = UserRole.ADM)
+            advanceUntilIdle()
+            openDetail(vm)
+            vm.handleIntent(SportClientIntent.ToggleCpfReveal)
+            advanceUntilIdle()
+            assertEquals("123.456.789-00", vm.state.first().displayCpf)
+
+            vm.handleIntent(SportClientIntent.DismissClientDetail)
+            vm.handleIntent(SportClientIntent.ClientClicked(cpfClient))
+            advanceUntilIdle()
+
+            assertEquals("***.***.789-00", vm.state.first().displayCpf)
+        }
+
+    // =========================================================================
+    // canManageClients — autoriza escrita (add/edit/delete), independente do masking (F1.5)
+    // =========================================================================
+
+    @Test
+    fun `ADM tem canManageClients true`() =
+        runTest {
+            val vm = createVm(role = UserRole.ADM)
+            advanceUntilIdle()
+            assertTrue(vm.state.first().canManageClients)
+        }
+
+    @Test
+    fun `MOD tem canManageClients true`() =
+        runTest {
+            val vm = createVm(role = UserRole.MOD)
+            advanceUntilIdle()
+            assertTrue(vm.state.first().canManageClients)
+        }
+
+    @Test
+    fun `CLIENT tem canManageClients false`() =
+        runTest {
+            val vm = createVm(role = UserRole.CLIENT)
+            advanceUntilIdle()
+            assertFalse(vm.state.first().canManageClients)
+        }
+
+    @Test
+    fun `sem sessao canManageClients e false`() =
+        runTest {
+            val vm = createVm(role = null)
+            advanceUntilIdle()
+            assertFalse(vm.state.first().canManageClients)
+        }
+
+    @Test
+    fun `AddClientClicked sem canManageClients nao abre o dialogo`() =
+        runTest {
+            val vm = createVm(role = UserRole.CLIENT)
+            advanceUntilIdle()
+            vm.handleIntent(SportClientIntent.AddClientClicked)
+            assertFalse(vm.state.first().isAddDialogVisible)
+        }
+
+    @Test
+    fun `ADM disparando EditClientClicked emite NavigateToEdit com o cliente certo`() =
+        runTest {
+            val vm = createVm(role = UserRole.ADM)
+            advanceUntilIdle()
+            openDetail(vm)
+
+            vm.effects.test {
+                vm.handleIntent(SportClientIntent.EditClientClicked(cpfClient))
+                assertEquals(SportClientEffect.NavigateToEdit(cpfClient), awaitItem())
+            }
+        }
+
+    @Test
+    fun `EditClientClicked sem canManageClients nao emite efeito de navegacao`() =
+        runTest {
+            val vm = createVm(role = UserRole.CLIENT)
+            advanceUntilIdle()
+            openDetail(vm)
+
+            vm.effects.test {
+                vm.handleIntent(SportClientIntent.EditClientClicked(cpfClient))
+                advanceUntilIdle()
+                expectNoEvents()
+            }
+
+            // O intent também não deve alterar o state (detalhe continua aberto).
+            assertEquals(cpfClient, vm.state.first().selectedClient)
+        }
+
+    @Test
+    fun `ClientDeleted sem canManageClients nao remove o cliente`() =
+        runTest {
+            val vm = createVm(role = UserRole.CLIENT)
+            advanceUntilIdle()
+            vm.handleIntent(SportClientIntent.ClientAdded(sampleClient))
+            vm.handleIntent(SportClientIntent.ClientDeleted(sampleClient.id))
+            advanceUntilIdle()
+
+            assertEquals(
+                1,
+                vm.state
+                    .first()
+                    .clients.size,
             )
         }
 }

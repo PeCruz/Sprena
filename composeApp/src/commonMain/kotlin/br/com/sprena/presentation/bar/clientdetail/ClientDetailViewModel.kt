@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.sprena.presentation.bar.BarClient
 import br.com.sprena.presentation.bar.BarItem
+import br.com.sprena.shared.auth.domain.model.UserRole
+import br.com.sprena.shared.auth.session.SessionStore
 import br.com.sprena.shared.bar.domain.validation.BarValidator
 import br.com.sprena.shared.core.mvi.MviViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -23,6 +25,7 @@ import kotlin.uuid.Uuid
 @OptIn(ExperimentalUuidApi::class)
 class ClientDetailViewModel(
     private val client: BarClient,
+    private val sessionStore: SessionStore,
 ) : ViewModel(),
     MviViewModel<ClientDetailState, ClientDetailIntent, ClientDetailEffect> {
     private val _state =
@@ -43,6 +46,13 @@ class ClientDetailViewModel(
 
     private val _effects = MutableSharedFlow<ClientDetailEffect>()
     override val effects: SharedFlow<ClientDetailEffect> = _effects.asSharedFlow()
+
+    init {
+        viewModelScope.launch {
+            val role = sessionStore.load()?.role
+            _state.value = _state.value.copy(canRevealCpf = role != null && role in STAFF_ROLES)
+        }
+    }
 
     override fun handleIntent(intent: ClientDetailIntent) {
         when (intent) {
@@ -275,6 +285,12 @@ class ClientDetailViewModel(
                     _effects.emit(ClientDetailEffect.Dismissed)
                 }
             }
+
+            is ClientDetailIntent.ToggleCpfReveal -> {
+                if (_state.value.canRevealCpf) {
+                    _state.value = _state.value.copy(isCpfRevealed = !_state.value.isCpfRevealed)
+                }
+            }
         }
     }
 
@@ -290,5 +306,9 @@ class ClientDetailViewModel(
             items = s.items,
             isPaid = s.isPaid,
         )
+    }
+
+    private companion object {
+        val STAFF_ROLES = setOf(UserRole.ADM, UserRole.MOD)
     }
 }

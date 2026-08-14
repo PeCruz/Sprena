@@ -2,6 +2,7 @@ package br.com.sprena.presentation.bar.clientdetail
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,6 +44,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -93,81 +96,25 @@ fun ClientDetailSheet(
                     .imePadding()
                     .padding(horizontal = 16.dp),
         ) {
-            // --- Header: name + delete icon ---
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = state.clientNickname ?: state.clientName,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    if (state.clientNickname != null) {
-                        Text(
-                            text = state.clientName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                IconButton(
-                    onClick = { viewModel.handleIntent(ClientDetailIntent.DeleteClicked) },
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Deletar cliente",
-                        tint = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
+            ClientHeaderRow(
+                state = state,
+                onDeleteClicked = { viewModel.handleIntent(ClientDetailIntent.DeleteClicked) },
+            )
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // --- Client info ---
-            Text(
-                text = "Tel: ${state.clientPhone}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            ClientInfoSection(
+                state = state,
+                onToggleCpfReveal = { viewModel.handleIntent(ClientDetailIntent.ToggleCpfReveal) },
             )
-            Text(
-                text = "CPF: ${state.clientCpf}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            state.clientEmail?.let { email ->
-                Text(
-                    text = "Email: $email",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
 
             Spacer(modifier = Modifier.height(12.dp))
             HorizontalDivider()
             Spacer(modifier = Modifier.height(8.dp))
 
-            // --- Items header + Add button ---
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "Itens Consumidos",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-                IconButton(
-                    onClick = { viewModel.handleIntent(ClientDetailIntent.AddItemClicked) },
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Adicionar item",
-                    )
-                }
-            }
+            ItemsHeaderRow(
+                onAddItemClicked = { viewModel.handleIntent(ClientDetailIntent.AddItemClicked) },
+            )
 
             // --- Add Item Form ---
             if (state.isAddItemVisible) {
@@ -188,137 +135,313 @@ fun ClientDetailSheet(
                 )
             }
 
-            // --- Item List (paginated, 4 per page) ---
-            if (state.items.isEmpty()) {
-                Text(
-                    text = "Nenhum item adicionado",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 16.dp),
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f, fill = false),
-                ) {
-                    items(state.paginatedItems, key = { it.id }) { item ->
-                        ItemRow(
-                            item = item,
-                            onIncrement = {
-                                viewModel.handleIntent(ClientDetailIntent.IncrementItem(item.id))
-                            },
-                            onDecrement = {
-                                viewModel.handleIntent(ClientDetailIntent.DecrementItem(item.id))
-                            },
-                        )
-                    }
-                }
-
-                // --- Pagination controls ---
-                if (state.totalPages > 1) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        TextButton(
-                            onClick = { viewModel.handleIntent(ClientDetailIntent.PrevItemsPage) },
-                            enabled = state.itemsPage > 0,
-                        ) {
-                            Text("Anterior")
-                        }
-                        Text(
-                            text = "${state.itemsPage + 1} / ${state.totalPages}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                        )
-                        TextButton(
-                            onClick = { viewModel.handleIntent(ClientDetailIntent.NextItemsPage) },
-                            enabled = state.itemsPage < state.totalPages - 1,
-                        ) {
-                            Text("Próximo")
-                        }
-                    }
-                }
-            }
+            ItemsListSection(
+                state = state,
+                onIncrement = { itemId -> viewModel.handleIntent(ClientDetailIntent.IncrementItem(itemId)) },
+                onDecrement = { itemId -> viewModel.handleIntent(ClientDetailIntent.DecrementItem(itemId)) },
+                onPrevPage = { viewModel.handleIntent(ClientDetailIntent.PrevItemsPage) },
+                onNextPage = { viewModel.handleIntent(ClientDetailIntent.NextItemsPage) },
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider()
             Spacer(modifier = Modifier.height(8.dp))
 
-            // --- Total + Paid ---
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "Total: ${formatCents(state.totalCents)}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Pago",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Checkbox(
-                        checked = state.isPaid,
-                        onCheckedChange = {
-                            viewModel.handleIntent(ClientDetailIntent.TogglePaid)
-                        },
-                    )
-                }
-            }
+            TotalAndPaidRow(
+                state = state,
+                onTogglePaid = { viewModel.handleIntent(ClientDetailIntent.TogglePaid) },
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
 
-    // --- Delete confirmation dialog ---
-    if (state.isDeleteConfirmVisible) {
+    DeleteClientConfirmDialog(
+        visible = state.isDeleteConfirmVisible,
+        onConfirm = { viewModel.handleIntent(ClientDetailIntent.DeleteConfirmed) },
+        onCancel = { viewModel.handleIntent(ClientDetailIntent.DeleteCancelled) },
+    )
+
+    DeleteItemConfirmDialog(
+        itemToDeleteId = state.itemToDeleteId,
+        items = state.items,
+        onConfirm = { viewModel.handleIntent(ClientDetailIntent.ConfirmDeleteItem) },
+        onCancel = { viewModel.handleIntent(ClientDetailIntent.CancelDeleteItem) },
+    )
+}
+
+/**
+ * Cabeçalho do sheet: nome/apelido do cliente + botão de deletar.
+ */
+@Composable
+private fun ClientHeaderRow(
+    state: ClientDetailState,
+    onDeleteClicked: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = state.clientNickname ?: state.clientName,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            if (state.clientNickname != null) {
+                Text(
+                    text = state.clientName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        IconButton(
+            onClick = onDeleteClicked,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = "Deletar cliente",
+                tint = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+/**
+ * Dados de contato do cliente: telefone, CPF (com toggle de revelação) e email.
+ */
+@Composable
+private fun ClientInfoSection(
+    state: ClientDetailState,
+    onToggleCpfReveal: () -> Unit,
+) {
+    Text(
+        text = "Tel: ${state.clientPhone}",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = "CPF: ${state.displayCpf}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (state.canRevealCpf) {
+            IconButton(
+                onClick = onToggleCpfReveal,
+                modifier =
+                    Modifier.semantics {
+                        contentDescription =
+                            if (state.isCpfRevealed) "Ocultar CPF" else "Revelar CPF"
+                    },
+            ) {
+                Text(
+                    text = if (state.isCpfRevealed) "🙈" else "👁",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+        }
+    }
+    state.clientEmail?.let { email ->
+        Text(
+            text = "Email: $email",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * Título "Itens Consumidos" + botão de adicionar item.
+ */
+@Composable
+private fun ItemsHeaderRow(onAddItemClicked: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "Itens Consumidos",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        IconButton(
+            onClick = onAddItemClicked,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Adicionar item",
+            )
+        }
+    }
+}
+
+/**
+ * Lista de itens consumidos (paginada) ou mensagem de lista vazia.
+ *
+ * Extensão de [ColumnScope] porque a [LazyColumn] usa `weight(1f, fill = false)`
+ * para dividir o espaço vertical do sheet com o restante do conteúdo.
+ */
+@Composable
+private fun ColumnScope.ItemsListSection(
+    state: ClientDetailState,
+    onIncrement: (String) -> Unit,
+    onDecrement: (String) -> Unit,
+    onPrevPage: () -> Unit,
+    onNextPage: () -> Unit,
+) {
+    if (state.items.isEmpty()) {
+        Text(
+            text = "Nenhum item adicionado",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(vertical = 16.dp),
+        )
+    } else {
+        LazyColumn(
+            modifier = Modifier.weight(1f, fill = false),
+        ) {
+            items(state.paginatedItems, key = { it.id }) { item ->
+                ItemRow(
+                    item = item,
+                    onIncrement = { onIncrement(item.id) },
+                    onDecrement = { onDecrement(item.id) },
+                )
+            }
+        }
+
+        if (state.totalPages > 1) {
+            PaginationControls(
+                currentPage = state.itemsPage,
+                totalPages = state.totalPages,
+                onPrevPage = onPrevPage,
+                onNextPage = onNextPage,
+            )
+        }
+    }
+}
+
+/**
+ * Controles de paginação da lista de itens: anterior / página atual / próximo.
+ */
+@Composable
+private fun PaginationControls(
+    currentPage: Int,
+    totalPages: Int,
+    onPrevPage: () -> Unit,
+    onNextPage: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(
+            onClick = onPrevPage,
+            enabled = currentPage > 0,
+        ) {
+            Text("Anterior")
+        }
+        Text(
+            text = "${currentPage + 1} / $totalPages",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+        TextButton(
+            onClick = onNextPage,
+            enabled = currentPage < totalPages - 1,
+        ) {
+            Text("Próximo")
+        }
+    }
+}
+
+/**
+ * Linha final: total consumido + checkbox de pago.
+ */
+@Composable
+private fun TotalAndPaidRow(
+    state: ClientDetailState,
+    onTogglePaid: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "Total: ${formatCents(state.totalCents)}",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "Pago",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Checkbox(
+                checked = state.isPaid,
+                onCheckedChange = {
+                    onTogglePaid()
+                },
+            )
+        }
+    }
+}
+
+/**
+ * Diálogo de confirmação de exclusão do cliente (e de todos os seus itens).
+ */
+@Composable
+private fun DeleteClientConfirmDialog(
+    visible: Boolean,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    if (visible) {
         AlertDialog(
-            onDismissRequest = {
-                viewModel.handleIntent(ClientDetailIntent.DeleteCancelled)
-            },
+            onDismissRequest = onCancel,
             title = { Text("Deletar cliente") },
             text = { Text("Você tem certeza que deseja deletar este cliente e todos os seus itens?") },
             confirmButton = {
-                TextButton(
-                    onClick = { viewModel.handleIntent(ClientDetailIntent.DeleteConfirmed) },
-                ) {
+                TextButton(onClick = onConfirm) {
                     Text("Sim, deletar", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = { viewModel.handleIntent(ClientDetailIntent.DeleteCancelled) },
-                ) {
+                TextButton(onClick = onCancel) {
                     Text("Cancelar")
                 }
             },
         )
     }
+}
 
-    // --- Item delete confirmation dialog (decrement from quantity 1) ---
-    if (state.itemToDeleteId != null) {
-        val itemName = state.items.firstOrNull { it.id == state.itemToDeleteId }?.name ?: ""
+/**
+ * Diálogo de confirmação de remoção de item (disparado ao decrementar da quantidade 1).
+ */
+@Composable
+private fun DeleteItemConfirmDialog(
+    itemToDeleteId: String?,
+    items: List<BarItem>,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    if (itemToDeleteId != null) {
+        val itemName = items.firstOrNull { it.id == itemToDeleteId }?.name ?: ""
         AlertDialog(
-            onDismissRequest = {
-                viewModel.handleIntent(ClientDetailIntent.CancelDeleteItem)
-            },
+            onDismissRequest = onCancel,
             title = { Text("Remover item") },
             text = { Text("Deseja remover \"$itemName\" da lista?") },
             confirmButton = {
-                TextButton(
-                    onClick = { viewModel.handleIntent(ClientDetailIntent.ConfirmDeleteItem) },
-                ) {
+                TextButton(onClick = onConfirm) {
                     Text("Sim, remover", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = { viewModel.handleIntent(ClientDetailIntent.CancelDeleteItem) },
-                ) {
+                TextButton(onClick = onCancel) {
                     Text("Cancelar")
                 }
             },

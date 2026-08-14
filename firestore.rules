@@ -56,6 +56,43 @@ service cloud.firestore {
       allow create, update, delete: if isStaff();
     }
 
+    // Aceite da politica de privacidade (F1.5).
+    //
+    // O id do doc e o uid DE PROPOSITO: a regra de leitura e baseada no path, nao
+    // em resource.data. Uma regra que lesse resource.data.uid daria evaluation
+    // error num doc inexistente, e o app nao conseguiria distinguir "nunca aceitou"
+    // de "sem permissao" — o gate precisa dessa diferenca.
+    //
+    // A subcolecao history e append-only: e ela que sustenta o onus da prova do
+    // consentimento (LGPD art. 8 §1) quando a politica ganha versao nova e o doc
+    // corrente e sobrescrito.
+    //
+    // O id do doc de historico e automatico, NAO a versao da politica. Com o id
+    // igual a versao, reaceitar a mesma versao seria `set` sobre doc existente —
+    // que aqui conta como `update` e e negado, derrubando o batch inteiro e
+    // prendendo o usuario no gate fail-closed. Cada aceite e uma insercao nova; a
+    // versao vai no campo `policyVersion`, validado como string nao vazia.
+    match /user_consents/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow create, update: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.policyVersion is string
+        && request.resource.data.policyVersion.size() > 0
+        && request.resource.data.acceptedAt == request.time;
+      allow delete: if false;
+
+      match /history/{acceptanceId} {
+        allow read: if isSignedIn() && request.auth.uid == uid;
+        allow create: if isSignedIn()
+          && request.auth.uid == uid
+          && request.resource.data.policyVersion is string
+          && request.resource.data.policyVersion.size() > 0
+          && request.resource.data.acceptedAt == request.time;
+        allow update, delete: if false;
+      }
+    }
+
     // Default deny. kanban e financial ainda sao in-memory; quando migrarem
     // para o Firestore vao bater aqui ate ganharem o proprio bloco `match`.
     match /{document=**} {

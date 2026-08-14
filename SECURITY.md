@@ -154,6 +154,7 @@ dependia inteiramente do RBAC client-side, que não vale nada contra quem chama 
 no job `firestore-rules`. Projeto `demo-sprena`: emulador 100% offline, sem credencial nem
 `firebase login`. Cobre auto-promoção de role, leitura cruzada entre usuários, escrita por `CLIENT`,
 usuário autenticado sem doc de perfil e coleção não mapeada.
+(F1.5 acrescentou os casos de `user_consents`; a suíte inteira está em 30.)
 
 Deploy: `firebase deploy --only firestore:rules --project <projeto>`.
 O `.firebaserc` é gitignorado (mesma postura do `google-services.json`) — daí o `--project` explícito.
@@ -250,3 +251,144 @@ done
 Esperado: `debug: 5` (ou qualquer valor > 0) e **`release: 0`**. Release diferente de zero significa
 que a separação por build type foi quebrada — provavelmente alguém moveu o provider para
 `androidMain` ou trocou `debugImplementation` por `implementation`.
+
+## F1.5 — Baseline LGPD (consentimento + política de privacidade + masking de CPF)
+
+### Base legal e escopo
+Dois tratamentos distintos, com base legal diferente cada um:
+- **Usuário do app** (`users/{uid}`): consentimento explícito, registrado no aceite gravado por esta
+  sub-fase.
+- **Cliente cadastrado** (`sport_clients/{id}`): tratado pelo *operador* da conta — quem cadastra o
+  cliente declara ter autorização do titular para inserir os dados no aplicativo (item 4 da política,
+  `composeApp/src/commonMain/composeResources/files/privacy-policy.md`). O app não coleta esse
+  consentimento diretamente; ele é responsabilidade contratual do operador.
+
+### O que é coletado
+- **Do usuário do app**: email, role (`ADM`/`MOD`/`CLIENT`) e data do último acesso.
+- **Dos clientes cadastrados**: nome, apelido, CPF, telefone, email (quando informado), modalidades
+  praticadas, presenças, forma de pagamento e histórico de pagamento/consumo.
+
+### Onde o aceite é gravado
+`firestore.rules`, bloco `user_consents/{uid}`:
+- **Doc corrente** `user_consents/{uid}` — sobrescrito a cada nova versão aceita. Campos: `uid`,
+  `policyVersion`, `acceptedAt` (`FieldValue.serverTimestamp()`), `appVersion`.
+- **Subcoleção `user_consents/{uid}/history/{acceptanceId}`** — append puro, um doc por aceite, com
+  id gerado pelo Firestore. É ela que sustenta o ônus da prova do consentimento (LGPD art. 8 §1)
+  quando o doc corrente é sobrescrito por uma versão nova.
+  O id é automático, e **não** a versão da política: com `history/{policyVersion}`, reaceitar a mesma
+  versão vira `set` sobre doc existente, que em Rules conta como `update` e é negado — derrubando o
+  batch inteiro, que é atômico. Como o gate é fail-closed, isso prendia o usuário na tela de
+  consentimento em qualquer reaceite (falha transitória de leitura, doc raiz apagado no Console,
+  retry de rede). Append puro elimina o conflito e casa com a semântica de trilha auditável.
+- Escrita (`create`/`update`) restrita ao próprio uid, validada campo a campo pela rule
+  (`request.resource.data.uid == uid`, `policyVersion` string não vazia, `acceptedAt == request.time`
+  — bloqueia timestamp forjado pelo cliente). `delete` negado para todos, no doc corrente e no
+  histórico.
+- Gravação feita em batch atômico por `FirestoreConsentRepository`
+  (`shared/src/androidMain/kotlin/br/com/sprena/shared/privacy/data/repository/FirestoreConsentRepository.kt`):
+  o doc corrente e o doc de histórico são escritos na mesma transação — nunca um sem o outro.
+
+> **Ordem de release (bloqueante).** Publicar as rules **antes** de distribuir o app. Na ordem
+> inversa, a leitura de `user_consents` cai no default-deny e o gate fail-closed deixa **todos os
+> usuários existentes sem acesso**. Procedimento e recuperação em
+> [runbook § F.5](./docs/ops/firebase-users-runbook.md#f5--ordem-de-release-rules-primeiro-app-depois).
+
+### Por que não em `users/{uid}`
+As rules de F1.4 negam **toda** escrita do app em `users/{uid}` — inclusive do próprio dono — para
+impedir auto-promoção de role (ver seção F1.4 acima). Gravar o aceite ali exigiria abrir uma exceção
+nessa regra, o que reabriria a superfície que F1.4 fechou. `user_consents` é uma coleção própria
+exatamente para não tocar nessa garantia.
+
+### Gate fail-closed
+`CheckConsentUseCase`
+(`shared/src/commonMain/kotlin/br/com/sprena/shared/privacy/domain/usecase/CheckConsentUseCase.kt`)
+resolve `ConsentRepository.current(uid): Result<ConsentRecord?>` em três estados:
+- `Result.success(null)` → nunca aceitou → `ConsentStatus.Required(MISSING)`
+- `Result.success(record)` com `policyVersion` diferente da vigente → `ConsentStatus.Required(OUTDATED)`
+- `Result.success(record)` com `policyVersion` igual → `ConsentStatus.Granted`
+- `Result.failure(...)` (erro de leitura) → `ConsentStatus.Unavailable(mensagem)` — **nunca** vira
+  acesso liberado. A tela de consentimento trata `Unavailable` como bloqueio com botão de retry, não
+  como aceite implícito.
+
+O `ConsentViewModel` reconsulta o consentimento no `init` e no `Retry`, não só carrega o texto:
+`Granted` emite `NavigateHome` na hora (o usuário já tinha aceitado e só caiu no gate por falha
+transitória de leitura), `Unavailable` deixa a mensagem visível com "tentar de novo", `Required`
+segue pedindo o aceite. Sem essa reconsulta, a única ação oferecida a quem foi bloqueado por falha de
+leitura seria "Aceitar" — e um aceite não corrige falha de rede.
+
+A tela também tem **"Sair"** (`LogoutUseCase` → `NavigateLogin`). Não há "recusar" — recusar é fechar
+o app, e isso é deliberado —, mas quem fica preso no gate precisa poder ao menos encerrar a sessão e
+trocar de conta.
+
+### Versionamento
+`PrivacyPolicy.VERSION` (`shared/src/commonMain/kotlin/br/com/sprena/shared/privacy/domain/model/PrivacyPolicy.kt`)
+é uma constante de código que precisa bater manualmente com a linha `Versão AAAA-MM-DD` do texto
+embarcado em `composeApp/src/commonMain/composeResources/files/privacy-policy.md`. Vigente:
+`"2026-08-12"`. Mudou o texto da política → muda a constante → todo usuário com `policyVersion`
+antiga cai em `Required(OUTDATED)` no próximo `CheckConsentUseCase` e reaceita, sem perder o registro
+anterior (ele fica em `history`). Procedimento documentado em `docs/legal/privacy-policy.md`.
+
+### Masking de CPF
+`maskCpf`/`formatCpf` em
+`shared/src/commonMain/kotlin/br/com/sprena/shared/core/privacy/CpfMasker.kt`:
+- `maskCpf("12345678900")` → `"***.***.789-00"`. Entrada que não normaliza para 11 dígitos vira
+  máscara total (`"***.***.***-**"`) — malformado não vaza dígito parcial.
+- `formatCpf` é o inverso (CPF completo pontuado), usado só quando a revelação já foi autorizada.
+- **Não confundir com `PiiMasker.cpf` (F1.2)**: aquele mascara para log e preserva só os 2 últimos
+  dígitos; este é para exibição em tela e preserva 3 dígitos do meio, propositalmente diferente.
+- **Dois pontos de exibição**, com o mesmo tratamento — mascarado por padrão, `isCpfRevealed` só liga
+  se `canRevealCpf` for `true`, e quem resolve `canRevealCpf` é sempre o ViewModel a partir da role
+  da sessão (`sessionStore.load()`, `role in {ADM, MOD}`). A UI nunca decide sozinha quem revela:
+  - `ClientDetailState.displayCpf` — detalhe do cliente de comanda
+    (`composeApp/src/commonMain/kotlin/br/com/sprena/presentation/bar/clientdetail/`).
+  - `SportClientState.displayCpf` — diálogo read-only de detalhe da aba Clientes
+    (`composeApp/src/commonMain/kotlin/br/com/sprena/presentation/sportclient/`). Este é a aba HOME
+    de ADM, MOD **e** CLIENT, então era o caminho de maior exposição: até F1.5 ele exibia o CPF
+    completo para qualquer role. Reabrir o diálogo volta ao mascarado, mesmo para ADM/MOD.
+- Campos de **edição** de cliente (`SportClientEditScreen`) seguem com o CPF completo, sem masking.
+  Isso só é seguro porque a **visibilidade das ações de escrita** (adicionar, editar, excluir) é
+  gate no `SportClientViewModel`, via `SportClientState.canManageClients` — resolvida no `init` a
+  partir da mesma role da sessão, mas como campo próprio, independente de `canRevealCpf` (autorizações
+  diferentes; hoje coincidem no mesmo conjunto de roles só por coincidência). Sem isso, um `CLIENT`
+  conseguia abrir o lápis do diálogo de detalhe e ver o CPF completo no formulário de edição, mesmo
+  sem conseguir gravar — a política de privacidade afirma que "a visualização do número completo é
+  restrita a ADM/MOD", e isso vale para qualquer tela, não só o diálogo read-only. Defesa em
+  profundidade, igual ao toggle de CPF: os intents de escrita (`AddClientClicked`,
+  `EditClientClicked`, `ClientDeleted`) são ignorados no `handleIntent` quando `canManageClients` é
+  `false` — esconder o botão na UI não é a única barreira. As Firestore Rules de F1.4 (`isStaff()`
+  para escrever em `sport_clients`) continuam sendo a barreira de servidor: mesmo que a UI falhasse
+  em esconder algo, a gravação de um `CLIENT` seria recusada lá.
+
+### Limite conhecido
+O masking é controle de **UI**, não de dado em repouso. As rules de `sport_clients` (F1.4) permitem
+`read` a qualquer autenticado — inclusive `CLIENT` (funcionário). Quem chamar a API do Firestore
+direto (script, Postman) com uma credencial `CLIENT` válida lê o CPF em texto plano, porque a rule
+não distingue campos dentro do doc. Restringir a leitura de CPF por role nas próprias rules, ou
+armazená-lo com hash/criptografia em repouso, é decisão de F2/RBAC — fora do escopo desta sub-fase.
+
+### Verificação manual (pré-merge)
+- [ ] `./gradlew :shared:testDebugUnitTest :composeApp:testDebugUnitTest` — testes de `CpfMasker`,
+  `CheckConsentUseCase`/`AcceptConsentUseCase`, `ConsentViewModel` e masking no
+  `ClientDetailViewModel` e no `SportClientViewModel` passam
+- [ ] `cd tools/firestore-rules-tests && npm run test:emulator` — 30 casos passam, incluindo os 18 de
+  `user_consents/{uid}` (ownership, append-only e anti-adulteração)
+- [ ] **Rules publicadas antes de distribuir o app** — ver ordem de release acima
+- [ ] Login novo (sem doc em `user_consents`) cai na tela de consentimento, não na Home
+- [ ] Aceitar grava `user_consents/{uid}` e um doc novo em `user_consents/{uid}/history/` no mesmo
+  instante (batch)
+- [ ] Reaceitar (apagar só o doc raiz no Console e entrar de novo) funciona e acrescenta um segundo
+  doc no histórico, sem erro
+- [ ] Desligar a rede antes de abrir o app com sessão válida → tela de bloqueio com retry, nunca Home
+- [ ] Religar a rede e tocar "Tentar de novo" com o aceite já registrado → entra na Home sem reaceitar
+- [ ] "Sair" na tela de consentimento volta ao Login e não faz auto-login ao reabrir
+- [ ] Detalhe de cliente com sessão `CLIENT` (comanda **e** aba Clientes): CPF mascarado, sem opção
+  de revelar
+- [ ] Aba Clientes com sessão `CLIENT`: sem FAB de adicionar, e o diálogo de detalhe sem lápis de
+  editar nem lixeira de excluir
+- [ ] Detalhe de cliente com sessão `ADM`/`MOD` (comanda **e** aba Clientes): CPF mascarado por
+  padrão, revelável pelo botão 👁, e mascarado de novo ao reabrir
+- [ ] Aba Clientes com sessão `ADM`/`MOD`: FAB de adicionar visível, diálogo de detalhe com lápis e
+  lixeira funcionando
+- [ ] Texto integral da política visível na própria tela de consentimento, antes de aceitar
+  (é lá que ele precisa estar — com o aceite pendente o usuário não alcança o Settings)
+- [ ] Depois do aceite: Settings → Política de Privacidade abre o mesmo texto, para releitura

@@ -9,4 +9,5 @@ data class SettingsNavigation(
     val onNavigateMenu: () -> Unit = {},
     val onNavigateCategory: () -> Unit = {},
     val onNavigateToLogin: () -> Unit = {},
+    val onNavigatePrivacyPolicy: () -> Unit = {},
 )

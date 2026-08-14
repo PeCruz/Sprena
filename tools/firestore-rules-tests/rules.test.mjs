@@ -8,6 +8,7 @@
  * Modelo de acesso sob teste:
  *  - users/{uid}          → cada um le so o proprio doc; escrita e Console/Admin SDK apenas
  *  - sport_clients/{id}   → leitura para qualquer autenticado; escrita so ADM/MOD
+ *  - user_consents/{uid}  → cada um le e grava so o proprio aceite; history e append-only
  *  - qualquer outra path  → default deny
  */
 import { after, before, beforeEach, describe, it } from 'node:test';
@@ -17,7 +18,18 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  Timestamp,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 
 const RULES_PATH = new URL('../../firestore.rules', import.meta.url);
 
@@ -114,6 +126,158 @@ describe('sport_clients/{id}', () => {
     const db = as(GHOST_UID);
     await assertSucceeds(getDoc(doc(db, 'sport_clients', 'c1')));
     await assertFails(setDoc(doc(db, 'sport_clients', 'c_novo'), { name: 'Novo' }));
+  });
+});
+
+describe('user_consents/{uid}', () => {
+  const VERSION = '2026-08-12';
+  const payload = () => ({
+    uid: CLIENT_UID,
+    policyVersion: VERSION,
+    acceptedAt: serverTimestamp(),
+    appVersion: '0.1.0',
+  });
+
+  it('11. le o proprio registro de consentimento — inclusive quando nao existe', async () => {
+    await assertSucceeds(getDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID)));
+  });
+
+  it('12. nega ler o consentimento de outro usuario', async () => {
+    await assertFails(getDoc(doc(as(CLIENT_UID), 'user_consents', ADM_UID)));
+  });
+
+  it('13. cria o proprio consentimento com payload valido', async () => {
+    await assertSucceeds(setDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID), payload()));
+  });
+
+  it('14. nega criar consentimento em nome de outro uid', async () => {
+    await assertFails(
+      setDoc(doc(as(CLIENT_UID), 'user_consents', ADM_UID), { ...payload(), uid: ADM_UID }),
+    );
+  });
+
+  it('15. nega delete do proprio consentimento', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'user_consents', CLIENT_UID), {
+        uid: CLIENT_UID,
+        policyVersion: VERSION,
+      });
+    });
+    await assertFails(deleteDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID)));
+  });
+
+  /** Doc de historico ja gravado, com id automatico como em producao. */
+  const seedHistory = async (id = 'acceptance_1') => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'user_consents', CLIENT_UID, 'history', id), {
+        policyVersion: VERSION,
+        acceptedAt: serverTimestamp(),
+      });
+    });
+    return id;
+  };
+
+  it('16. nega update no historico — a trilha e append-only', async () => {
+    const id = await seedHistory();
+    await assertFails(
+      updateDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID, 'history', id), {
+        policyVersion: 'adulterado',
+      }),
+    );
+  });
+
+  it('17. aceita append no historico com id automatico', async () => {
+    await assertSucceeds(
+      addDoc(collection(as(CLIENT_UID), 'user_consents', CLIENT_UID, 'history'), {
+        policyVersion: VERSION,
+        acceptedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  it('18. reaceitar a mesma versao acrescenta um doc, nao conflita', async () => {
+    const db = as(CLIENT_UID);
+    const history = collection(db, 'user_consents', CLIENT_UID, 'history');
+    const entry = () => ({ policyVersion: VERSION, acceptedAt: serverTimestamp() });
+
+    await assertSucceeds(addDoc(history, entry()));
+    await assertSucceeds(addDoc(history, entry()));
+
+    const snapshot = await getDocs(history);
+    if (snapshot.size !== 2) {
+      throw new Error(`esperava 2 docs de historico, veio ${snapshot.size}`);
+    }
+  });
+
+  it('19. nega delete no historico', async () => {
+    const id = await seedHistory();
+    await assertFails(deleteDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID, 'history', id)));
+  });
+
+  it('20. nega ler o historico de outro usuario', async () => {
+    const id = await seedHistory();
+    await assertFails(getDoc(doc(as(ADM_UID), 'user_consents', CLIENT_UID, 'history', id)));
+  });
+
+  // ---------------------------------------------------------------------------
+  // Anti-adulteracao — as clausulas que sustentam o valor probatorio do registro.
+  // Sem elas o aceite continua sendo gravado, mas deixa de provar o que alega:
+  // quando foi dado (acceptedAt) e a que texto se refere (policyVersion).
+  // ---------------------------------------------------------------------------
+
+  /** Timestamp escolhido pelo cliente — o vetor de backdating. */
+  const forgedTime = () => Timestamp.fromDate(new Date('2020-01-01T00:00:00Z'));
+
+  it('21. nega acceptedAt com timestamp do cliente — anti-backdating', async () => {
+    await assertFails(
+      setDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID), {
+        ...payload(),
+        acceptedAt: forgedTime(),
+      }),
+    );
+  });
+
+  it('22. nega acceptedAt forjado tambem no historico', async () => {
+    await assertFails(
+      addDoc(collection(as(CLIENT_UID), 'user_consents', CLIENT_UID, 'history'), {
+        policyVersion: VERSION,
+        acceptedAt: forgedTime(),
+      }),
+    );
+  });
+
+  it('23. nega acceptedAt ausente', async () => {
+    const { acceptedAt, ...semTimestamp } = payload();
+    await assertFails(setDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID), semTimestamp));
+  });
+
+  it('24. nega policyVersion vazia', async () => {
+    await assertFails(
+      setDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID), { ...payload(), policyVersion: '' }),
+    );
+  });
+
+  it('25. nega policyVersion de tipo errado', async () => {
+    await assertFails(
+      setDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID), { ...payload(), policyVersion: 42 }),
+    );
+  });
+
+  it('26. nega policyVersion vazia ou de tipo errado no historico', async () => {
+    const history = collection(as(CLIENT_UID), 'user_consents', CLIENT_UID, 'history');
+    await assertFails(addDoc(history, { policyVersion: '', acceptedAt: serverTimestamp() }));
+    await assertFails(addDoc(history, { policyVersion: 42, acceptedAt: serverTimestamp() }));
+  });
+
+  it('27. nega campo uid divergente do dono do doc', async () => {
+    await assertFails(
+      setDoc(doc(as(CLIENT_UID), 'user_consents', CLIENT_UID), { ...payload(), uid: ADM_UID }),
+    );
+  });
+
+  it('28. nega gravar consentimento sem autenticacao', async () => {
+    await assertFails(setDoc(doc(anon(), 'user_consents', CLIENT_UID), payload()));
+    await assertFails(getDoc(doc(anon(), 'user_consents', CLIENT_UID)));
   });
 });
 

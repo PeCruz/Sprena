@@ -1,7 +1,10 @@
 package br.com.sprena.di
 
+import br.com.sprena.BuildConfig
 import br.com.sprena.shared.auth.data.repository.FirebaseAuthRepositoryImpl
 import br.com.sprena.shared.auth.domain.repository.AuthRepository
+import br.com.sprena.shared.privacy.data.repository.FirestoreConsentRepository
+import br.com.sprena.shared.privacy.domain.repository.ConsentRepository
 import br.com.sprena.shared.sportclient.data.repository.SportClientRepositoryImpl
 import br.com.sprena.shared.sportclient.domain.repository.SportClientRepository
 import com.google.firebase.Firebase
@@ -38,6 +41,16 @@ fun platformModule() =
             FirebaseAuthRepositoryImpl(
                 auth = get(),
                 firestore = get(),
+                logger = get(),
+            )
+        }
+
+        // F1.5: aceite da política de privacidade. `appVersion` vem do BuildConfig do
+        // composeApp — o módulo shared não tem BuildConfig próprio.
+        single<ConsentRepository> {
+            FirestoreConsentRepository(
+                firestore = get(),
+                appVersion = BuildConfig.VERSION_NAME,
                 logger = get(),
             )
         }

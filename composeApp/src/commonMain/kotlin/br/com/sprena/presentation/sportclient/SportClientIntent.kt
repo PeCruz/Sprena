@@ -32,4 +32,7 @@ sealed interface SportClientIntent : UiIntent {
     data class ClientDeleted(
         val clientId: String,
     ) : SportClientIntent
+
+    /** Alterna entre CPF mascarado e completo — ignorado para quem não é ADM/MOD. */
+    data object ToggleCpfReveal : SportClientIntent
 }

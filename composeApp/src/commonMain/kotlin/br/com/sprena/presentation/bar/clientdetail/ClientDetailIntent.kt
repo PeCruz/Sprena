@@ -50,6 +50,9 @@ sealed interface ClientDetailIntent : UiIntent {
     data object DeleteCancelled : ClientDetailIntent
 
     data object Dismiss : ClientDetailIntent
+
+    /** Alterna a exibição do CPF completo. Ignorado sem permissão. */
+    data object ToggleCpfReveal : ClientDetailIntent
 }
 
 /**

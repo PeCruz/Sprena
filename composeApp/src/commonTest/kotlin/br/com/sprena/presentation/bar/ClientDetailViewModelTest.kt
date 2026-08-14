@@ -5,8 +5,13 @@ import br.com.sprena.presentation.bar.clientdetail.ClientDetailEffect
 import br.com.sprena.presentation.bar.clientdetail.ClientDetailIntent
 import br.com.sprena.presentation.bar.clientdetail.ClientDetailViewModel
 import br.com.sprena.presentation.bar.clientdetail.MenuItem
+import br.com.sprena.shared.auth.domain.model.UserRole
+import br.com.sprena.shared.auth.session.SessionStore
+import br.com.sprena.shared.auth.session.SessionUser
 import br.com.sprena.test.MainDispatcherEnv
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -38,6 +43,7 @@ private val TEST_MENU_ITEMS =
  * - Calcular total
  * - Deletar cliente com confirmação
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class ClientDetailViewModelTest {
     private val env = MainDispatcherEnv()
 
@@ -61,8 +67,28 @@ class ClientDetailViewModelTest {
             isPaid = false,
         )
 
-    private fun createVm(client: BarClient = sampleClient): ClientDetailViewModel =
-        ClientDetailViewModel(client = client)
+    private class FakeSessionStore(
+        private val role: UserRole?,
+    ) : SessionStore {
+        override suspend fun save(user: SessionUser) = Unit
+
+        override suspend fun load(): SessionUser? =
+            role?.let {
+                SessionUser(
+                    uid = "uid_1",
+                    email = "user@sprena.com",
+                    role = it,
+                    lastLoginEpochMillis = 1L,
+                )
+            }
+
+        override suspend fun clear() = Unit
+    }
+
+    private fun viewModel(
+        client: BarClient = sampleClient,
+        role: UserRole? = UserRole.CLIENT,
+    ) = ClientDetailViewModel(client = client, sessionStore = FakeSessionStore(role))
 
     // =========================================================================
     // Load — carregar dados do cliente
@@ -71,7 +97,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `initial state loads client data`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             val s = vm.state.first()
             assertEquals("client_1", s.clientId)
             assertEquals("João Silva", s.clientName)
@@ -84,7 +110,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `initial state loads items`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             val s = vm.state.first()
             assertEquals(2, s.items.size)
             assertEquals("Cerveja", s.items[0].name)
@@ -94,14 +120,14 @@ class ClientDetailViewModelTest {
     @Test
     fun `initial state calculates total`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             assertEquals(3700L, vm.state.first().totalCents)
         }
 
     @Test
     fun `initial state loads payment status`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             assertFalse(vm.state.first().isPaid)
         }
 
@@ -112,7 +138,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `AddItemClicked shows add item form`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.AddItemClicked)
             assertTrue(vm.state.first().isAddItemVisible)
         }
@@ -120,7 +146,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `DismissAddItem hides add item form`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.AddItemClicked)
             vm.handleIntent(ClientDetailIntent.DismissAddItem)
             assertFalse(vm.state.first().isAddItemVisible)
@@ -129,7 +155,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `NewItemNameChanged updates newItemName`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.NewItemNameChanged("Caipirinha"))
             assertEquals("Caipirinha", vm.state.first().newItemName)
         }
@@ -137,7 +163,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `NewItemPriceChanged updates newItemPriceCents`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.NewItemPriceChanged(1500L))
             assertEquals(1500L, vm.state.first().newItemPriceCents)
         }
@@ -149,7 +175,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `NewItemNameChanged with empty shows error`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.NewItemNameChanged("Cerveja"))
             vm.handleIntent(ClientDetailIntent.NewItemNameChanged(""))
             assertNotNull(vm.state.first().newItemNameError)
@@ -158,7 +184,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `NewItemNameChanged with too long name shows error`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.NewItemNameChanged("A".repeat(101)))
             assertNotNull(vm.state.first().newItemNameError)
         }
@@ -166,7 +192,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `NewItemPriceChanged with null shows error`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.NewItemPriceChanged(1500L))
             vm.handleIntent(ClientDetailIntent.NewItemPriceChanged(null))
             assertNotNull(vm.state.first().newItemPriceError)
@@ -175,7 +201,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `NewItemPriceChanged with zero shows error`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.NewItemPriceChanged(0L))
             assertNotNull(vm.state.first().newItemPriceError)
         }
@@ -183,7 +209,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `NewItemPriceChanged with negative shows error`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.NewItemPriceChanged(-100L))
             assertNotNull(vm.state.first().newItemPriceError)
         }
@@ -195,7 +221,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `SaveItem adds item to list`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.NewItemNameChanged("Caipirinha"))
             vm.handleIntent(ClientDetailIntent.NewItemPriceChanged(1800L))
             vm.handleIntent(ClientDetailIntent.SaveItem)
@@ -208,7 +234,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `SaveItem updates total`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.NewItemNameChanged("Caipirinha"))
             vm.handleIntent(ClientDetailIntent.NewItemPriceChanged(1800L))
             vm.handleIntent(ClientDetailIntent.SaveItem)
@@ -218,7 +244,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `SaveItem clears form fields`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.NewItemNameChanged("Caipirinha"))
             vm.handleIntent(ClientDetailIntent.NewItemPriceChanged(1800L))
             vm.handleIntent(ClientDetailIntent.SaveItem)
@@ -230,7 +256,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `SaveItem hides add item form`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.AddItemClicked)
             vm.handleIntent(ClientDetailIntent.NewItemNameChanged("Caipirinha"))
             vm.handleIntent(ClientDetailIntent.NewItemPriceChanged(1800L))
@@ -241,7 +267,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `SaveItem with invalid fields does not add item`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             // empty name and null price
             vm.handleIntent(ClientDetailIntent.SaveItem)
             assertEquals(
@@ -255,7 +281,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `SaveItem emits ClientUpdated effect`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.NewItemNameChanged("Caipirinha"))
             vm.handleIntent(ClientDetailIntent.NewItemPriceChanged(1800L))
             vm.effects.test {
@@ -274,7 +300,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `RemoveItem removes item from list`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.RemoveItem("item_1"))
             val s = vm.state.first()
             assertEquals(1, s.items.size)
@@ -284,7 +310,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `RemoveItem updates total`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.RemoveItem("item_1"))
             assertEquals(2500L, vm.state.first().totalCents)
         }
@@ -292,7 +318,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `RemoveItem emits ClientUpdated effect`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.effects.test {
                 vm.handleIntent(ClientDetailIntent.RemoveItem("item_1"))
                 val effect = awaitItem()
@@ -308,7 +334,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `TogglePaid toggles isPaid`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             assertFalse(vm.state.first().isPaid)
             vm.handleIntent(ClientDetailIntent.TogglePaid)
             assertTrue(vm.state.first().isPaid)
@@ -317,7 +343,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `TogglePaid emits ClientUpdated effect`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.effects.test {
                 vm.handleIntent(ClientDetailIntent.TogglePaid)
                 val effect = awaitItem()
@@ -334,7 +360,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `MenuItemSelected fills name and price`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             val menuItem = MenuItem(name = "Agua", priceCents = 500)
             vm.handleIntent(ClientDetailIntent.MenuItemSelected(menuItem))
             val s = vm.state.first()
@@ -345,7 +371,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `MenuItemSelected clears previous errors`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             // First trigger errors
             vm.handleIntent(ClientDetailIntent.NewItemNameChanged(""))
             vm.handleIntent(ClientDetailIntent.NewItemPriceChanged(null))
@@ -362,7 +388,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `MenuItemSelected Agua sets correct values`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.MenuItemSelected(TEST_MENU_ITEMS[0]))
             val s = vm.state.first()
             assertEquals("Agua", s.newItemName)
@@ -372,7 +398,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `MenuItemSelected Almoco sets correct values`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.MenuItemSelected(TEST_MENU_ITEMS[1]))
             val s = vm.state.first()
             assertEquals("Almoço", s.newItemName)
@@ -382,7 +408,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `MenuItemSelected Gatorade sets correct values`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.MenuItemSelected(TEST_MENU_ITEMS[2]))
             val s = vm.state.first()
             assertEquals("Gatorade", s.newItemName)
@@ -392,7 +418,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `MenuItemSelected XequeMate sets correct values`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.MenuItemSelected(TEST_MENU_ITEMS[3]))
             val s = vm.state.first()
             assertEquals("Xeque-Mate", s.newItemName)
@@ -402,7 +428,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `MenuItemSelected can be overridden by manual name edit`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.MenuItemSelected(TEST_MENU_ITEMS[0]))
             assertEquals("Agua", vm.state.first().newItemName)
 
@@ -415,7 +441,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `MenuItemSelected can be overridden by manual price edit`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.MenuItemSelected(TEST_MENU_ITEMS[1]))
             assertEquals(2500L, vm.state.first().newItemPriceCents)
 
@@ -428,7 +454,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `MenuItemSelected replaces previous menu selection`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.MenuItemSelected(TEST_MENU_ITEMS[0]))
             assertEquals("Agua", vm.state.first().newItemName)
 
@@ -441,7 +467,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `MenuItemSelected then SaveItem adds correct item`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.MenuItemSelected(TEST_MENU_ITEMS[2]))
             vm.handleIntent(ClientDetailIntent.SaveItem)
 
@@ -455,7 +481,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `MenuItemSelected then SaveItem updates total correctly`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.MenuItemSelected(TEST_MENU_ITEMS[2])) // Gatorade 1000
             vm.handleIntent(ClientDetailIntent.SaveItem)
             // Original total was 3700 (1200 + 2500), plus 1000 = 4700
@@ -470,7 +496,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `MenuItemSelected clears form after DismissAddItem and reopen`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.AddItemClicked)
             vm.handleIntent(ClientDetailIntent.MenuItemSelected(TEST_MENU_ITEMS[0]))
             assertEquals("Agua", vm.state.first().newItemName)
@@ -493,7 +519,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `DeleteClicked shows confirmation`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.DeleteClicked)
             assertTrue(vm.state.first().isDeleteConfirmVisible)
         }
@@ -501,7 +527,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `DeleteCancelled hides confirmation`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.DeleteClicked)
             vm.handleIntent(ClientDetailIntent.DeleteCancelled)
             assertFalse(vm.state.first().isDeleteConfirmVisible)
@@ -510,7 +536,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `DeleteConfirmed emits ClientDeleted effect`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.effects.test {
                 vm.handleIntent(ClientDetailIntent.DeleteClicked)
                 vm.handleIntent(ClientDetailIntent.DeleteConfirmed)
@@ -524,7 +550,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `DeleteConfirmed hides confirmation`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.DeleteClicked)
             vm.handleIntent(ClientDetailIntent.DeleteConfirmed)
             assertFalse(vm.state.first().isDeleteConfirmVisible)
@@ -537,7 +563,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `Dismiss emits Dismissed effect`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.effects.test {
                 vm.handleIntent(ClientDetailIntent.Dismiss)
                 assertEquals(ClientDetailEffect.Dismissed, awaitItem())
@@ -552,7 +578,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `initial state has itemsPage 0`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             assertEquals(0, vm.state.first().itemsPage)
         }
 
@@ -563,7 +589,7 @@ class ClientDetailViewModelTest {
                 sampleClient.copy(
                     items = (1..6).map { BarItem(id = "item_$it", name = "Item $it", priceCents = 100) },
                 )
-            val vm = createVm(client)
+            val vm = viewModel(client)
             val s = vm.state.first()
             assertEquals(6, s.items.size)
             assertEquals(4, s.paginatedItems.size)
@@ -576,7 +602,7 @@ class ClientDetailViewModelTest {
                 sampleClient.copy(
                     items = (1..6).map { BarItem(id = "item_$it", name = "Item $it", priceCents = 100) },
                 )
-            val vm = createVm(client)
+            val vm = viewModel(client)
             vm.handleIntent(ClientDetailIntent.NextItemsPage)
             val s = vm.state.first()
             assertEquals(1, s.itemsPage)
@@ -590,7 +616,7 @@ class ClientDetailViewModelTest {
                 sampleClient.copy(
                     items = (1..6).map { BarItem(id = "item_$it", name = "Item $it", priceCents = 100) },
                 )
-            val vm = createVm(client)
+            val vm = viewModel(client)
             assertEquals(2, vm.state.first().totalPages)
         }
 
@@ -598,7 +624,7 @@ class ClientDetailViewModelTest {
     fun `totalPages is 1 when no items`() =
         runTest {
             val client = sampleClient.copy(items = emptyList())
-            val vm = createVm(client)
+            val vm = viewModel(client)
             assertEquals(1, vm.state.first().totalPages)
         }
 
@@ -609,7 +635,7 @@ class ClientDetailViewModelTest {
                 sampleClient.copy(
                     items = (1..4).map { BarItem(id = "item_$it", name = "Item $it", priceCents = 100) },
                 )
-            val vm = createVm(client)
+            val vm = viewModel(client)
             assertEquals(1, vm.state.first().totalPages)
         }
 
@@ -620,7 +646,7 @@ class ClientDetailViewModelTest {
                 sampleClient.copy(
                     items = (1..6).map { BarItem(id = "item_$it", name = "Item $it", priceCents = 100) },
                 )
-            val vm = createVm(client)
+            val vm = viewModel(client)
             vm.handleIntent(ClientDetailIntent.NextItemsPage)
             assertEquals(1, vm.state.first().itemsPage)
         }
@@ -632,7 +658,7 @@ class ClientDetailViewModelTest {
                 sampleClient.copy(
                     items = (1..6).map { BarItem(id = "item_$it", name = "Item $it", priceCents = 100) },
                 )
-            val vm = createVm(client)
+            val vm = viewModel(client)
             vm.handleIntent(ClientDetailIntent.NextItemsPage)
             vm.handleIntent(ClientDetailIntent.NextItemsPage) // already on last page
             assertEquals(1, vm.state.first().itemsPage) // stays at 1
@@ -645,7 +671,7 @@ class ClientDetailViewModelTest {
                 sampleClient.copy(
                     items = (1..6).map { BarItem(id = "item_$it", name = "Item $it", priceCents = 100) },
                 )
-            val vm = createVm(client)
+            val vm = viewModel(client)
             vm.handleIntent(ClientDetailIntent.NextItemsPage)
             vm.handleIntent(ClientDetailIntent.PrevItemsPage)
             assertEquals(0, vm.state.first().itemsPage)
@@ -654,7 +680,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `PrevItemsPage does not go below 0`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.PrevItemsPage)
             assertEquals(0, vm.state.first().itemsPage)
         }
@@ -666,7 +692,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `initial items have quantity 1`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             val s = vm.state.first()
             s.items.forEach { assertEquals(1, it.quantity) }
         }
@@ -674,7 +700,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `SaveItem with duplicate name and price merges into existing item`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             // Add "Cerveja" at 1200 — same as item_1
             vm.handleIntent(ClientDetailIntent.NewItemNameChanged("Cerveja"))
             vm.handleIntent(ClientDetailIntent.NewItemPriceChanged(1200L))
@@ -689,7 +715,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `SaveItem with duplicate name but different price adds new item`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             // Add "Cerveja" at different price
             vm.handleIntent(ClientDetailIntent.NewItemNameChanged("Cerveja"))
             vm.handleIntent(ClientDetailIntent.NewItemPriceChanged(1500L))
@@ -701,7 +727,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `SaveItem merge updates total with quantity`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             // Original total: 1200 + 2500 = 3700
             // Add Cerveja 1200 again → quantity becomes 2 → total = 1200*2 + 2500 = 4900
             vm.handleIntent(ClientDetailIntent.NewItemNameChanged("Cerveja"))
@@ -720,7 +746,7 @@ class ClientDetailViewModelTest {
                             BarItem(id = "item_1", name = "Cerveja", priceCents = 1200, quantity = 3),
                         ),
                 )
-            val vm = createVm(client)
+            val vm = viewModel(client)
             assertEquals(3600L, vm.state.first().totalCents) // 1200 * 3
         }
 
@@ -731,7 +757,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `IncrementItem increases quantity by 1`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.IncrementItem("item_1"))
             val cerveja =
                 vm.state
@@ -744,7 +770,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `IncrementItem updates total`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             // Original total: 1200 + 2500 = 3700
             vm.handleIntent(ClientDetailIntent.IncrementItem("item_1"))
             // After: 1200*2 + 2500 = 4900
@@ -754,7 +780,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `IncrementItem emits ClientUpdated effect`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.effects.test {
                 vm.handleIntent(ClientDetailIntent.IncrementItem("item_1"))
                 val effect = awaitItem()
@@ -774,7 +800,7 @@ class ClientDetailViewModelTest {
                             BarItem(id = "item_2", name = "Petisco", priceCents = 2500),
                         ),
                 )
-            val vm = createVm(client)
+            val vm = viewModel(client)
             vm.handleIntent(ClientDetailIntent.DecrementItem("item_1"))
             val cerveja =
                 vm.state
@@ -795,7 +821,7 @@ class ClientDetailViewModelTest {
                             BarItem(id = "item_2", name = "Petisco", priceCents = 2500),
                         ),
                 )
-            val vm = createVm(client)
+            val vm = viewModel(client)
             // Total: 1200*3 + 2500 = 6100
             vm.handleIntent(ClientDetailIntent.DecrementItem("item_1"))
             // After: 1200*2 + 2500 = 4900
@@ -812,7 +838,7 @@ class ClientDetailViewModelTest {
                             BarItem(id = "item_1", name = "Cerveja", priceCents = 1200, quantity = 2),
                         ),
                 )
-            val vm = createVm(client)
+            val vm = viewModel(client)
             vm.effects.test {
                 vm.handleIntent(ClientDetailIntent.DecrementItem("item_1"))
                 val effect = awaitItem()
@@ -828,7 +854,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `DecrementItem with quantity 1 shows delete confirmation`() =
         runTest {
-            val vm = createVm() // items have quantity 1 by default
+            val vm = viewModel() // items have quantity 1 by default
             vm.handleIntent(ClientDetailIntent.DecrementItem("item_1"))
             val s = vm.state.first()
             assertEquals("item_1", s.itemToDeleteId)
@@ -837,7 +863,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `DecrementItem with quantity 1 does not remove item yet`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.DecrementItem("item_1"))
             assertEquals(
                 2,
@@ -850,7 +876,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `ConfirmDeleteItem removes the item`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.DecrementItem("item_1"))
             vm.handleIntent(ClientDetailIntent.ConfirmDeleteItem)
             val s = vm.state.first()
@@ -862,7 +888,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `ConfirmDeleteItem updates total`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.DecrementItem("item_1"))
             vm.handleIntent(ClientDetailIntent.ConfirmDeleteItem)
             assertEquals(2500L, vm.state.first().totalCents)
@@ -871,7 +897,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `ConfirmDeleteItem emits ClientUpdated effect`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.effects.test {
                 vm.handleIntent(ClientDetailIntent.DecrementItem("item_1"))
                 vm.handleIntent(ClientDetailIntent.ConfirmDeleteItem)
@@ -884,7 +910,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `CancelDeleteItem clears itemToDeleteId`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.DecrementItem("item_1"))
             assertEquals("item_1", vm.state.first().itemToDeleteId)
             vm.handleIntent(ClientDetailIntent.CancelDeleteItem)
@@ -894,7 +920,7 @@ class ClientDetailViewModelTest {
     @Test
     fun `CancelDeleteItem keeps items unchanged`() =
         runTest {
-            val vm = createVm()
+            val vm = viewModel()
             vm.handleIntent(ClientDetailIntent.DecrementItem("item_1"))
             vm.handleIntent(ClientDetailIntent.CancelDeleteItem)
             assertEquals(
@@ -917,11 +943,100 @@ class ClientDetailViewModelTest {
                 sampleClient.copy(
                     items = (1..5).map { BarItem(id = "item_$it", name = "Item $it", priceCents = 100) },
                 )
-            val vm = createVm(client)
+            val vm = viewModel(client)
             vm.handleIntent(ClientDetailIntent.NextItemsPage) // page 1 (shows item_5)
             assertEquals(1, vm.state.first().itemsPage)
             // Remove item_5 — now only 4 items, 1 page, should reset to page 0
             vm.handleIntent(ClientDetailIntent.RemoveItem("item_5"))
             assertEquals(0, vm.state.first().itemsPage)
+        }
+
+    // =========================================================================
+    // CPF — masking por padrão, revelação restrita a ADM/MOD
+    // =========================================================================
+
+    @Test
+    fun `CPF aparece mascarado por padrao`() =
+        runTest {
+            val vm = viewModel(client = sampleClient.copy(cpf = "12345678900"))
+            advanceUntilIdle()
+
+            assertEquals("***.***.789-00", vm.state.first().displayCpf)
+        }
+
+    @Test
+    fun `ADM comeca com o CPF mascarado antes do primeiro toggle`() =
+        runTest {
+            val vm = viewModel(client = sampleClient.copy(cpf = "12345678900"), role = UserRole.ADM)
+            advanceUntilIdle()
+
+            // O invariante é "mascarado por padrão para quem PODE revelar" — o caso
+            // acima roda com CLIENT, que nem chega a ter o gesto disponível.
+            val state = vm.state.first()
+            assertTrue(state.canRevealCpf)
+            assertFalse(state.isCpfRevealed)
+            assertEquals("***.***.789-00", state.displayCpf)
+        }
+
+    @Test
+    fun `MOD comeca com o CPF mascarado antes do primeiro toggle`() =
+        runTest {
+            val vm = viewModel(client = sampleClient.copy(cpf = "12345678900"), role = UserRole.MOD)
+            advanceUntilIdle()
+
+            val state = vm.state.first()
+            assertTrue(state.canRevealCpf)
+            assertFalse(state.isCpfRevealed)
+            assertEquals("***.***.789-00", state.displayCpf)
+        }
+
+    @Test
+    fun `CLIENT nao pode revelar o CPF`() =
+        runTest {
+            val vm = viewModel(client = sampleClient.copy(cpf = "12345678900"), role = UserRole.CLIENT)
+            advanceUntilIdle()
+
+            vm.handleIntent(ClientDetailIntent.ToggleCpfReveal)
+            advanceUntilIdle()
+
+            val state = vm.state.first()
+            assertFalse(state.canRevealCpf)
+            assertEquals("***.***.789-00", state.displayCpf)
+        }
+
+    @Test
+    fun `ADM revela o CPF completo`() =
+        runTest {
+            val vm = viewModel(client = sampleClient.copy(cpf = "12345678900"), role = UserRole.ADM)
+            advanceUntilIdle()
+
+            vm.handleIntent(ClientDetailIntent.ToggleCpfReveal)
+            advanceUntilIdle()
+
+            assertEquals("123.456.789-00", vm.state.first().displayCpf)
+        }
+
+    @Test
+    fun `MOD revela o CPF completo`() =
+        runTest {
+            val vm = viewModel(client = sampleClient.copy(cpf = "12345678900"), role = UserRole.MOD)
+            advanceUntilIdle()
+
+            vm.handleIntent(ClientDetailIntent.ToggleCpfReveal)
+            advanceUntilIdle()
+
+            assertEquals("123.456.789-00", vm.state.first().displayCpf)
+        }
+
+    @Test
+    fun `sem sessao o CPF permanece mascarado`() =
+        runTest {
+            val vm = viewModel(client = sampleClient.copy(cpf = "12345678900"), role = null)
+            advanceUntilIdle()
+
+            vm.handleIntent(ClientDetailIntent.ToggleCpfReveal)
+            advanceUntilIdle()
+
+            assertEquals("***.***.789-00", vm.state.first().displayCpf)
         }
 }

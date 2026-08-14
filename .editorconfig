@@ -15,6 +15,16 @@ ktlint_standard_filename = enabled
 # Compose convention: allow PascalCase names for @Composable functions
 ktlint_function_naming_ignore_when_annotated_with = Composable
 
+# F1.5: código gerado (ex.: Res.kt e os coletores de recursos do Compose
+# Resources em composeApp/build/generated/...) não é código autoral e não deve
+# ser formatado por ktlint. A exclusão via `ktlint { filter { exclude(...) } }`
+# no build.gradle.kts não alcança esses arquivos: o próprio diretório gerado é a
+# raiz da árvore de origem que o plugin do ktlint enxerga, então padrões
+# relativos como "**/build/**" nunca casam. Desabilitar via editorconfig, que o
+# motor do ktlint consulta por arquivo, é a forma que realmente funciona.
+[**/build/**/*.kt]
+ktlint = disabled
+
 [*.{yml,yaml,json,toml}]
 indent_size = 2
 
