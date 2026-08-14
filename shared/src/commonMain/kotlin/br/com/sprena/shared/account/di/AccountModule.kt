@@ -1,5 +1,6 @@
 package br.com.sprena.shared.account.di
 
+import br.com.sprena.shared.account.domain.usecase.DeleteMyAccountUseCase
 import br.com.sprena.shared.account.domain.usecase.ExportMyDataUseCase
 import br.com.sprena.shared.account.domain.usecase.GetMyProfileUseCase
 import br.com.sprena.shared.account.domain.usecase.SaveMyProfileUseCase
@@ -23,6 +24,14 @@ fun accountModule() =
                 consentRepository = get(),
                 sessionStore = get(),
                 clock = get(),
+                logger = get(),
+            )
+        }
+        factory {
+            DeleteMyAccountUseCase(
+                deletionRepository = get(),
+                authRepository = get(),
+                sessionStore = get(),
                 logger = get(),
             )
         }

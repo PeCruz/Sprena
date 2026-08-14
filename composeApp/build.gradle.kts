@@ -59,6 +59,9 @@ kotlin {
             implementation(project.dependencies.platform(libs.firebase.bom))
             implementation(libs.firebase.firestore)
             implementation(libs.firebase.auth)
+            // F1.6a: o binding de FirebaseFunctions vive no platformModule daqui, então
+            // a classe precisa estar no classpath deste módulo, e não só do shared.
+            implementation(libs.firebase.functions)
 
             // F1.4b: App Check. O provider de debug entra só na variante debug
             // (ver bloco `dependencies` no fim do arquivo) para que a classe do
