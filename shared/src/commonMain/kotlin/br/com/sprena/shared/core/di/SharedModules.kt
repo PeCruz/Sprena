@@ -1,5 +1,6 @@
 package br.com.sprena.shared.core.di
 
+import br.com.sprena.shared.account.di.accountModule
 import br.com.sprena.shared.auth.di.authModule
 import br.com.sprena.shared.privacy.di.privacyModule
 import br.com.sprena.shared.sportclient.di.sportClientModule
@@ -16,6 +17,7 @@ import br.com.sprena.shared.sportclient.di.sportClientModule
  *  3. [financialModule]    → domínio Financeiro
  *  4. [sportClientModule]  → domínio SportClient
  *  5. [privacyModule]      → domínio Privacidade (consentimento LGPD)
+ *  6. [accountModule]      → domínio Conta (direitos do titular, LGPD art. 18)
  *
  * Firebase Firestore é inicializado no platformModule (Android)
  * e injetado via Koin nas implementações de Repository.
@@ -27,4 +29,5 @@ fun sharedModules() =
         financialModule,
         sportClientModule,
         privacyModule(),
+        accountModule(),
     )
