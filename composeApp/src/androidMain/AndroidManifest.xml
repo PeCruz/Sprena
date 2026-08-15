@@ -25,6 +25,22 @@
             </intent-filter>
         </activity>
 
+        <!--
+          F1.6a: entrega do arquivo de exportação ao titular (LGPD art. 18, V).
+          `exported="false"` + permissão temporária por Intent: nenhum outro app alcança
+          o arquivo sem o URI concedido no compartilhamento. Os caminhos visíveis estão
+          limitados a `cache/exports` em @xml/file_paths.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
     </application>
 
 </manifest>

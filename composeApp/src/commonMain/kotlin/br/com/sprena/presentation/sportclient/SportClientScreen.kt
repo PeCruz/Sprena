@@ -346,16 +346,9 @@ private fun paymentMethodLabel(method: PaymentMethod): String =
         PaymentMethod.CASH -> "Cash"
     }
 
-private fun modalityLabel(modality: SportModality): String =
-    when (modality) {
-        SportModality.FUTEVOLEI -> "Futevôlei"
-        SportModality.BEACH_TENNIS -> "Beach Tennis"
-        SportModality.VOLEI -> "Vôlei"
-    }
-
 private fun modalitiesLabel(modalities: List<SportModality>): String =
     modalities.joinToString(", ") {
-        modalityLabel(it)
+        it.label
     }
 
 // =========================================================================
@@ -471,7 +464,7 @@ private fun SportClientFormFields(
                 FilterChip(
                     selected = modality in selectedModalities,
                     onClick = { onModalityToggle(modality) },
-                    label = { Text(modalityLabel(modality)) },
+                    label = { Text(modality.label) },
                 )
             }
         }

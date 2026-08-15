@@ -39,6 +39,9 @@ kotlin {
             implementation(libs.firebase.firestore)
             implementation(libs.firebase.crashlytics)
             implementation(libs.firebase.auth)
+            // Callable `deleteMyAccount` (F1.6a) — cascade delete + remoção do Auth user
+            // exigem Admin SDK, então a exclusão passa por Cloud Function.
+            implementation(libs.firebase.functions)
             implementation(libs.androidx.datastore.preferences)
             implementation(libs.tink.android)
             // Koin Android — para androidContext() nos modules Android

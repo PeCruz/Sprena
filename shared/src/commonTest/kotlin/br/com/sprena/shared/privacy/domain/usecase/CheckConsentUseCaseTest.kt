@@ -25,6 +25,9 @@ class CheckConsentUseCaseTest {
             uid: String,
             policyVersion: String,
         ): Result<Unit> = Result.success(Unit)
+
+        // Só a exportação (F1.6a) usa o histórico; o gate de consentimento não.
+        override suspend fun history(uid: String): Result<List<ConsentRecord>> = Result.success(emptyList())
     }
 
     private fun useCase(repo: FakeRepo) = CheckConsentUseCase(repository = repo, logger = NoOpLogger())

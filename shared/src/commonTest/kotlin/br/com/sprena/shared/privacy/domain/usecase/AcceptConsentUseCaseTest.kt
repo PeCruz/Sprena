@@ -27,6 +27,9 @@ class AcceptConsentUseCaseTest {
             lastVersion = policyVersion
             return acceptResult
         }
+
+        // Só a exportação (F1.6a) usa o histórico; a gravação do aceite não.
+        override suspend fun history(uid: String): Result<List<ConsentRecord>> = Result.success(emptyList())
     }
 
     @Test

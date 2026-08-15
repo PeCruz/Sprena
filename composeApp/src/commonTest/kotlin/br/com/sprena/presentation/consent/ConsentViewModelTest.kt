@@ -66,6 +66,9 @@ class ConsentViewModelTest {
             uid: String,
             policyVersion: String,
         ): Result<Unit> = acceptResult
+
+        // Só a exportação (F1.6a) usa o histórico; o gate de consentimento não.
+        override suspend fun history(uid: String): Result<List<ConsentRecord>> = Result.success(emptyList())
     }
 
     /** Aceite já registrado na versão vigente — o caso `ConsentStatus.Granted`. */
@@ -107,6 +110,9 @@ class ConsentViewModelTest {
         }
 
         override fun currentUid(): String? = null
+
+        // Só RestoreSessionUseCase consulta o refresh; estes fluxos não.
+        override suspend fun refreshToken(): Result<Unit> = Result.success(Unit)
     }
 
     private fun viewModel(

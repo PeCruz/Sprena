@@ -67,8 +67,22 @@ class FirestoreConsentRepository(
             Unit
         }.onFailure { logger.warn(TAG, "write failed uid=$uid", it) }
 
+    override suspend fun history(uid: String): Result<List<ConsentRecord>> =
+        runCatching {
+            firestore
+                .collection(COLLECTION)
+                .document(uid)
+                .collection(HISTORY)
+                .orderBy(FIELD_ACCEPTED_AT)
+                .get()
+                .await()
+                .documents
+                .mapNotNull { ConsentDto.fromHistorySnapshot(uid, it) }
+        }.onFailure { logger.warn(TAG, "history read failed", it) }
+
     private companion object {
         const val COLLECTION = "user_consents"
+        const val FIELD_ACCEPTED_AT = "acceptedAt"
         const val HISTORY = "history"
         const val TAG = "ConsentRepo"
     }

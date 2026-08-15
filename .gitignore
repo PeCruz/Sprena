@@ -58,3 +58,6 @@ node_modules/
 *.local.md
 *.local.json
 docs/ops/*.local.*
+
+# Cloud Functions (F1.6a) — saida do tsc; o fonte fica em functions/src
+functions/lib/

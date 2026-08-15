@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -69,6 +69,8 @@ import br.com.sprena.presentation.login.LoginViewModel
 import br.com.sprena.presentation.menu.MenuScreen
 import br.com.sprena.presentation.menu.MenuViewModel
 import br.com.sprena.presentation.privacy.PrivacyPolicyScreen
+import br.com.sprena.presentation.profile.ProfileNavigation
+import br.com.sprena.presentation.profile.ProfileScreen
 import br.com.sprena.presentation.settings.SettingsNavigation
 import br.com.sprena.presentation.settings.SettingsScreen
 import br.com.sprena.presentation.sportclient.SportClient
@@ -750,19 +752,19 @@ private fun HomeWithBottomNav(
                     label = { Text("Financeiro") },
                 )
                 NavigationBarItem(
-                    selected = bottomNavState.current == BottomTab.SETTINGS,
+                    selected = bottomNavState.current == BottomTab.PROFILE,
                     onClick = {
                         bottomNavViewModel.handleIntent(
-                            BottomNavIntent.TabSelected(BottomTab.SETTINGS),
+                            BottomNavIntent.TabSelected(BottomTab.PROFILE),
                         )
                     },
                     icon = {
                         Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Configuracoes",
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Perfil",
                         )
                     },
-                    label = { Text("Config") },
+                    label = { Text("Perfil") },
                 )
             }
         },
@@ -824,19 +826,22 @@ private fun HomeWithBottomNav(
                 )
             }
 
-            BottomTab.SETTINGS -> {
-                SettingsScreen(
+            // F1.6a: a aba passa a ser o Perfil, e Configurações vira uma linha dentro
+            // dele apontando para Routes.SETTINGS — a rota standalone que já existe com
+            // seta de voltar. Com isso o render duplicado de SettingsScreen desaparece
+            // em vez de virar dois lugares para manter em sincronia.
+            BottomTab.PROFILE -> {
+                ProfileScreen(
                     themeViewModel = themeViewModel,
                     modifier = Modifier.padding(bottomNavPadding),
                     navigation =
-                        SettingsNavigation(
-                            onNavigateMenu = { navController.navigate(Routes.MENU) },
-                            onNavigateCategory = { navController.navigate(Routes.CATEGORY) },
+                        ProfileNavigation(
                             onNavigateToLogin = {
                                 navController.navigate(Routes.LOGIN) {
                                     popUpTo(0) { inclusive = true }
                                 }
                             },
+                            onNavigateSettings = { navController.navigate(Routes.SETTINGS) },
                             onNavigatePrivacyPolicy = { navController.navigate(Routes.PRIVACY_POLICY) },
                         ),
                 )

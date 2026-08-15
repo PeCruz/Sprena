@@ -29,6 +29,9 @@ class RequestPasswordResetUseCaseTest {
         override suspend fun signOut() = Unit
 
         override fun currentUid(): String? = null
+
+        // Só RestoreSessionUseCase consulta o refresh; estes fluxos não.
+        override suspend fun refreshToken(): Result<Unit> = Result.success(Unit)
     }
 
     @Test

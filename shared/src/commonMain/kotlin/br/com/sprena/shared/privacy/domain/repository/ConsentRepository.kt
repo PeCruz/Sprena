@@ -16,4 +16,13 @@ interface ConsentRepository {
         uid: String,
         policyVersion: String,
     ): Result<Unit>
+
+    /**
+     * Trilha append-only de aceites, do mais antigo para o mais recente.
+     *
+     * Usado na exportação de dados (F1.6a, LGPD art. 18 V): o titular tem direito de
+     * saber a que versões da política ele consentiu, e não só à vigente. As rules de
+     * F1.5 já permitem ler o próprio `history`.
+     */
+    suspend fun history(uid: String): Result<List<ConsentRecord>>
 }

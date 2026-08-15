@@ -18,8 +18,11 @@ import kotlin.test.assertTrue
 class RestoreSessionUseCaseTest {
     private class FakeRepo(
         var uid: String? = null,
+        var refreshResult: Result<Unit> = Result.success(Unit),
     ) : AuthRepository {
         var signOutCalled = false
+
+        override suspend fun refreshToken(): Result<Unit> = refreshResult
 
         override suspend fun authenticate(
             email: String,
@@ -137,5 +140,54 @@ class RestoreSessionUseCaseTest {
 
             assertEquals(RestoreResult.NotAuthenticated, result)
             assertTrue(store.cleared)
+        }
+
+    /**
+     * F1.6a — o cenário que um revisor da Play executa: excluir a conta e reabrir o app.
+     *
+     * Se o processo morrer entre o sucesso da Cloud Function e o `clear()` local, a
+     * sessão não expirou (TTL 24h) e `currentUid()` ainda devolve o uid do cache do SDK.
+     * Sem o refresh, o titular cairia no gate de consentimento de uma conta excluída — e
+     * "Aceitar" recriaria `user_consents/{uid}`.
+     */
+    @Test
+    fun `sessao invalidada quando o usuario do Auth nao existe mais`() =
+        runTest {
+            val now = 1_000_000L
+            val repo =
+                FakeRepo(
+                    uid = "u1",
+                    refreshResult = Result.failure(IllegalStateException("user-not-found")),
+                )
+            val store = FakeStore(current = SessionUser("u1", "a@b.com", UserRole.ADM, now - 5_000L))
+            val useCase = RestoreSessionUseCase(repo, store, FixedClock(now), NoOpLogger())
+
+            val result = useCase()
+
+            assertEquals(RestoreResult.NotAuthenticated, result)
+            assertTrue(store.cleared)
+            assertTrue(repo.signOutCalled)
+        }
+
+    /**
+     * A armadilha do teste acima: tratar falha de rede como "conta inexistente"
+     * deslogaria todo mundo que abrisse o app offline. O contrato de [refreshToken] é
+     * devolver sucesso nesse caso, e este teste garante que o use case respeita isso.
+     */
+    @Test
+    fun `sessao preservada quando o refresh do token falha por rede`() =
+        runTest {
+            val now = 1_000_000L
+            val user = SessionUser("u1", "a@b.com", UserRole.ADM, now - 5_000L)
+            // Sucesso é o que a impl devolve em falha de rede — ver KDoc de refreshToken.
+            val repo = FakeRepo(uid = "u1", refreshResult = Result.success(Unit))
+            val store = FakeStore(current = user)
+            val useCase = RestoreSessionUseCase(repo, store, FixedClock(now), NoOpLogger())
+
+            val result = useCase()
+
+            assertEquals(RestoreResult.Authenticated(user), result)
+            assertEquals(false, store.cleared)
+            assertEquals(false, repo.signOutCalled)
         }
 }

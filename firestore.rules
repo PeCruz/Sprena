@@ -93,6 +93,67 @@ service cloud.firestore {
       }
     }
 
+    // Perfil autodeclarado do titular (F1.6a).
+    //
+    // Colecao separada de `users/{uid}` DE PROPOSITO. La vive a role, e a rule de F1.4
+    // nega toda escrita — inclusive do dono — justamente para impedir auto-promocao.
+    // Abrir uma excecao la exigiria uma allowlist de chaves, que e correta hoje e vira
+    // bug silencioso no dia em que F1.7 adicionar `establishmentIds` (que parece campo de
+    // perfil mas e AUTORIZACAO) e alguem o incluir na lista por reflexo. Aqui a palavra
+    // `role` nao existe, entao nao ha allowlist a esquecer. Ver SECURITY.md, F1.6a.
+    //
+    // `create` e permitido — ao contrario de `users` — porque o doc nasce no primeiro
+    // save do titular e nao existe para quem nunca editou. Nao ha backfill.
+    match /user_profiles/{uid} {
+      function isOwner() {
+        return isSignedIn() && request.auth.uid == uid;
+      }
+
+      // Forma forte (`keys().hasOnly`) em vez de `diff().affectedKeys().hasOnly`: valida
+      // o estado final inteiro e se comporta igual em create (onde `resource` e null) e
+      // em update. Fecha a porta para o cliente inventar um campo que uma feature futura
+      // leia como autorizacao.
+      function onlyKnownKeys() {
+        return request.resource.data.keys().hasOnly(
+          ['apelido', 'cpf', 'phone', 'modalities', 'updatedAt']
+        );
+      }
+
+      // Todo campo e opcional (ausente = "nao informado", estado legitimo), mas quando
+      // presente precisa ter tipo e tamanho sao. `updatedAt == request.time` e
+      // anti-backdating, espelhando `acceptedAt` de F1.5.
+      function validPayload() {
+        return (!('apelido' in request.resource.data)
+            || (request.resource.data.apelido is string
+                && request.resource.data.apelido.size() <= 60))
+          && (!('cpf' in request.resource.data)
+            || (request.resource.data.cpf is string
+                && request.resource.data.cpf.size() <= 14))
+          && (!('phone' in request.resource.data)
+            || (request.resource.data.phone is string
+                && request.resource.data.phone.size() <= 20))
+          && (!('modalities' in request.resource.data)
+            || (request.resource.data.modalities is list
+                && request.resource.data.modalities.size() <= 10))
+          && request.resource.data.updatedAt == request.time;
+      }
+
+      allow read: if isOwner();
+      allow create, update: if isOwner() && onlyKnownKeys() && validPayload();
+      // A exclusao passa pela Cloud Function (Admin SDK), nunca pelo cliente: apagar so
+      // o perfil deixaria a conta viva com os dados sumidos, que nao e o que o titular
+      // pediu ao clicar em "excluir conta".
+      allow delete: if false;
+    }
+
+    // Trilha de exclusoes de conta (F1.6a). Escrita SO pelo Admin SDK dentro da Cloud
+    // Function, que nao passa por estas rules. O default deny abaixo ja negaria, mas uma
+    // colecao de auditoria merece a negacao escrita a mao — quem ler o arquivo precisa
+    // ver que ninguem, nem o ADM, le ou altera a trilha pelo app.
+    match /account_deletions/{uid} {
+      allow read, write: if false;
+    }
+
     // Default deny. kanban e financial ainda sao in-memory; quando migrarem
     // para o Firestore vao bater aqui ate ganharem o proprio bloco `match`.
     match /{document=**} {

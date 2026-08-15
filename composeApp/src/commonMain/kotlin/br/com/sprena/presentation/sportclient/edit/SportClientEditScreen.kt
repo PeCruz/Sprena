@@ -90,13 +90,6 @@ private fun paymentMethodLabel(method: PaymentMethod): String =
         PaymentMethod.CASH -> "Cash"
     }
 
-private fun modalityLabel(modality: SportModality): String =
-    when (modality) {
-        SportModality.FUTEVOLEI -> "Futevôlei"
-        SportModality.BEACH_TENNIS -> "Beach Tennis"
-        SportModality.VOLEI -> "Vôlei"
-    }
-
 private val MONTH_NAMES =
     listOf(
         "Jan",
@@ -388,7 +381,7 @@ fun SportClientEditScreen(
                                     }
                                 modalityError = null
                             },
-                            label = { Text(modalityLabel(modality)) },
+                            label = { Text(modality.label) },
                         )
                     }
                 }

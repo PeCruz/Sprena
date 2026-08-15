@@ -15,6 +15,7 @@ import br.com.sprena.shared.core.time.Clock
  * - Sessão expirada (>= TTL) → signOut + clear → NotAuthenticated
  * - Firebase já sem currentUser (uid null) → clear → NotAuthenticated
  * - uid local != uid do Firebase → clear → NotAuthenticated
+ * - Conta não existe mais no servidor (F1.6a) → signOut + clear → NotAuthenticated
  * - Tudo OK → Authenticated(sessionUser)
  */
 class RestoreSessionUseCase(
@@ -40,6 +41,10 @@ class RestoreSessionUseCase(
             sessionStore.clear()
             return "session expired uid=${stored.uid}"
         }
+        return uidMismatch(stored) ?: accountStillExists(stored)
+    }
+
+    private suspend fun uidMismatch(stored: SessionUser): String? {
         val currentUid = authRepository.currentUid()
         return if (currentUid == null || currentUid != stored.uid) {
             sessionStore.clear()
@@ -48,6 +53,25 @@ class RestoreSessionUseCase(
             null
         }
     }
+
+    /**
+     * `currentUid()` responde do cache local do SDK, então uma conta excluída (F1.6a) ou
+     * apagada pelo Console continua parecendo válida até o token ser renovado. O refresh
+     * é o que fecha essa janela.
+     *
+     * Falha aqui significa **conta inexistente ou desabilitada** — falha de rede devolve
+     * sucesso por contrato de [AuthRepository.refreshToken], senão abrir o app offline
+     * deslogaria todo mundo.
+     */
+    private suspend fun accountStillExists(stored: SessionUser): String? =
+        authRepository.refreshToken().fold(
+            onSuccess = { null },
+            onFailure = {
+                authRepository.signOut()
+                sessionStore.clear()
+                "account no longer exists uid=${stored.uid}"
+            },
+        )
 
     private fun notAuthenticated(reason: String): RestoreResult.NotAuthenticated {
         logger.info(TAG, reason)
