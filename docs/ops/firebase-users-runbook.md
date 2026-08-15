@@ -536,6 +536,81 @@ justamente esse botÃ£o que a review da Play vai testar, e ele Ã© o motivo de
 | App: "Sua sessÃ£o expirou" ao excluir | token vencido, ou App Check em build debug sem token | relogar; conferir G.1 |
 | Emulador: toda chamada volta `unauthenticated` | `FUNCTIONS_EMULATOR` nÃ£o chegou na funÃ§Ã£o | rodar via `npm run test:emulator`, nÃ£o `node --test` solto |
 | Dados sumiram mas o usuÃ¡rio continua no Auth | falha no passo 8 | H.7 |
+
+---
+
+## Parte I — Estabelecimentos e vínculos (F1.7.1)
+
+Enquanto as callables de vínculo não existem (F1.7.3), `establishments/{id}/members/{uid}`
+é `write: if false` para **todo mundo, inclusive o ADM**. Isso é deliberado: a aresta que
+concede acesso só é escrita pelo Admin SDK. Até lá, semear pelo Console é o caminho.
+
+### I.1 — Publicar rules e índices juntos
+
+```bash
+firebase deploy --only firestore --project <projeto>
+```
+
+Note `--only firestore`, e não `--only firestore:rules`: o comando restrito publica só as
+rules e deixa `firestore.indexes.json` para trás. O sintoma aparece depois, e só em
+produção — a consulta de vínculos falha com `FAILED_PRECONDITION` e um link de criação de
+índice no log. O emulador não reproduz isso porque cria índices sozinho.
+
+As rules desta fase são puramente aditivas (nada existente foi afrouxado ou removido), então
+não há a ordem bloqueante que F1.5 e F1.6a tiveram.
+
+### I.2 — Criar um estabelecimento pelo Console
+
+Firestore → coleção `establishments` → **Add document** → ID automático.
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| `name` | string | sim | 1 a 80 caracteres |
+| `active` | boolean | sim | `false` é como se "exclui" — não há delete |
+| `cnpj` | string | sim | **só os 14 dígitos**, sem pontuação |
+| `phone` | string | sim | **só dígitos**, 10 ou 11 |
+| `email` | string | sim | até 120 caracteres |
+| `razaoSocial` | string | não | até 120 |
+| `address` | map | não | `street`, `number`, `complement`, `district`, `city`, `state`, `zipCode` |
+| `updatedAt` | timestamp | sim | pelo app; no Console, qualquer timestamp serve |
+
+CNPJ e telefone **precisam** estar sem pontuação. Com máscara a rule recusa a escrita do
+app, e a unicidade de CNPJ deixa de funcionar: `11222333000181` e `11.222.333/0001-81` são
+ids diferentes em `cnpj_index`.
+
+Crie também `cnpj_index/{os14digitos}` com o campo `establishmentId` apontando para o id do
+documento acima. É esse índice que impede o mesmo CNPJ de entrar duas vezes — sem ele, o
+cadastro pelo app funcionaria e criaria a duplicata.
+
+### I.3 — Vincular alguém a um estabelecimento
+
+Subcoleção `members` do estabelecimento → **Add document** → **o ID do documento precisa
+ser o uid** da pessoa (o mesmo de `users/{uid}`).
+
+| Campo | Tipo | Valor |
+|---|---|---|
+| `uid` | string | o mesmo uid do ID do documento |
+| `role` | string | `MOD`, `CLIENT` ou `USER` |
+| `active` | boolean | `true` |
+
+O campo `uid` repetir o ID do documento não é redundância à toa: a rule do collection group
+compara `resource.data.uid`, porque numa query o motor não consegue casar a condição com o
+ID do documento. Se os dois divergirem, a pessoa some do próprio seletor de
+estabelecimentos — e ninguém recebe erro, a lista só volta vazia.
+
+`role` fora de `MOD`/`CLIENT`/`USER` faz o vínculo ser descartado silenciosamente pelo app
+(`MemberRole.fromRaw` devolve `null`), com o mesmo efeito. `active` ausente conta como
+desligado.
+
+### I.4 — Conferir
+
+Com o APK da F1.7.1 instalado e logado como a pessoa vinculada:
+
+1. `establishments/{id}` é legível para ela e para o ADM; para quem não é membro, negado.
+2. `active: false` no vínculo tira o acesso sem apagar o documento.
+3. O ADM lista `establishments`; MOD e CLIENT recebem `PERMISSION_DENIED` no `list` — é o
+   esperado, eles chegam pelo próprio vínculo.
+
 ## Registro local
 
 Guardar os dados reais (email, senha, UID) em **`docs/ops/test-users.local.md`** â€” gitignorado via

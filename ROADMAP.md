@@ -20,9 +20,25 @@ Roadmap de evolução do MVP até nível production-ready. As fases são indepen
   (eliminação). Destrava a publicação na Play Store. Financeiro histórico é anonimizado
   (art. 16, I) — hoje o hook anonimiza zero registros, porque `financial`/`bar`/`menu` ainda são
   in-memory.
-- ⬜ **F1.7** — Multi-tenancy (estabelecimentos), papel `USER` e matriz de permissões por aba.
-  Hoje `sport_clients` é uma coleção global plana e as rules não distinguem MOD por
-  estabelecimento. A matriz alvo está documentada em [SECURITY.md § F1.6a](./SECURITY.md).
+- 🔄 **F1.7** — Multi-tenancy (estabelecimentos), papel `USER`, Google Sign-In e matriz de
+  permissões por aba. A matriz alvo está documentada em [SECURITY.md § F1.6a](./SECURITY.md).
+  Fatiada em partes mergeáveis; `1 → 2 → 3` é ordem rígida, `6/7/8` podem ser paralelas.
+  - ✅ **F1.7.1** — Estabelecimentos + grafo de membros. Role em dois níveis (`users.role`
+    responde só "é ADM?"; `MOD`/`CLIENT`/`USER` viram papel por tenant em
+    `establishments/{id}/members/{uid}`). `members` é `write: if false` — a aresta de
+    autorização só é escrita pelo Admin SDK. "Meus estabelecimentos" é um collection group,
+    e não o campo `establishmentIds` que F1.6a previa: sem cópia, sem drift, e a allowlist
+    de `user_profiles` segue intocada.
+  - ⬜ **F1.7.2** — `sport_clients` entra no tenant. **Pré-requisito duro de F1.7.3**: hoje a
+    coleção é global e plana com `read: if isSignedIn()`, então criar o papel `USER` antes
+    disso faria todo login novo ler CPF e telefone de todos os clientes.
+  - ⬜ **F1.7.3** — Papel `USER`, `bootstrapAccount` e callables de vínculo; contexto ativo e
+    abas por papel.
+  - ⬜ **F1.7.4** — Google Sign-In + account linking.
+  - ⬜ **F1.7.5** — Pré-cadastro por CPF, claim no primeiro login e vínculos recentes.
+  - ⬜ **F1.7.6 a F1.7.9** — Comandas, eventos, financeiro e cardápio saem da memória para
+    subcoleções do estabelecimento. É aqui que "os dados não somem ao trocar de celular"
+    passa a valer, e que `anonymizeFinancial` deixa de anonimizar zero registros.
 
 ## F2 — Completar Clean Architecture
 - Para cada feature (`kanban`, `financial`, `bar`, `menu`):

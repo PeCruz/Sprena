@@ -598,3 +598,129 @@ que Ã© o motivo de a fase existir. Passo a passo na Parte H do
 - [ ] Aceite da nova versÃ£o da polÃ­tica (2026-08-14) Ã© solicitado no prÃ³ximo acesso, e o aceite
   anterior continua no `history`
 
+---
+
+## F1.7.1 — Multi-tenancy: estabelecimentos e grafo de membros
+
+Primeira fatia de F1.7. Introduz o tenant (`establishments`) e a aresta de autorização
+(`members`), sem ainda criar o papel `USER`, o Google Sign-In ou as callables de vínculo —
+esses vêm nas fatias seguintes, e a ordem entre elas não é livre (ver abaixo).
+
+### Role em dois níveis
+
+`users/{uid}.role` passa a responder uma única pergunta — **é ADM?** — e os papéis
+operacionais migram para `establishments/{estId}/members/{uid}.role`, com valores `MOD`,
+`CLIENT` e `USER`.
+
+Sem isso, "MOD gere os **seus** estabelecimentos" não tem como ser expresso: uma role
+global só sabe dizer que alguém é moderador, não de onde. O papel por tenant também deixa
+a mesma pessoa ser MOD num lugar e CLIENT noutro.
+
+No Kotlin isso aparece como dois enums, `UserRole` e `MemberRole`. A duplicação é
+deliberada e tem um segundo motivo, de sequenciamento: este documento já registrava que
+criar `UserRole.USER` antes das rules que a restringem é ativamente perigoso, porque
+`sport_clients` ainda tem `read: if isSignedIn()`. `MemberRole.USER` não toca aquele
+caminho.
+
+### `members` é `write: if false`
+
+Toda mutação do grafo passa por callable (F1.7.3) executando com Admin SDK. As rules
+**leem** o grafo e nunca o escrevem.
+
+Isso dá um ponto único de decisão e auditoria para a única coisa que concede acesso no
+sistema, e deixa o arquivo de rules trivial de auditar nesse ponto: não existe escrita
+alguma, em lugar nenhum, capaz de elevar privilégio. Enquanto as callables não existem, os
+vínculos são semeados pelo Console (Parte I do runbook).
+
+### O tenant vem do path, nunca de um campo
+
+Todo helper novo recebe `estId` do path do documento:
+
+```
+isAdm()           → users/{uid}.role == 'ADM'                      1 get
+isMemberOf(estId) → establishments/{estId}/members/{uid}.active    1 get
+isStaffOf(estId)  → isMemberOf && role in ['MOD','CLIENT']
+canReadTenant(e)  → isMemberOf(e) || isAdm()   (membro primeiro: caso comum, 1 get)
+```
+
+Não é estilo. Numa query o motor avalia a rule por documento, mas reaproveita o resultado
+do `get()` quando a expressão do path é idêntica — então listar N documentos de um tenant
+custa 1 get. Com o tenant num campo, o path mudaria a cada documento e o cache morreria,
+estourando o orçamento de document access da query.
+
+### `establishmentIds` não existe
+
+O comentário de F1.6a neste documento previa que F1.7 acrescentaria `establishmentIds` — um
+campo que "parece perfil e é autorização" — e alertava para o risco de alguém incluí-lo na
+allowlist de `user_profiles` por reflexo.
+
+O campo **não foi criado**. "Meus estabelecimentos" é
+`collectionGroup('members').where('uid','==',me)`: uma query, sempre consistente com o
+grafo, sem cópia para envelhecer. A allowlist de `user_profiles` segue intocada, e o caso
+34 dos testes de rules continua sendo o que garante isso.
+
+Como contrapartida, essa query exige índice de escopo *collection group*, agora declarado
+em `firestore.indexes.json` (arquivo que não existia). Sem ele a consulta falha com
+`FAILED_PRECONDITION` — e falha **só em produção**, porque o emulador cria índices sozinho.
+
+### `user_settings` e a invariante que a sustenta
+
+O estabelecimento ativo do seletor global fica em `user_settings/{uid}`, escrito pelo
+próprio dono. Não pode morar em `users` (escrita negada) nem em `user_profiles` (seria
+exatamente a allowlist que o parágrafo acima evita).
+
+Deixar o cliente escrever ali só é seguro por uma invariante anotada no próprio
+`firestore.rules`:
+
+> **Nenhuma regra do arquivo lê `user_settings`.**
+
+É por isso que apontar o contexto para um estabelecimento alheio é permitido e inútil: todo
+acesso continua barrado por `isMemberOf(estId)`, que vem do path. Quem for editar as rules
+depois precisa preservar essa invariante — o caso 70 dos testes existe para quebrar se ela
+cair.
+
+### Unicidade de CNPJ
+
+`cnpj_index/{cnpjDigits}` tem o CNPJ como id do documento, e `update`/`delete` negados.
+É o `create` sobre id existente que garante a unicidade, inclusive numa corrida entre dois
+cadastros simultâneos — a consulta prévia do app é só para poder dizer "CNPJ já cadastrado"
+em vez de "erro ao salvar".
+
+A leitura é liberada **apenas ao ADM**. Não lhe entrega nada novo (ele já tem `list` em
+`establishments`, onde o CNPJ está em texto claro) e é o que separa "CNPJ duplicado" de
+"sem permissão" — sem ela, os dois chegariam como o mesmo `PERMISSION_DENIED` do batch.
+
+O dígito verificador é validado no domínio (`CnpjValidator`), não nas rules: o motor de
+rules não faz aritmética, e o máximo que consegue é a forma `^[0-9]{14}$`. Isso importa
+para a unicidade — um CNPJ digitado errado não colide com o correto, então o mesmo
+estabelecimento entraria duas vezes sem que o índice percebesse.
+
+### Fora de escopo desta fatia
+
+- **Papel `USER` no Kotlin e Google Sign-In** (F1.7.3 e F1.7.4). `bootstrapAccount` ainda
+  não existe, então continua valendo o provisionamento manual da Parte B do runbook.
+- **`sport_clients` segue global e plana**, com `read: if isSignedIn()`. Movê-la para
+  dentro do tenant é F1.7.2, e é **pré-requisito duro** de F1.7.3: criar o papel `USER`
+  antes disso tornaria todo login novo um leitor do CPF e do telefone de todos os clientes.
+- **Comandas, eventos e financeiro continuam em memória** (F1.7.6 a F1.7.8). Enquanto
+  estiverem, `anonymizeFinancial` segue anonimizando zero registros.
+- **Callables de vínculo** (F1.7.3) e **pré-cadastro por CPF** (F1.7.5).
+
+### Ordem de release
+
+As rules de `establishments`, `members`, `user_settings` e `cnpj_index` são **puramente
+aditivas**: nenhuma regra existente foi afrouxada ou removida, então publicá-las não afeta
+o app em produção. Não há a ordem bloqueante que F1.5 e F1.6a tiveram.
+
+O que **não** pode faltar antes de a fase ser usada de verdade é o
+`firestore.indexes.json`: `firebase deploy --only firestore` publica rules e índices juntos.
+Publicar só as rules deixa a consulta de vínculos falhando em produção.
+
+### Verificação manual (pré-merge)
+
+- [ ] `./gradlew ktlintCheck detektMetadataMain :composeApp:detektAndroidDebug :shared:detektAndroidDebug :composeApp:testDebugUnitTest :shared:testDebugUnitTest` verde
+- [ ] `cd tools/firestore-rules-tests && npm run test:emulator` — `fail 0` (76 casos)
+- [ ] `firestore.indexes.json` referenciado em `firebase.json`
+- [ ] `user_profiles` continua sem `establishmentIds` na allowlist (caso 34)
+- [ ] Nenhuma regra do arquivo lê `user_settings` (caso 70)
+
