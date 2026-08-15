@@ -680,13 +680,20 @@ describe('user_settings/{uid}', () => {
 
 /**
  * Unicidade de CNPJ. O doc id e o proprio CNPJ, entao `create` sobre um id existente
- * falha nativamente — e a unica forma de garantir unicidade sem uma callable. Leitura e
- * negada para todo mundo: um indice legivel viraria oraculo de "este CNPJ ja e cliente".
+ * falha nativamente — e a unica forma de garantir unicidade sem uma callable.
+ *
+ * O ADM le o indice para poder dizer "CNPJ ja cadastrado" antes de tentar gravar. Isso
+ * nao lhe entrega informacao nova: ele ja tem `list` em establishments, onde o CNPJ esta
+ * em texto claro. Para todos os outros a leitura e negada — ai o indice seria mesmo um
+ * oraculo de "este CNPJ ja e cliente da plataforma".
  */
 describe('cnpj_index/{cnpj}', () => {
-  it('71. nega leitura para todos, inclusive ADM', async () => {
-    await assertFails(getDoc(doc(as(ADM_UID), 'cnpj_index', '11222333000181')));
-    await assertFails(getDocs(collection(as(ADM_UID), 'cnpj_index')));
+  it('71. permite leitura so ao ADM — e o que separa CNPJ duplicado de sem permissao', async () => {
+    await assertSucceeds(getDoc(doc(as(ADM_UID), 'cnpj_index', '11222333000181')));
+    for (const uid of [MOD_UID, CLIENT_UID, USER_UID]) {
+      await assertFails(getDoc(doc(as(uid), 'cnpj_index', '11222333000181')));
+    }
+    await assertFails(getDoc(doc(anon(), 'cnpj_index', '11222333000181')));
   });
 
   it('72. permite ADM criar a entrada de indice', async () => {

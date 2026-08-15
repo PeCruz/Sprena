@@ -235,10 +235,14 @@ service cloud.firestore {
 
     // Unicidade de CNPJ. O id do doc E o CNPJ, entao `create` sobre id existente falha
     // sozinho — e a unica forma de garantir unicidade sem serializar tudo numa callable.
-    // Leitura negada para todos, ADM incluido: um indice legivel viraria oraculo de
-    // "este CNPJ ja e cliente da plataforma".
+    //
+    // Leitura liberada so para o ADM. Nao vaza nada que ele ja nao veja: `list` em
+    // establishments e dele, e o CNPJ esta em texto claro la. E sem esse get o app nao
+    // consegue distinguir "CNPJ ja cadastrado" de "sem permissao" — os dois chegariam
+    // como PERMISSION_DENIED do mesmo batch, e o ADM veria "erro ao salvar" sem saber que
+    // basta procurar o estabelecimento que ja existe.
     match /cnpj_index/{cnpj} {
-      allow read: if false;
+      allow read: if isAdm();
       allow create: if isAdm() && request.resource.data.establishmentId is string;
       allow update, delete: if false;
     }
