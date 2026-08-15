@@ -30,10 +30,13 @@ object CnpjValidator {
 
     fun isValid(raw: String): Boolean {
         val d = digits(raw)
-        if (d.length != CNPJ_LENGTH) return false
-        if (d.all { it == d[0] }) return false
-        return d[WEIGHTS_DV1.size] == checkDigit(d, WEIGHTS_DV1) &&
-            d[WEIGHTS_DV2.size] == checkDigit(d, WEIGHTS_DV2)
+        return when {
+            d.length != CNPJ_LENGTH -> false
+            d.all { it == d[0] } -> false
+            else ->
+                d[WEIGHTS_DV1.size] == checkDigit(d, WEIGHTS_DV1) &&
+                    d[WEIGHTS_DV2.size] == checkDigit(d, WEIGHTS_DV2)
+        }
     }
 
     fun validate(raw: String): ValidationResult =

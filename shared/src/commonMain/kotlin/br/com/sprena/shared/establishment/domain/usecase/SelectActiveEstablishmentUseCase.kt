@@ -23,22 +23,23 @@ class SelectActiveEstablishmentUseCase(
     private val activeEstablishment: ActiveEstablishmentRepository,
     private val logger: Logger,
 ) {
-    suspend operator fun invoke(establishmentId: String?): Result<Unit> {
-        if (establishmentId == null) return activeEstablishment.set(null)
-
-        val mine =
-            memberships.observeMine().first().getOrElse { error ->
-                logger.warn(TAG, "membership read failed", error)
-                return Result.failure(error)
-            }
-
-        val isMember = mine.any { it.establishmentId == establishmentId && it.active }
-        if (!isMember) {
-            return Result.failure(IllegalStateException(NOT_A_MEMBER_MESSAGE))
+    suspend operator fun invoke(establishmentId: String?): Result<Unit> =
+        if (establishmentId == null) {
+            activeEstablishment.set(null)
+        } else {
+            memberships
+                .observeMine()
+                .first()
+                .onFailure { logger.warn(TAG, "membership read failed", it) }
+                .mapCatching { mine ->
+                    check(mine.any { it.establishmentId == establishmentId && it.active }) {
+                        NOT_A_MEMBER_MESSAGE
+                    }
+                }.fold(
+                    onSuccess = { activeEstablishment.set(establishmentId) },
+                    onFailure = { Result.failure(it) },
+                )
         }
-
-        return activeEstablishment.set(establishmentId)
-    }
 
     private companion object {
         const val TAG = "SelectActiveEstablishment"

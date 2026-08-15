@@ -37,22 +37,22 @@ class SaveEstablishmentUseCase(
         return if (normalized.id.isBlank()) create(normalized) else update(normalized)
     }
 
-    private suspend fun create(establishment: Establishment): EstablishmentSaveResult {
-        val taken =
-            repository.isCnpjTaken(establishment.cnpj).getOrElse { error ->
-                // Fail-closed: sem saber se o CNPJ já existe, não grava. Seguir em frente
-                // criaria a duplicata justamente quando a rede está instável — e o
-                // `cnpj_index` nega delete, então desfazer exigiria o Console.
-                logger.warn(TAG, "cnpj lookup failed", error)
-                return EstablishmentSaveResult.Failed(SAVE_FAILED_MESSAGE)
-            }
-        if (taken) return EstablishmentSaveResult.DuplicateCnpj
+    private suspend fun create(establishment: Establishment): EstablishmentSaveResult =
+        repository.isCnpjTaken(establishment.cnpj).fold(
+            onSuccess = { taken ->
+                if (taken) EstablishmentSaveResult.DuplicateCnpj else persist(establishment)
+            },
+            // Fail-closed: sem saber se o CNPJ já existe, não grava. Seguir em frente
+            // criaria a duplicata justamente quando a rede está instável — e o
+            // `cnpj_index` nega delete, então desfazer exigiria o Console.
+            onFailure = { failed(it, "cnpj lookup failed") },
+        )
 
-        return repository.create(establishment).fold(
+    private suspend fun persist(establishment: Establishment): EstablishmentSaveResult =
+        repository.create(establishment).fold(
             onSuccess = { EstablishmentSaveResult.Saved(it) },
             onFailure = { failed(it, "create failed") },
         )
-    }
 
     private suspend fun update(establishment: Establishment): EstablishmentSaveResult =
         repository.update(establishment).fold(

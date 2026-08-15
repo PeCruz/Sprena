@@ -27,12 +27,15 @@ object CpfValidator {
 
     fun isValid(raw: String): Boolean {
         val d = digits(raw)
-        if (d.length != CPF_LENGTH) return false
-        // Sequências repetidas passam na aritmética (111.111.111-11 fecha os dois dígitos),
-        // então precisam de recusa explícita.
-        if (d.all { it == d[0] }) return false
-        return d[CPF_BASE_LENGTH] == checkDigit(d, CPF_BASE_LENGTH, FIRST_WEIGHT_DV1) &&
-            d[CPF_BASE_LENGTH + 1] == checkDigit(d, CPF_BASE_LENGTH + 1, FIRST_WEIGHT_DV2)
+        return when {
+            d.length != CPF_LENGTH -> false
+            // Sequências repetidas passam na aritmética (111.111.111-11 fecha os dois
+            // dígitos), então precisam de recusa explícita.
+            d.all { it == d[0] } -> false
+            else ->
+                d[CPF_BASE_LENGTH] == checkDigit(d, CPF_BASE_LENGTH, FIRST_WEIGHT_DV1) &&
+                    d[CPF_BASE_LENGTH + 1] == checkDigit(d, CPF_BASE_LENGTH + 1, FIRST_WEIGHT_DV2)
+        }
     }
 
     fun validate(raw: String): ValidationResult =

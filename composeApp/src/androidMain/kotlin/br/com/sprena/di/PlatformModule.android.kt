@@ -7,6 +7,12 @@ import br.com.sprena.shared.account.domain.repository.AccountDeletionRepository
 import br.com.sprena.shared.account.domain.repository.UserProfileRepository
 import br.com.sprena.shared.auth.data.repository.FirebaseAuthRepositoryImpl
 import br.com.sprena.shared.auth.domain.repository.AuthRepository
+import br.com.sprena.shared.establishment.data.repository.FirestoreActiveEstablishmentRepository
+import br.com.sprena.shared.establishment.data.repository.FirestoreEstablishmentRepository
+import br.com.sprena.shared.establishment.data.repository.FirestoreMembershipRepository
+import br.com.sprena.shared.establishment.domain.repository.ActiveEstablishmentRepository
+import br.com.sprena.shared.establishment.domain.repository.EstablishmentRepository
+import br.com.sprena.shared.establishment.domain.repository.MembershipRepository
 import br.com.sprena.shared.privacy.data.repository.FirestoreConsentRepository
 import br.com.sprena.shared.privacy.domain.repository.ConsentRepository
 import br.com.sprena.shared.sportclient.data.repository.SportClientRepositoryImpl
@@ -84,5 +90,19 @@ fun platformModule() =
         }
         single<AccountDeletionRepository> {
             FunctionsAccountDeletionRepository(functions = get(), logger = get())
+        }
+
+        // F1.7.1: multi-tenancy. Os três leem `auth` para resolver o uid corrente em vez
+        // de recebê-lo por parâmetro — a alternativa faria cada chamador carregar o uid
+        // até aqui, e um chamador que passasse o uid errado viraria leitura de dado alheio
+        // tentada contra as rules, que é ruído de PERMISSION_DENIED sem causa aparente.
+        single<EstablishmentRepository> {
+            FirestoreEstablishmentRepository(firestore = get(), auth = get(), logger = get())
+        }
+        single<MembershipRepository> {
+            FirestoreMembershipRepository(firestore = get(), auth = get(), logger = get())
+        }
+        single<ActiveEstablishmentRepository> {
+            FirestoreActiveEstablishmentRepository(firestore = get(), auth = get(), logger = get())
         }
     }
