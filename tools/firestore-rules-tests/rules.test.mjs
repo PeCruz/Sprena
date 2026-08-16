@@ -83,8 +83,6 @@ beforeEach(async () => {
     await setDoc(doc(db, 'users', ADM_UID), { role: 'ADM', name: 'Adm' });
     await setDoc(doc(db, 'users', MOD_UID), { role: 'MOD', name: 'Mod' });
     await setDoc(doc(db, 'users', CLIENT_UID), { role: 'CLIENT', name: 'Client' });
-    await setDoc(doc(db, 'sport_clients', 'c1'), { name: 'Fulano', cpf: '00000000000' });
-    await setDoc(doc(db, 'sport_clients', 'c_del'), { name: 'Para deletar' });
     await setDoc(doc(db, 'kanban_tasks', 't1'), { title: 'Colecao ainda nao mapeada' });
 
     // F1.7.1 — grafo de estabelecimentos e membros.
@@ -112,6 +110,17 @@ beforeEach(async () => {
     await membersA(CLIENT_UID, 'CLIENT');
     await membersA(USER_UID, 'USER');
     await membersA(INACTIVE_UID, 'USER', false);
+
+    // F1.7.2 — clientes esportivos passam a viver dentro do estabelecimento.
+    for (const estId of [EST_A, EST_B]) {
+      await setDoc(doc(db, 'establishments', estId, 'sport_clients', 'c1'), {
+        name: 'Fulano',
+        cpf: '00000000000',
+      });
+      await setDoc(doc(db, 'establishments', estId, 'sport_clients', 'c_del'), {
+        name: 'Para deletar',
+      });
+    }
   });
 });
 
@@ -137,40 +146,78 @@ describe('users/{uid}', () => {
   });
 });
 
-describe('sport_clients/{id}', () => {
+/**
+ * F1.7.2 — clientes esportivos dentro do estabelecimento.
+ *
+ * Ate F1.7.1 esta colecao era global e plana, com `read: if isSignedIn()`: qualquer conta
+ * autenticada lia CPF e telefone de TODOS os clientes cadastrados. Enquanto so existiam
+ * ADM, MOD e CLIENT — todos provisionados a mao pelo Console — isso era um risco contido.
+ *
+ * F1.7.3 abre o cadastro (primeiro login vira conta `USER` automaticamente). Fechar esta
+ * colecao ANTES disso e o que impede que abrir o cadastro signifique publicar a base de
+ * CPFs. E por isso que a ordem 1.7.2 -> 1.7.3 nao e negociavel.
+ *
+ * O caso 7 e o que guarda essa garantia: USER nao le.
+ */
+describe('establishments/{estId}/sport_clients/{id}', () => {
+  const at = (db, id, estId = EST_A) => doc(db, 'establishments', estId, 'sport_clients', id);
+  const listOf = (db, estId = EST_A) => collection(db, 'establishments', estId, 'sport_clients');
+
   it('5. nega leitura para nao autenticado', async () => {
-    await assertFails(getDoc(doc(anon(), 'sport_clients', 'c1')));
+    await assertFails(getDoc(at(anon(), 'c1')));
   });
 
-  it('6. permite leitura para CLIENT', async () => {
-    await assertSucceeds(getDoc(doc(as(CLIENT_UID), 'sport_clients', 'c1')));
+  it('6. permite leitura e escrita para o staff do estabelecimento', async () => {
+    for (const uid of [MOD_UID, CLIENT_UID]) {
+      const db = as(uid);
+      await assertSucceeds(getDoc(at(db, 'c1')));
+      await assertSucceeds(getDocs(listOf(db)));
+      await assertSucceeds(setDoc(at(db, `c_novo_${uid}`), { name: 'Novo' }));
+      await assertSucceeds(updateDoc(at(db, 'c1'), { name: 'Alterado' }));
+    }
+    await assertSucceeds(deleteDoc(at(as(MOD_UID), 'c_del')));
   });
 
-  it('7. nega create/update/delete para CLIENT', async () => {
-    const db = as(CLIENT_UID);
-    await assertFails(setDoc(doc(db, 'sport_clients', 'c_novo'), { name: 'Novo' }));
-    await assertFails(updateDoc(doc(db, 'sport_clients', 'c1'), { name: 'Alterado' }));
-    await assertFails(deleteDoc(doc(db, 'sport_clients', 'c_del')));
+  it('7. nega leitura para USER — e este o buraco que a fase fecha', async () => {
+    const db = as(USER_UID);
+    // USER e membro do estabelecimento e ainda assim nao alcanca a lista de clientes:
+    // ser frequentador nao da acesso ao cadastro de quem mais frequenta.
+    await assertFails(getDoc(at(db, 'c1')));
+    await assertFails(getDocs(listOf(db)));
+    await assertFails(setDoc(at(db, 'c_novo'), { name: 'Novo' }));
   });
 
-  it('8a. permite create/update/delete para ADM', async () => {
+  it('8. permite tudo para ADM, em qualquer estabelecimento', async () => {
     const db = as(ADM_UID);
-    await assertSucceeds(setDoc(doc(db, 'sport_clients', 'c_novo'), { name: 'Novo' }));
-    await assertSucceeds(updateDoc(doc(db, 'sport_clients', 'c1'), { name: 'Alterado' }));
-    await assertSucceeds(deleteDoc(doc(db, 'sport_clients', 'c_del')));
+    await assertSucceeds(getDoc(at(db, 'c1', EST_B)));
+    await assertSucceeds(setDoc(at(db, 'c_novo'), { name: 'Novo' }));
+    await assertSucceeds(updateDoc(at(db, 'c1'), { name: 'Alterado' }));
+    await assertSucceeds(deleteDoc(at(db, 'c_del')));
   });
 
-  it('8b. permite create/update/delete para MOD', async () => {
-    const db = as(MOD_UID);
-    await assertSucceeds(setDoc(doc(db, 'sport_clients', 'c_novo'), { name: 'Novo' }));
-    await assertSucceeds(updateDoc(doc(db, 'sport_clients', 'c1'), { name: 'Alterado' }));
-    await assertSucceeds(deleteDoc(doc(db, 'sport_clients', 'c_del')));
-  });
-
-  it('9. autenticado sem doc em users le, mas nao escreve', async () => {
+  it('9. autenticado sem doc em users nao le mais nada', async () => {
+    // Antes de F1.7.2 este caso afirmava o oposto ("le, mas nao escreve"), porque a rule
+    // global pedia apenas isSignedIn(). Agora sem membership nao ha leitura.
     const db = as(GHOST_UID);
-    await assertSucceeds(getDoc(doc(db, 'sport_clients', 'c1')));
-    await assertFails(setDoc(doc(db, 'sport_clients', 'c_novo'), { name: 'Novo' }));
+    await assertFails(getDoc(at(db, 'c1')));
+    await assertFails(setDoc(at(db, 'c_novo'), { name: 'Novo' }));
+  });
+
+  it('9b. nega ao staff de um estabelecimento os clientes de outro', async () => {
+    await assertFails(getDoc(at(as(MOD_UID), 'c1', EST_B)));
+    await assertFails(getDocs(listOf(as(CLIENT_UID), EST_B)));
+  });
+
+  it('9c. membro desligado nao le', async () => {
+    await assertFails(getDoc(at(as(INACTIVE_UID), 'c1')));
+  });
+
+  it('9d. a colecao global antiga nao responde mais', async () => {
+    // Se este caso passar a falhar, o bloco `match /sport_clients/{id}` voltou ao arquivo
+    // e o buraco de CPF junto com ele.
+    for (const uid of [ADM_UID, MOD_UID, CLIENT_UID, USER_UID]) {
+      await assertFails(getDoc(doc(as(uid), 'sport_clients', 'c1')));
+    }
   });
 });
 

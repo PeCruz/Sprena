@@ -29,9 +29,11 @@ Roadmap de evolução do MVP até nível production-ready. As fases são indepen
     autorização só é escrita pelo Admin SDK. "Meus estabelecimentos" é um collection group,
     e não o campo `establishmentIds` que F1.6a previa: sem cópia, sem drift, e a allowlist
     de `user_profiles` segue intocada.
-  - ⬜ **F1.7.2** — `sport_clients` entra no tenant. **Pré-requisito duro de F1.7.3**: hoje a
-    coleção é global e plana com `read: if isSignedIn()`, então criar o papel `USER` antes
-    disso faria todo login novo ler CPF e telefone de todos os clientes.
+  - ✅ **F1.7.2** — `sport_clients` entra no tenant. Fecha o `read: if isSignedIn()` que dava
+    a qualquer conta autenticada o CPF e o telefone de todos os clientes. **Pré-requisito
+    duro de F1.7.3**, que abre o cadastro: sem esta fase antes, abrir o cadastro seria
+    publicar a base de CPFs. USER é membro do estabelecimento e mesmo assim não lê esta
+    coleção — `isStaffOf`, não `canReadTenant`.
   - ⬜ **F1.7.3** — Papel `USER`, `bootstrapAccount` e callables de vínculo; contexto ativo e
     abas por papel.
   - ⬜ **F1.7.4** — Google Sign-In + account linking.

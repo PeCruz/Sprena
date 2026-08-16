@@ -6,33 +6,40 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Contrato do repositório de SportClients.
  *
- * A implementação concreta usa Firebase Firestore (Android)
- * e é injetada via Koin no platformModule / shared DI.
+ * A partir de F1.7.2 os clientes vivem em `establishments/{establishmentId}/sport_clients`,
+ * e não mais numa coleção global. O `establishmentId` vai em cada chamada, em vez de no
+ * construtor, porque o estabelecimento ativo muda em tempo de execução pelo seletor global —
+ * um repositório amarrado a um tenant na construção precisaria ser recriado a cada troca.
+ *
+ * Devolve `Result` desde F1.7.2. Antes lançava exceção, seguindo o padrão de F0; a troca
+ * foi feita agora porque esta interface **ainda não tem nenhum consumidor** — o
+ * `SportClientViewModel` guarda os clientes em memória e nunca chegou a injetar o
+ * repositório. Ligá-lo é F1.7.3, quando o contexto ativo existir na UI, e é bem mais
+ * simples ligá-lo a um contrato que já está no formato definitivo.
  */
 interface SportClientRepository {
-    /**
-     * Observa todos os clientes em tempo real.
-     * Emite uma nova lista sempre que houver mudanças no Firestore.
-     */
-    fun observeAll(): Flow<List<SportClientModel>>
+    /** Observa os clientes de um estabelecimento em tempo real. */
+    fun observeAll(establishmentId: String): Flow<Result<List<SportClientModel>>>
 
-    /**
-     * Busca um cliente pelo ID.
-     */
-    suspend fun getById(id: String): SportClientModel?
+    /** `null` quando o documento não existe. */
+    suspend fun getById(
+        establishmentId: String,
+        id: String,
+    ): Result<SportClientModel?>
 
-    /**
-     * Adiciona um novo cliente. Retorna o ID gerado.
-     */
-    suspend fun add(client: SportClientModel): String
+    /** Adiciona um cliente ao estabelecimento. Devolve o id gerado. */
+    suspend fun add(
+        establishmentId: String,
+        client: SportClientModel,
+    ): Result<String>
 
-    /**
-     * Atualiza um cliente existente.
-     */
-    suspend fun update(client: SportClientModel)
+    suspend fun update(
+        establishmentId: String,
+        client: SportClientModel,
+    ): Result<Unit>
 
-    /**
-     * Remove um cliente pelo ID.
-     */
-    suspend fun delete(id: String)
+    suspend fun delete(
+        establishmentId: String,
+        id: String,
+    ): Result<Unit>
 }
