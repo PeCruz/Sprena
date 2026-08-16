@@ -1,6 +1,7 @@
 package br.com.sprena.presentation.core.navigation
 
 import app.cash.turbine.test
+import br.com.sprena.shared.auth.domain.model.UserRole
 import br.com.sprena.test.MainDispatcherEnv
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -8,17 +9,14 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
- * TDD — BottomNavViewModel (barra de navegação inferior).
- *
- * Ordem das abas: HOME, EVENTOS, BAR, FINANCIAL, PROFILE
- *
- * Cenários cobertos:
- * - Tab inicial é HOME
- * - Transição entre todas as abas
- * - Efeitos de navegação emitidos corretamente
+ * A barra deixou de ser fixa em F1.7.3. Antes destes testes afirmarem que a aba inicial é
+ * `HOME`, hoje eles afirmam que ela é a primeira aba **do papel** — `HOME` nem existe para ADM
+ * e USER.
  */
 class BottomNavViewModelTest {
     private val env = MainDispatcherEnv()
@@ -27,169 +25,98 @@ class BottomNavViewModelTest {
 
     @AfterTest fun tearDown() = env.uninstall()
 
-    // =========================================================================
-    // Initial State
-    // =========================================================================
+    private fun vmFor(
+        role: UserRole,
+        hasEstablishment: Boolean = true,
+    ) = BottomNavViewModel().apply {
+        handleIntent(BottomNavIntent.TabsResolved(tabsFor(role, hasEstablishment)))
+    }
 
     @Test
-    fun `initial tab is HOME`() =
+    fun `antes de resolver nao ha aba nem barra`() =
         runTest {
-            val vm = BottomNavViewModel()
-            assertEquals(BottomTab.HOME, vm.state.first().current)
+            val state = BottomNavViewModel().state.first()
+
+            assertNull(state.current)
+            assertTrue(state.tabs.isEmpty())
+            // Ainda não resolveu: é carregamento, não ausência de estabelecimento.
+            assertFalse(state.isWithoutEstablishment)
         }
 
     @Test
-    fun `initial tab is not EVENTOS`() =
+    fun `aba inicial e a primeira do papel`() =
         runTest {
-            val vm = BottomNavViewModel()
-            assertNotEquals(BottomTab.EVENTOS, vm.state.first().current)
-        }
-
-    // =========================================================================
-    // HOME tab
-    // =========================================================================
-
-    @Test
-    fun `selecting HOME tab updates state`() =
-        runTest {
-            val vm = BottomNavViewModel()
-            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.EVENTOS))
-            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.HOME))
-            assertEquals(BottomTab.HOME, vm.state.first().current)
+            assertEquals(BottomTab.HOME, vmFor(UserRole.MOD).state.first().current)
+            assertEquals(BottomTab.EVENTOS, vmFor(UserRole.ADM).state.first().current)
+            assertEquals(BottomTab.BAR, vmFor(UserRole.USER).state.first().current)
         }
 
     @Test
-    fun `selecting HOME tab emits NavigateTo effect`() =
+    fun `sem estabelecimento sinaliza a tela de erro em vez de carregamento`() =
         runTest {
-            val vm = BottomNavViewModel()
-            // Initial tab is EVENTOS; switching to HOME from inside the effects subscription
-            // ensures the emission is observed (pre-subscription emissions are dropped by
-            // MutableSharedFlow with no replay buffer).
-            vm.effects.test {
-                vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.HOME))
-                assertEquals(BottomNavEffect.NavigateTo(BottomTab.HOME), awaitItem())
-                cancelAndIgnoreRemainingEvents()
-            }
-        }
+            val state = vmFor(UserRole.USER, hasEstablishment = false).state.first()
 
-    // =========================================================================
-    // EVENTOS tab (antigo KANBAN)
-    // =========================================================================
-
-    @Test
-    fun `selecting EVENTOS tab updates state`() =
-        runTest {
-            val vm = BottomNavViewModel()
-            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.EVENTOS))
-            assertEquals(BottomTab.EVENTOS, vm.state.first().current)
+            assertTrue(state.isWithoutEstablishment)
+            assertNull(state.current)
         }
 
     @Test
-    fun `selecting EVENTOS tab emits NavigateTo effect`() =
+    fun `troca de aba atualiza o estado e emite o efeito`() =
         runTest {
-            val vm = BottomNavViewModel()
-            vm.effects.test {
-                vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.EVENTOS))
-                assertEquals(BottomNavEffect.NavigateTo(BottomTab.EVENTOS), awaitItem())
-                cancelAndIgnoreRemainingEvents()
-            }
-        }
+            val vm = vmFor(UserRole.MOD)
 
-    // =========================================================================
-    // BAR tab
-    // =========================================================================
-
-    @Test
-    fun `selecting BAR tab updates state`() =
-        runTest {
-            val vm = BottomNavViewModel()
-            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.BAR))
-            assertEquals(BottomTab.BAR, vm.state.first().current)
-        }
-
-    // =========================================================================
-    // FINANCIAL tab
-    // =========================================================================
-
-    @Test
-    fun `selecting FINANCIAL tab updates state`() =
-        runTest {
-            val vm = BottomNavViewModel()
-            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.FINANCIAL))
-            assertEquals(BottomTab.FINANCIAL, vm.state.first().current)
-        }
-
-    @Test
-    fun `selecting tab emits NavigateTo effect`() =
-        runTest {
-            val vm = BottomNavViewModel()
             vm.effects.test {
                 vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.FINANCIAL))
                 assertEquals(BottomNavEffect.NavigateTo(BottomTab.FINANCIAL), awaitItem())
                 cancelAndIgnoreRemainingEvents()
             }
-        }
-
-    // =========================================================================
-    // PROFILE tab (era SETTINGS ate F1.6a)
-    // =========================================================================
-
-    @Test
-    fun `selecting PROFILE tab updates state`() =
-        runTest {
-            val vm = BottomNavViewModel()
-            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.PROFILE))
-            assertEquals(BottomTab.PROFILE, vm.state.first().current)
+            assertEquals(BottomTab.FINANCIAL, vm.state.first().current)
         }
 
     @Test
-    fun `selecting PROFILE tab emits NavigateTo effect`() =
+    fun `ciclo completo pelas abas do papel`() =
         runTest {
-            val vm = BottomNavViewModel()
-            vm.effects.test {
-                vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.PROFILE))
-                assertEquals(BottomNavEffect.NavigateTo(BottomTab.PROFILE), awaitItem())
-                cancelAndIgnoreRemainingEvents()
-            }
-        }
+            val vm = vmFor(UserRole.MOD)
 
-    // =========================================================================
-    // Tab transitions
-    // =========================================================================
-
-    @Test
-    fun `selecting HOME after PROFILE reverts state`() =
-        runTest {
-            val vm = BottomNavViewModel()
-            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.PROFILE))
-            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.HOME))
-            assertEquals(BottomTab.HOME, vm.state.first().current)
-        }
-
-    @Test
-    fun `selecting HOME after EVENTOS reverts state`() =
-        runTest {
-            val vm = BottomNavViewModel()
-            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.EVENTOS))
-            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.HOME))
-            assertEquals(BottomTab.HOME, vm.state.first().current)
-        }
-
-    @Test
-    fun `full cycle through all tabs`() =
-        runTest {
-            val vm = BottomNavViewModel()
-            val tabs =
-                listOf(
-                    BottomTab.HOME,
-                    BottomTab.EVENTOS,
-                    BottomTab.BAR,
-                    BottomTab.FINANCIAL,
-                    BottomTab.PROFILE,
-                )
-            for (tab in tabs) {
+            for (tab in tabsFor(UserRole.MOD, hasEstablishment = true)) {
                 vm.handleIntent(BottomNavIntent.TabSelected(tab))
                 assertEquals(tab, vm.state.first().current)
             }
+        }
+
+    @Test
+    fun `aba fora do papel e ignorada`() =
+        runTest {
+            val vm = vmFor(UserRole.CLIENT)
+            val antes = vm.state.first().current
+
+            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.FINANCIAL))
+
+            // CLIENT não tem Financeiro. Ignorar mantém a barra com um item selecionado;
+            // aceitar deixaria a barra sem nenhum item marcado.
+            assertEquals(antes, vm.state.first().current)
+        }
+
+    @Test
+    fun `mudanca de papel preserva a aba quando ela sobrevive`() =
+        runTest {
+            val vm = vmFor(UserRole.MOD)
+            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.BAR))
+
+            vm.handleIntent(BottomNavIntent.TabsResolved(tabsFor(UserRole.CLIENT, true)))
+
+            assertEquals(BottomTab.BAR, vm.state.first().current)
+        }
+
+    @Test
+    fun `mudanca de papel realoca a aba quando ela desaparece`() =
+        runTest {
+            val vm = vmFor(UserRole.MOD)
+            vm.handleIntent(BottomNavIntent.TabSelected(BottomTab.FINANCIAL))
+
+            // Rebaixado a CLIENT enquanto estava no Financeiro.
+            vm.handleIntent(BottomNavIntent.TabsResolved(tabsFor(UserRole.CLIENT, true)))
+
+            assertEquals(BottomTab.HOME, vm.state.first().current)
         }
 }
