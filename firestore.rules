@@ -38,6 +38,58 @@ service cloud.firestore {
         && profile().data.role in ['ADM', 'MOD'];
     }
 
+    // -------------------------------------------------------------------------
+    // F1.7.1 — multi-tenancy.
+    //
+    // A role passa a ter DOIS niveis. `users/{uid}.role` guarda o papel global e so
+    // responde uma pergunta: e ADM? Os papeis operacionais (MOD, CLIENT, USER) vivem
+    // em `establishments/{estId}/members/{uid}.role`, porque "MOD gere os SEUS
+    // estabelecimentos" so fecha com papel por tenant — e assim a mesma pessoa pode ser
+    // MOD num lugar e CLIENT noutro.
+    //
+    // `estId` vem SEMPRE do path, nunca de `resource.data`. Isso nao e estilo: numa
+    // query o motor avalia a rule por documento, mas guarda o resultado do get() quando
+    // a expressao do path e identica. Com o tenant no path, listar N comandas custa 1
+    // get; com o tenant num campo, o path muda a cada documento e o cache morre.
+    // -------------------------------------------------------------------------
+
+    function isAdm() {
+      return isSignedIn()
+        && profile() != null
+        && profile().data.role == 'ADM';
+    }
+
+    function memberDoc(estId) {
+      return get(/databases/$(database)/documents/establishments/$(estId)/members/$(request.auth.uid));
+    }
+
+    // Mesmo idioma de curto-circuito de isStaff() — e gera o mesmo
+    // "evaluation error at L<n>" no log do emulador em request negado. Ver a nota
+    // acima de isStaff(): a decisao que vale e a segunda avaliacao, nao e bug da regra.
+    function isMemberOf(estId) {
+      return isSignedIn()
+        && memberDoc(estId) != null
+        && memberDoc(estId).data.active == true;
+    }
+
+    function roleIn(estId) {
+      return memberDoc(estId).data.role;
+    }
+
+    function isModOf(estId) {
+      return isMemberOf(estId) && roleIn(estId) == 'MOD';
+    }
+
+    function isStaffOf(estId) {
+      return isMemberOf(estId) && roleIn(estId) in ['MOD', 'CLIENT'];
+    }
+
+    // Ordem deliberada: membro primeiro. E o caso comum e resolve em 1 get; deixar
+    // isAdm() na frente cobraria a leitura de `users` de todo mundo, o tempo todo.
+    function canReadTenant(estId) {
+      return isMemberOf(estId) || isAdm();
+    }
+
     // Perfil do usuario — lido no login para resolver a role
     // (FirebaseAuthRepositoryImpl.authenticate).
     //
@@ -152,6 +204,121 @@ service cloud.firestore {
     // ver que ninguem, nem o ADM, le ou altera a trilha pelo app.
     match /account_deletions/{uid} {
       allow read, write: if false;
+    }
+
+    // Preferencia de contexto do seletor global de estabelecimento (F1.7.1).
+    //
+    // Nao pode morar em `users` (toda escrita e negada) nem em `user_profiles` — a
+    // allowlist de la e exatamente o reflexo que o comentario acima pede para nao ter.
+    // Vive aqui, escrita pelo dono, sustentada por uma invariante que precisa ser
+    // preservada por quem editar este arquivo depois:
+    //
+    //     NENHUMA regra deste arquivo le `user_settings`.
+    //
+    // E so por causa dela que deixar o cliente escrever aqui e seguro: apontar o
+    // contexto para um estabelecimento alheio e permitido e completamente inutil,
+    // porque todo acesso continua barrado por isMemberOf(estId) vindo do path.
+    match /user_settings/{uid} {
+      function isOwner() {
+        return isSignedIn() && request.auth.uid == uid;
+      }
+
+      allow read: if isOwner();
+      allow create, update: if isOwner()
+        && request.resource.data.keys().hasOnly(['activeEstablishmentId', 'updatedAt'])
+        && (request.resource.data.activeEstablishmentId == null
+          || (request.resource.data.activeEstablishmentId is string
+            && request.resource.data.activeEstablishmentId.size() <= 64))
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    // Unicidade de CNPJ. O id do doc E o CNPJ, entao `create` sobre id existente falha
+    // sozinho — e a unica forma de garantir unicidade sem serializar tudo numa callable.
+    //
+    // Leitura liberada so para o ADM. Nao vaza nada que ele ja nao veja: `list` em
+    // establishments e dele, e o CNPJ esta em texto claro la. E sem esse get o app nao
+    // consegue distinguir "CNPJ ja cadastrado" de "sem permissao" — os dois chegariam
+    // como PERMISSION_DENIED do mesmo batch, e o ADM veria "erro ao salvar" sem saber que
+    // basta procurar o estabelecimento que ja existe.
+    match /cnpj_index/{cnpj} {
+      allow read: if isAdm();
+      allow create: if isAdm() && request.resource.data.establishmentId is string;
+      allow update, delete: if false;
+    }
+
+    // Estabelecimentos (F1.7.1).
+    //
+    // `list` e so do ADM. Um membro nao precisa listar a colecao para saber onde
+    // trabalha: ele descobre pelo proprio member doc, via collection group logo abaixo.
+    // Manter o list fechado evita ter que provar por rule que uma query devolveu apenas
+    // os estabelecimentos do requisitante — prova que o motor de rules nao sabe fazer.
+    match /establishments/{estId} {
+      function onlyKnownKeys() {
+        return request.resource.data.keys().hasOnly([
+          'name', 'active', 'cnpj', 'razaoSocial', 'address',
+          'phone', 'email', 'createdAt', 'updatedAt', 'createdBy'
+        ]);
+      }
+
+      // Regex e o teto do que rules conseguem fazer com documento: digito verificador
+      // de CNPJ exige aritmetica. A validacao real e do CnpjValidator no dominio; aqui
+      // fica a barreira de forma, que e o que impede lixo estrutural de entrar.
+      function validEstablishment() {
+        return request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 80
+          && request.resource.data.active is bool
+          && request.resource.data.cnpj is string
+          && request.resource.data.cnpj.matches('^[0-9]{14}$')
+          && request.resource.data.phone is string
+          && request.resource.data.phone.matches('^[0-9]{10,11}$')
+          && request.resource.data.email is string
+          && request.resource.data.email.size() > 0
+          && request.resource.data.email.size() <= 120
+          && (!('razaoSocial' in request.resource.data)
+            || (request.resource.data.razaoSocial is string
+              && request.resource.data.razaoSocial.size() <= 120))
+          && (!('address' in request.resource.data)
+            || request.resource.data.address is map)
+          && request.resource.data.updatedAt == request.time;
+      }
+
+      allow get: if canReadTenant(estId);
+      allow list: if isAdm();
+      allow create, update: if isAdm() && onlyKnownKeys() && validEstablishment();
+      // Sem delete: apagar o estabelecimento deixaria membros, comandas e lancamentos
+      // orfaos sob um path que ninguem mais consegue ler. "Excluir" na UI e active:false.
+      allow delete: if false;
+
+      // A aresta de autorizacao do sistema: quem esta em qual estabelecimento, com que
+      // papel. Toda mutacao passa por callable (F1.7.3) — as rules LEEM este grafo e
+      // nunca o escrevem. Isso da um unico ponto de decisao, com auditoria garantida, e
+      // deixa este arquivo trivial de auditar: nenhuma escrita aqui pode elevar ninguem.
+      match /members/{memberUid} {
+        allow read: if canReadTenant(estId);
+        allow write: if false;
+      }
+    }
+
+    // Alimenta o seletor global: collectionGroup('members').where('uid','==',me).
+    //
+    // Custa 0 gets e devolve so o proprio vinculo. O match acima nao serve para isso —
+    // collection group query so e avaliada contra regras declaradas com wildcard
+    // recursivo. Sao dois caminhos de leitura distintos de proposito: pelo path
+    // completo, staff do estabelecimento le todos os membros; pelo grupo, cada um
+    // alcanca apenas o proprio doc.
+    //
+    // A condicao e `resource.data.uid`, e NAO `memberUid` (o id do doc), embora os dois
+    // sejam sempre iguais. Motivo: numa query o motor precisa decidir antes de ler, e a
+    // unica coisa que ele consegue casar com a regra e o filtro `where('uid','==',...)`
+    // da propria query. Com a condicao no id do doc a query e negada em bloco, mesmo
+    // devolvendo exclusivamente docs do requisitante — foi o caso 63 que mostrou isso.
+    //
+    // O que sustenta a igualdade entre campo e id e `members` ser `write: if false`:
+    // quem escreve e so o Admin SDK dentro das callables, que gravam os dois juntos.
+    match /{path=**}/members/{memberUid} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
     }
 
     // Default deny. kanban e financial ainda sao in-memory; quando migrarem

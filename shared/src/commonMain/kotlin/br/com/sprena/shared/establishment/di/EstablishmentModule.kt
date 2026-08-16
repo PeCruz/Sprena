@@ -1,0 +1,31 @@
+package br.com.sprena.shared.establishment.di
+
+import br.com.sprena.shared.establishment.domain.usecase.ObserveMyEstablishmentsUseCase
+import br.com.sprena.shared.establishment.domain.usecase.SaveEstablishmentUseCase
+import br.com.sprena.shared.establishment.domain.usecase.SelectActiveEstablishmentUseCase
+import org.koin.dsl.module
+
+/**
+ * Use cases de estabelecimento (F1.7.1).
+ *
+ * Só use cases: os repositórios dependem de Firebase e são ligados no `platformModule` do
+ * Android, como manda a divisão do projeto — `shared/commonMain` não conhece Firebase.
+ */
+fun establishmentModule() =
+    module {
+        factory { SaveEstablishmentUseCase(repository = get(), logger = get()) }
+        factory {
+            ObserveMyEstablishmentsUseCase(
+                memberships = get(),
+                establishments = get(),
+                logger = get(),
+            )
+        }
+        factory {
+            SelectActiveEstablishmentUseCase(
+                memberships = get(),
+                activeEstablishment = get(),
+                logger = get(),
+            )
+        }
+    }

@@ -11,6 +11,10 @@
  *  - user_consents/{uid}  → cada um le e grava so o proprio aceite; history e append-only
  *  - user_profiles/{uid}  → cada um le e grava so o proprio perfil autodeclarado (F1.6a)
  *  - account_deletions/{} → so o Admin SDK dentro da Cloud Function; cliente nao toca
+ *  - establishments/{id}  → membro le o proprio; so ADM lista e escreve (F1.7.1)
+ *  - .../members/{uid}    → membro le, ninguem escreve: a aresta de autorizacao e da callable
+ *  - user_settings/{uid}  → contexto ativo do dono; nenhuma rule deste arquivo le esta colecao
+ *  - cnpj_index/{cnpj}    → so create de ADM; leitura negada para nao virar oraculo de CNPJ
  *  - qualquer outra path  → default deny
  */
 import { after, before, beforeEach, describe, it } from 'node:test';
@@ -24,13 +28,16 @@ import {
   Timestamp,
   addDoc,
   collection,
+  collectionGroup,
   deleteDoc,
   doc,
   getDoc,
   getDocs,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 
 const RULES_PATH = new URL('../../firestore.rules', import.meta.url);
@@ -40,6 +47,16 @@ const MOD_UID = 'uid_mod';
 const CLIENT_UID = 'uid_client';
 /** Autenticado no Firebase Auth mas sem doc em `users/` — o caso "Conta nao autorizada". */
 const GHOST_UID = 'uid_sem_perfil';
+
+// F1.7.1 — multi-tenancy.
+/** Membro de EST_A com role USER (o papel que so chega ao Kotlin em F1.7.3). */
+const USER_UID = 'uid_user';
+/** Autenticado e com doc em `users/`, porem sem membership em estabelecimento nenhum. */
+const OUTSIDER_UID = 'uid_outsider';
+/** Membro de EST_A com `active: false` — desligado, nao deve valer como membro. */
+const INACTIVE_UID = 'uid_inativo';
+const EST_A = 'est_a';
+const EST_B = 'est_b';
 
 let testEnv;
 
@@ -69,6 +86,32 @@ beforeEach(async () => {
     await setDoc(doc(db, 'sport_clients', 'c1'), { name: 'Fulano', cpf: '00000000000' });
     await setDoc(doc(db, 'sport_clients', 'c_del'), { name: 'Para deletar' });
     await setDoc(doc(db, 'kanban_tasks', 't1'), { title: 'Colecao ainda nao mapeada' });
+
+    // F1.7.1 — grafo de estabelecimentos e membros.
+    //
+    // `role: 'USER'` ja aparece aqui porque as rules so comparam com 'ADM'; a constante
+    // Kotlin `UserRole.USER` so nasce em F1.7.3, junto das rules que a restringem.
+    await setDoc(doc(db, 'users', USER_UID), { role: 'USER', name: 'User' });
+    await setDoc(doc(db, 'users', OUTSIDER_UID), { role: 'USER', name: 'Outsider' });
+    await setDoc(doc(db, 'users', INACTIVE_UID), { role: 'USER', name: 'Inativo' });
+
+    for (const estId of [EST_A, EST_B]) {
+      await setDoc(doc(db, 'establishments', estId), {
+        name: `Estabelecimento ${estId}`,
+        active: true,
+        cnpj: '11222333000181',
+        razaoSocial: 'Razao Social LTDA',
+        phone: '11987654321',
+        email: 'contato@exemplo.com',
+      });
+    }
+
+    const membersA = (uid, role, active = true) =>
+      setDoc(doc(db, 'establishments', EST_A, 'members', uid), { uid, role, active });
+    await membersA(MOD_UID, 'MOD');
+    await membersA(CLIENT_UID, 'CLIENT');
+    await membersA(USER_UID, 'USER');
+    await membersA(INACTIVE_UID, 'USER', false);
   });
 });
 
@@ -391,6 +434,294 @@ describe('account_deletions/{uid}', () => {
     await assertFails(setDoc(doc(as(CLIENT_UID), 'account_deletions', CLIENT_UID), { uid: CLIENT_UID }));
     await assertFails(getDoc(doc(as(ADM_UID), 'account_deletions', CLIENT_UID)));
     await assertFails(setDoc(doc(as(ADM_UID), 'account_deletions', CLIENT_UID), { uid: CLIENT_UID }));
+  });
+});
+
+/**
+ * F1.7.1 — estabelecimentos e grafo de membros.
+ *
+ * O tenant vive no PATH (`establishments/{estId}/...`), nunca num campo. E isso que
+ * permite `isMemberOf(estId)` ser um get() de path determinado: 1 leitura, cacheada
+ * dentro da avaliacao, entao uma query de N documentos continua custando 1 get.
+ *
+ * `members` e a aresta de autorizacao do sistema — quem esta em qual estabelecimento e
+ * com que papel. Por isso e `write: if false`: toda mutacao passa por callable (F1.7.3),
+ * o que da um unico ponto de decisao e auditoria garantida. As rules LEEM o grafo,
+ * nunca o escrevem.
+ */
+describe('establishments/{estId}', () => {
+  const establishment = (extra = {}) => ({
+    name: 'Bar do Ze',
+    active: true,
+    cnpj: '11222333000181',
+    razaoSocial: 'Ze Bebidas LTDA',
+    address: { street: 'Rua A', number: '10', city: 'Sao Paulo', state: 'SP' },
+    phone: '11987654321',
+    email: 'ze@exemplo.com',
+    updatedAt: serverTimestamp(),
+    ...extra,
+  });
+
+  it('43. nega leitura para nao autenticado', async () => {
+    await assertFails(getDoc(doc(anon(), 'establishments', EST_A)));
+  });
+
+  it('44. permite ADM ler qualquer estabelecimento', async () => {
+    await assertSucceeds(getDoc(doc(as(ADM_UID), 'establishments', EST_A)));
+    await assertSucceeds(getDoc(doc(as(ADM_UID), 'establishments', EST_B)));
+  });
+
+  it('45. permite que qualquer membro leia o proprio estabelecimento', async () => {
+    for (const uid of [MOD_UID, CLIENT_UID, USER_UID]) {
+      await assertSucceeds(getDoc(doc(as(uid), 'establishments', EST_A)));
+    }
+  });
+
+  it('46. nega leitura para autenticado sem membership', async () => {
+    await assertFails(getDoc(doc(as(OUTSIDER_UID), 'establishments', EST_A)));
+  });
+
+  it('47. nega que membro de um estabelecimento leia outro', async () => {
+    await assertFails(getDoc(doc(as(MOD_UID), 'establishments', EST_B)));
+  });
+
+  it('48. permite list so para ADM — membro enxerga pelo proprio member doc', async () => {
+    await assertSucceeds(getDocs(collection(as(ADM_UID), 'establishments')));
+    await assertFails(getDocs(collection(as(MOD_UID), 'establishments')));
+  });
+
+  it('49. permite ADM criar com payload valido', async () => {
+    await assertSucceeds(
+      setDoc(doc(as(ADM_UID), 'establishments', 'est_novo'), establishment()),
+    );
+  });
+
+  it('50. nega criar e atualizar para MOD e CLIENT', async () => {
+    for (const uid of [MOD_UID, CLIENT_UID, USER_UID]) {
+      const db = as(uid);
+      await assertFails(setDoc(doc(db, 'establishments', 'est_novo'), establishment()));
+      await assertFails(updateDoc(doc(db, 'establishments', EST_A), { name: 'Renomeado' }));
+    }
+  });
+
+  it('51. nega campo desconhecido — o cliente nao inventa campo de autorizacao', async () => {
+    const db = as(ADM_UID);
+    await assertFails(
+      setDoc(doc(db, 'establishments', 'est_novo'), establishment({ ownerRole: 'ADM' })),
+    );
+    await assertFails(
+      setDoc(doc(db, 'establishments', 'est_novo'), establishment({ members: [ADM_UID] })),
+    );
+  });
+
+  it('52. nega nome vazio ou ausente', async () => {
+    const db = as(ADM_UID);
+    await assertFails(setDoc(doc(db, 'establishments', 'est_novo'), establishment({ name: '' })));
+    const { name, ...semNome } = establishment();
+    await assertFails(setDoc(doc(db, 'establishments', 'est_novo'), semNome));
+  });
+
+  it('53. nega CNPJ fora do formato de 14 digitos', async () => {
+    const db = as(ADM_UID);
+    for (const cnpj of ['11.222.333/0001-81', '1122233300018', '', 11222333000181]) {
+      await assertFails(setDoc(doc(db, 'establishments', 'est_novo'), establishment({ cnpj })));
+    }
+  });
+
+  it('54. nega telefone e email fora do formato', async () => {
+    const db = as(ADM_UID);
+    await assertFails(
+      setDoc(doc(db, 'establishments', 'est_novo'), establishment({ phone: '(11) 98765-4321' })),
+    );
+    await assertFails(
+      setDoc(doc(db, 'establishments', 'est_novo'), establishment({ email: 42 })),
+    );
+  });
+
+  it('55. nega updatedAt forjado ou ausente — anti-backdating', async () => {
+    const db = as(ADM_UID);
+    await assertFails(
+      setDoc(
+        doc(db, 'establishments', 'est_novo'),
+        establishment({ updatedAt: Timestamp.fromDate(new Date('2020-01-01T00:00:00Z')) }),
+      ),
+    );
+    const { updatedAt, ...semTimestamp } = establishment();
+    await assertFails(setDoc(doc(db, 'establishments', 'est_novo'), semTimestamp));
+  });
+
+  it('56. permite ADM atualizar — desativar e active:false, nao delete', async () => {
+    await assertSucceeds(
+      setDoc(doc(as(ADM_UID), 'establishments', EST_A), establishment({ active: false })),
+    );
+  });
+
+  it('57. nega delete ate para ADM', async () => {
+    await assertFails(deleteDoc(doc(as(ADM_UID), 'establishments', EST_A)));
+  });
+});
+
+describe('establishments/{estId}/members/{uid}', () => {
+  it('58. permite que membro leia os membros do proprio estabelecimento', async () => {
+    const db = as(MOD_UID);
+    await assertSucceeds(getDoc(doc(db, 'establishments', EST_A, 'members', CLIENT_UID)));
+    await assertSucceeds(getDocs(collection(db, 'establishments', EST_A, 'members')));
+  });
+
+  it('59. nega ler membros de estabelecimento onde nao e membro', async () => {
+    await assertFails(getDocs(collection(as(MOD_UID), 'establishments', EST_B, 'members')));
+    await assertFails(
+      getDocs(collection(as(OUTSIDER_UID), 'establishments', EST_A, 'members')),
+    );
+  });
+
+  it('60. permite ADM ler membros de qualquer estabelecimento', async () => {
+    await assertSucceeds(getDocs(collection(as(ADM_UID), 'establishments', EST_A, 'members')));
+  });
+
+  it('61. nega toda escrita em members — inclusive ADM; a mutacao e da callable', async () => {
+    for (const uid of [ADM_UID, MOD_UID, CLIENT_UID]) {
+      const db = as(uid);
+      await assertFails(
+        setDoc(doc(db, 'establishments', EST_A, 'members', OUTSIDER_UID), {
+          uid: OUTSIDER_UID,
+          role: 'MOD',
+          active: true,
+        }),
+      );
+      await assertFails(
+        updateDoc(doc(db, 'establishments', EST_A, 'members', USER_UID), { role: 'MOD' }),
+      );
+      await assertFails(deleteDoc(doc(db, 'establishments', EST_A, 'members', USER_UID)));
+    }
+  });
+
+  it('62. membro com active:false nao vale como membro', async () => {
+    await assertFails(getDoc(doc(as(INACTIVE_UID), 'establishments', EST_A)));
+    await assertFails(
+      getDocs(collection(as(INACTIVE_UID), 'establishments', EST_A, 'members')),
+    );
+  });
+
+  it('63. permite ler o proprio member doc pelo collection group — alimenta o seletor', async () => {
+    const meus = query(collectionGroup(as(USER_UID), 'members'), where('uid', '==', USER_UID));
+    await assertSucceeds(getDocs(meus));
+  });
+
+  it('64. nega collection group que alcance o member doc de outro uid', async () => {
+    const db = as(USER_UID);
+    await assertFails(getDocs(collectionGroup(db, 'members')));
+    await assertFails(
+      getDocs(query(collectionGroup(db, 'members'), where('uid', '==', MOD_UID))),
+    );
+  });
+});
+
+/**
+ * Preferencia de contexto ativo do seletor global.
+ *
+ * Nao pode morar em `users` (write: if false) nem em `user_profiles` — a allowlist de la
+ * e exatamente o reflexo que o comentario de F1.6a pede para nao ter. Vive aqui, escrita
+ * pelo proprio dono, sustentada por uma invariante: NENHUMA rule deste arquivo le
+ * `user_settings`. E o caso 70 que prova que apontar para um estabelecimento alheio
+ * continua sendo inutil.
+ */
+describe('user_settings/{uid}', () => {
+  const settings = (extra = {}) => ({
+    activeEstablishmentId: EST_A,
+    updatedAt: serverTimestamp(),
+    ...extra,
+  });
+
+  it('65. permite ao dono criar e ler a propria preferencia', async () => {
+    const db = as(USER_UID);
+    await assertSucceeds(setDoc(doc(db, 'user_settings', USER_UID), settings()));
+    await assertSucceeds(getDoc(doc(db, 'user_settings', USER_UID)));
+  });
+
+  it('66. nega ler ou escrever a preferencia de outro usuario', async () => {
+    const db = as(USER_UID);
+    await assertFails(getDoc(doc(db, 'user_settings', MOD_UID)));
+    await assertFails(setDoc(doc(db, 'user_settings', MOD_UID), settings()));
+  });
+
+  it('67. nega chave desconhecida — role nao entra por aqui', async () => {
+    await assertFails(
+      setDoc(doc(as(USER_UID), 'user_settings', USER_UID), settings({ role: 'ADM' })),
+    );
+  });
+
+  it('68. nega updatedAt forjado', async () => {
+    await assertFails(
+      setDoc(
+        doc(as(USER_UID), 'user_settings', USER_UID),
+        settings({ updatedAt: Timestamp.fromDate(new Date('2020-01-01T00:00:00Z')) }),
+      ),
+    );
+  });
+
+  it('69. permite limpar o contexto com null e nega delete do doc', async () => {
+    const db = as(USER_UID);
+    await assertSucceeds(
+      setDoc(doc(db, 'user_settings', USER_UID), settings({ activeEstablishmentId: null })),
+    );
+    await assertFails(deleteDoc(doc(db, 'user_settings', USER_UID)));
+  });
+
+  it('70. apontar para estabelecimento alheio e permitido e nao da acesso a ele', async () => {
+    const db = as(USER_UID);
+    await assertSucceeds(
+      setDoc(doc(db, 'user_settings', USER_UID), settings({ activeEstablishmentId: EST_B })),
+    );
+    await assertFails(getDoc(doc(db, 'establishments', EST_B)));
+    await assertFails(getDocs(collection(db, 'establishments', EST_B, 'members')));
+  });
+});
+
+/**
+ * Unicidade de CNPJ. O doc id e o proprio CNPJ, entao `create` sobre um id existente
+ * falha nativamente — e a unica forma de garantir unicidade sem uma callable.
+ *
+ * O ADM le o indice para poder dizer "CNPJ ja cadastrado" antes de tentar gravar. Isso
+ * nao lhe entrega informacao nova: ele ja tem `list` em establishments, onde o CNPJ esta
+ * em texto claro. Para todos os outros a leitura e negada — ai o indice seria mesmo um
+ * oraculo de "este CNPJ ja e cliente da plataforma".
+ */
+describe('cnpj_index/{cnpj}', () => {
+  it('71. permite leitura so ao ADM — e o que separa CNPJ duplicado de sem permissao', async () => {
+    await assertSucceeds(getDoc(doc(as(ADM_UID), 'cnpj_index', '11222333000181')));
+    for (const uid of [MOD_UID, CLIENT_UID, USER_UID]) {
+      await assertFails(getDoc(doc(as(uid), 'cnpj_index', '11222333000181')));
+    }
+    await assertFails(getDoc(doc(anon(), 'cnpj_index', '11222333000181')));
+  });
+
+  it('72. permite ADM criar a entrada de indice', async () => {
+    await assertSucceeds(
+      setDoc(doc(as(ADM_UID), 'cnpj_index', '11222333000181'), {
+        establishmentId: EST_A,
+        createdAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  it('73. nega sobrescrever indice existente — e isso que garante a unicidade', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'cnpj_index', '11222333000181'), {
+        establishmentId: EST_A,
+      });
+    });
+    const db = as(ADM_UID);
+    await assertFails(
+      setDoc(doc(db, 'cnpj_index', '11222333000181'), { establishmentId: 'est_outro' }),
+    );
+    await assertFails(deleteDoc(doc(db, 'cnpj_index', '11222333000181')));
+  });
+
+  it('74. nega criar para MOD', async () => {
+    await assertFails(
+      setDoc(doc(as(MOD_UID), 'cnpj_index', '99888777000166'), { establishmentId: EST_A }),
+    );
   });
 });
 
