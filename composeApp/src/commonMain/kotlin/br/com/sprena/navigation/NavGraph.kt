@@ -3,13 +3,8 @@ package br.com.sprena.navigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -46,6 +41,11 @@ import br.com.sprena.presentation.consent.ConsentViewModel
 import br.com.sprena.presentation.core.navigation.BottomNavIntent
 import br.com.sprena.presentation.core.navigation.BottomNavViewModel
 import br.com.sprena.presentation.core.navigation.BottomTab
+import br.com.sprena.presentation.core.navigation.NoEstablishmentScreen
+import br.com.sprena.presentation.core.navigation.TabIcon
+import br.com.sprena.presentation.core.navigation.label
+import br.com.sprena.presentation.core.navigation.tabsFor
+import br.com.sprena.presentation.core.tenant.TenantViewModel
 import br.com.sprena.presentation.core.theme.ThemeViewModel
 import br.com.sprena.presentation.eventos.EventCategory
 import br.com.sprena.presentation.eventos.EventosIntent
@@ -527,6 +527,20 @@ private fun HomeWithBottomNav(
     val bottomNavViewModel: BottomNavViewModel = koinViewModel()
     val bottomNavState by bottomNavViewModel.state.collectAsState()
 
+    // F1.7.3: as abas passam a depender do papel efetivo no estabelecimento ativo, não mais do
+    // papel global. Enquanto o contexto for null a barra fica em carregamento.
+    val tenantViewModel: TenantViewModel = koinViewModel()
+    val tenantContext by tenantViewModel.context.collectAsState()
+    val userRole = tenantContext?.effectiveRole ?: authenticatedUser?.role ?: UserRole.USER
+
+    LaunchedEffect(tenantContext) {
+        tenantContext?.let { ctx ->
+            bottomNavViewModel.handleIntent(
+                BottomNavIntent.TabsResolved(tabsFor(ctx.effectiveRole, ctx.hasEstablishment)),
+            )
+        }
+    }
+
     val homeViewModel: HomeViewModel = koinViewModel()
     val sportClientViewModel: SportClientViewModel = koinViewModel()
     val kanbanViewModel: KanbanViewModel = koinViewModel()
@@ -690,86 +704,63 @@ private fun HomeWithBottomNav(
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = bottomNavState.current == BottomTab.HOME,
-                    onClick = {
-                        bottomNavViewModel.handleIntent(
-                            BottomNavIntent.TabSelected(BottomTab.HOME),
+            // A barra passou a ser montada a partir de `tabsFor(papel, temEstabelecimento)`
+            // em F1.7.3. Antes eram cinco NavigationBarItem escritos à mão, e adicionar uma
+            // aba exigia editar três lugares deste arquivo sem nada garantindo a sincronia.
+            if (bottomNavState.tabs.isNotEmpty()) {
+                NavigationBar {
+                    bottomNavState.tabs.forEach { tab ->
+                        NavigationBarItem(
+                            selected = bottomNavState.current == tab,
+                            onClick = {
+                                bottomNavViewModel.handleIntent(BottomNavIntent.TabSelected(tab))
+                            },
+                            icon = { tab.TabIcon() },
+                            label = { Text(tab.label) },
                         )
-                    },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.Home,
-                            contentDescription = "Home",
-                        )
-                    },
-                    label = { Text("Home") },
-                )
-                NavigationBarItem(
-                    selected = bottomNavState.current == BottomTab.EVENTOS,
-                    onClick = {
-                        bottomNavViewModel.handleIntent(
-                            BottomNavIntent.TabSelected(BottomTab.EVENTOS),
-                        )
-                    },
-                    icon = {
-                        Text(
-                            text = "📅",
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    },
-                    label = { Text("Eventos") },
-                )
-                NavigationBarItem(
-                    selected = bottomNavState.current == BottomTab.BAR,
-                    onClick = {
-                        bottomNavViewModel.handleIntent(
-                            BottomNavIntent.TabSelected(BottomTab.BAR),
-                        )
-                    },
-                    icon = {
-                        Text(
-                            text = "🍺",
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    },
-                    label = { Text("Comandas") },
-                )
-                NavigationBarItem(
-                    selected = bottomNavState.current == BottomTab.FINANCIAL,
-                    onClick = {
-                        bottomNavViewModel.handleIntent(
-                            BottomNavIntent.TabSelected(BottomTab.FINANCIAL),
-                        )
-                    },
-                    icon = {
-                        Text(
-                            text = "R$",
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    },
-                    label = { Text("Financeiro") },
-                )
-                NavigationBarItem(
-                    selected = bottomNavState.current == BottomTab.PROFILE,
-                    onClick = {
-                        bottomNavViewModel.handleIntent(
-                            BottomNavIntent.TabSelected(BottomTab.PROFILE),
-                        )
-                    },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Perfil",
-                        )
-                    },
-                    label = { Text("Perfil") },
-                )
+                    }
+                }
             }
         },
     ) { bottomNavPadding ->
         when (bottomNavState.current) {
+            // Ainda resolvendo o papel, ou resolvido sem vínculo nenhum. A distinção existe
+            // para não mostrar "procure um Moderador" a quem só está esperando a leitura dos
+            // vínculos terminar.
+            null ->
+                if (bottomNavState.isWithoutEstablishment) {
+                    NoEstablishmentScreen(
+                        role = userRole,
+                        modifier = Modifier.padding(bottomNavPadding),
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(bottomNavPadding),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+
+            // Estado intermediário de F1.7.3: a Config do ADM mostra o mesmo conteúdo do
+            // Perfil, o que já garante a ele os direitos do titular (F1.6a). As seções
+            // Estabelecimentos e Moderadores entram aqui na fatia seguinte.
+            BottomTab.CONFIG ->
+                ProfileScreen(
+                    themeViewModel = themeViewModel,
+                    modifier = Modifier.padding(bottomNavPadding),
+                    navigation =
+                        ProfileNavigation(
+                            onNavigateToLogin = {
+                                navController.navigate(Routes.LOGIN) {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            },
+                            onNavigateSettings = { navController.navigate(Routes.SETTINGS) },
+                            onNavigatePrivacyPolicy = { navController.navigate(Routes.PRIVACY_POLICY) },
+                        ),
+                )
+
             BottomTab.HOME -> {
                 SportClientScreen(
                     viewModel = sportClientViewModel,

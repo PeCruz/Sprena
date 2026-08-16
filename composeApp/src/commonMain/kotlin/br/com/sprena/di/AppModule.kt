@@ -5,6 +5,7 @@ import br.com.sprena.presentation.bar.addclient.AddClientViewModel
 import br.com.sprena.presentation.category.CategoryViewModel
 import br.com.sprena.presentation.consent.ConsentViewModel
 import br.com.sprena.presentation.core.navigation.BottomNavViewModel
+import br.com.sprena.presentation.core.tenant.TenantViewModel
 import br.com.sprena.presentation.core.theme.ThemeViewModel
 import br.com.sprena.presentation.eventos.EventosViewModel
 import br.com.sprena.presentation.eventos.createevent.CreateEventViewModel
@@ -36,6 +37,13 @@ fun appModule() =
         viewModel { FinancialViewModel() }
         viewModel { AddTransactionViewModel() }
         viewModelOf(::BottomNavViewModel)
+        viewModel {
+            TenantViewModel(
+                memberships = get(),
+                activeEstablishment = get(),
+                sessionStore = get(),
+            )
+        }
         viewModelOf(::ThemeViewModel)
         viewModelOf(::BarViewModel)
         viewModelOf(::AddClientViewModel)
