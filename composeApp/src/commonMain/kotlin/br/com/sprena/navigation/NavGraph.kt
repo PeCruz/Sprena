@@ -47,6 +47,9 @@ import br.com.sprena.presentation.core.navigation.label
 import br.com.sprena.presentation.core.navigation.tabsFor
 import br.com.sprena.presentation.core.tenant.TenantViewModel
 import br.com.sprena.presentation.core.theme.ThemeViewModel
+import br.com.sprena.presentation.establishment.EstablishmentListScreen
+import br.com.sprena.presentation.establishment.edit.EstablishmentEditScreen
+import br.com.sprena.presentation.establishment.moderators.ModeratorsScreen
 import br.com.sprena.presentation.eventos.EventCategory
 import br.com.sprena.presentation.eventos.EventosIntent
 import br.com.sprena.presentation.eventos.EventosScreen
@@ -90,6 +93,7 @@ import br.com.sprena.shared.privacy.domain.usecase.CheckConsentUseCase
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 /**
  * Rotas de navegacao do app.
@@ -106,6 +110,19 @@ object Routes {
     const val CATEGORY = "category"
     const val CONSENT = "consent"
     const val PRIVACY_POLICY = "privacy_policy"
+    const val ESTABLISHMENTS = "establishments"
+    const val MODERATORS = "moderators"
+
+    /**
+     * O id vai no path e vazio significa "criar".
+     *
+     * Deliberadamente diferente de EDIT_SPORT_CLIENT, que passa dez campos por
+     * savedStateHandle: com o id na rota, o formulário lê o cadastro pelo repositório e o
+     * NavGraph não precisa saber nada sobre estabelecimento.
+     */
+    const val ESTABLISHMENT_EDIT = "establishment_edit/{establishmentId}"
+
+    fun establishmentEdit(id: String?): String = "establishment_edit/${id.orEmpty()}"
 }
 
 /** Monta a rota da Home com os argumentos que ela espera no path. */
@@ -502,6 +519,35 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
                 onNavigateBack = { navController.popBackStack() },
             )
         }
+
+        composable(route = Routes.ESTABLISHMENTS) {
+            EstablishmentListScreen(
+                themeViewModel = themeViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEdit = { id -> navController.navigate(Routes.establishmentEdit(id)) },
+            )
+        }
+
+        composable(
+            route = Routes.ESTABLISHMENT_EDIT,
+            arguments = listOf(navArgument("establishmentId") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            // Vazio significa criar. O ViewModel recebe o id pelo Koin (parametersOf) e le o
+            // cadastro pelo repositorio — nada de savedStateHandle entre as duas telas.
+            val id = backStackEntry.arguments?.getString("establishmentId").orEmpty()
+            EstablishmentEditScreen(
+                themeViewModel = themeViewModel,
+                viewModel = koinViewModel { parametersOf(id.ifBlank { null }) },
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(route = Routes.MODERATORS) {
+            ModeratorsScreen(
+                themeViewModel = themeViewModel,
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
     }
 }
 
@@ -742,9 +788,9 @@ private fun HomeWithBottomNav(
                     }
                 }
 
-            // Estado intermediário de F1.7.3: a Config do ADM mostra o mesmo conteúdo do
-            // Perfil, o que já garante a ele os direitos do titular (F1.6a). As seções
-            // Estabelecimentos e Moderadores entram aqui na fatia seguinte.
+            // A Config reaproveita o Perfil com a seção "Administração" ligada: o ADM também
+            // é titular, e uma tela própria deixaria a exportação e a exclusão de conta
+            // (F1.6a) só do lado dos outros papéis.
             BottomTab.CONFIG ->
                 ProfileScreen(
                     themeViewModel = themeViewModel,
@@ -758,7 +804,10 @@ private fun HomeWithBottomNav(
                             },
                             onNavigateSettings = { navController.navigate(Routes.SETTINGS) },
                             onNavigatePrivacyPolicy = { navController.navigate(Routes.PRIVACY_POLICY) },
+                            onNavigateEstablishments = { navController.navigate(Routes.ESTABLISHMENTS) },
+                            onNavigateModerators = { navController.navigate(Routes.MODERATORS) },
                         ),
+                    showAdminSection = true,
                 )
 
             BottomTab.HOME -> {

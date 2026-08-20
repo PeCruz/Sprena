@@ -1,6 +1,5 @@
 package br.com.sprena.presentation.profile
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -41,10 +39,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import br.com.sprena.core.platform.ExportPayload
 import br.com.sprena.core.platform.rememberDataExportSharer
+import br.com.sprena.core.ui.components.SectionTitle
+import br.com.sprena.core.ui.components.SettingsRow
 import br.com.sprena.core.ui.components.ThemeToggleButton
 import br.com.sprena.presentation.core.theme.ThemeViewModel
 import br.com.sprena.shared.sportclient.domain.validation.SportModality
@@ -65,6 +64,14 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = koinViewModel(),
     navigation: ProfileNavigation = ProfileNavigation(),
     onNavigateBack: (() -> Unit)? = null,
+    /**
+     * Liga a seção "Administração" (Estabelecimentos e Moderadores).
+     *
+     * A aba Config do ADM reaproveita esta tela em vez de ter uma própria: o ADM também é
+     * titular, e duplicar a tela deixaria a exportação e a exclusão de conta (F1.6a) só de um
+     * lado. `TabMatrixTest` tem um caso que quebra se algum papel perder essas portas.
+     */
+    showAdminSection: Boolean = false,
 ) {
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -101,7 +108,7 @@ fun ProfileScreen(
                         onRetry = { viewModel.handleIntent(ProfileIntent.Retry) },
                     )
 
-                else -> ProfileContent(state, viewModel, navigation)
+                else -> ProfileContent(state, viewModel, navigation, showAdminSection)
             }
         }
     }
@@ -146,7 +153,24 @@ private fun ProfileContent(
     state: ProfileState,
     viewModel: ProfileViewModel,
     navigation: ProfileNavigation,
+    showAdminSection: Boolean,
 ) {
+    if (showAdminSection) {
+        SectionTitle("Administração")
+        SettingsRow(
+            title = "Estabelecimentos",
+            subtitle = "Cadastrar, editar e desativar",
+            onClick = navigation.onNavigateEstablishments,
+        )
+        SettingsRow(
+            title = "Moderadores",
+            subtitle = "Quem gere cada estabelecimento",
+            onClick = navigation.onNavigateModerators,
+        )
+        Spacer(Modifier.height(8.dp))
+        HorizontalDivider()
+    }
+
     SectionTitle("Meus dados")
     if (state.isEditing) {
         ProfileForm(state, viewModel)
@@ -175,7 +199,7 @@ private fun PrivacySection(
     navigation: ProfileNavigation,
 ) {
     SectionTitle("Segurança e privacidade")
-    ProfileRow(
+    SettingsRow(
         title = "Redefinir senha",
         subtitle =
             if (state.isSendingPasswordReset) {
@@ -185,17 +209,17 @@ private fun PrivacySection(
             },
         onClick = { viewModel.handleIntent(ProfileIntent.PasswordResetRequested) },
     )
-    ProfileRow(
+    SettingsRow(
         title = "Política de privacidade",
         subtitle = "Como seus dados são tratados",
         onClick = navigation.onNavigatePrivacyPolicy,
     )
-    ProfileRow(
+    SettingsRow(
         title = "Exportar meus dados",
         subtitle = if (state.isExporting) "Gerando arquivo..." else "Baixe uma cópia em JSON",
         onClick = { viewModel.handleIntent(ProfileIntent.ExportClicked) },
     )
-    ProfileRow(
+    SettingsRow(
         title = "Configurações",
         subtitle = "Cardápio, categorias e preferências",
         onClick = navigation.onNavigateSettings,
@@ -457,17 +481,6 @@ private fun ErrorSection(
 }
 
 @Composable
-private fun SectionTitle(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp),
-    )
-}
-
-@Composable
 private fun ReadOnlyField(
     label: String,
     value: String,
@@ -509,31 +522,5 @@ private fun RevealableField(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun ProfileRow(
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(Modifier.width(8.dp))
     }
 }
