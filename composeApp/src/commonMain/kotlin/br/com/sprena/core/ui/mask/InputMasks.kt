@@ -138,6 +138,84 @@ private fun cpfTransformedToOriginal(
     return digitsSeen.coerceAtMost(totalDigits)
 }
 
+// Posições, em dígitos, onde entra cada separador de XX.XXX.XXX/XXXX-XX.
+private const val CNPJ_LENGTH = 14
+private const val CNPJ_DOT_1 = 2
+private const val CNPJ_DOT_2 = 5
+private const val CNPJ_SLASH = 8
+private const val CNPJ_DASH = 12
+private val CNPJ_SEPARATORS = intArrayOf(CNPJ_DOT_1, CNPJ_DOT_2, CNPJ_SLASH, CNPJ_DASH)
+
+/**
+ * Máscara de CNPJ: XX.XXX.XXX/XXXX-XX
+ * Aceita exatamente 14 dígitos.
+ *
+ * Como as demais, é puramente visual: o state guarda só dígitos, e é essa forma que vai para
+ * o Firestore. A rule de `establishments` valida `^[0-9]{14}$`, e os 14 dígitos são também
+ * o id do documento em `cnpj_index` — guardar o valor pontuado faria dois cadastros do mesmo
+ * CNPJ escaparem da unicidade.
+ */
+class CnpjMaskTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val digits = text.text.filter { it.isDigit() }.take(CNPJ_LENGTH)
+        val masked = buildCnpjMask(digits)
+
+        val offsetMapping =
+            object : OffsetMapping {
+                override fun originalToTransformed(offset: Int): Int =
+                    cnpjOriginalToTransformed(offset.coerceIn(0, digits.length))
+
+                override fun transformedToOriginal(offset: Int): Int =
+                    cnpjTransformedToOriginal(offset, masked, digits.length)
+            }
+
+        return TransformedText(AnnotatedString(masked), offsetMapping)
+    }
+}
+
+private fun buildCnpjMask(digits: String): String {
+    val sb = StringBuilder()
+    for (i in digits.indices) {
+        when (i) {
+            CNPJ_DOT_1, CNPJ_DOT_2 -> sb.append(".")
+            CNPJ_SLASH -> sb.append("/")
+            CNPJ_DASH -> sb.append("-")
+        }
+        sb.append(digits[i])
+    }
+    return sb.toString()
+}
+
+/**
+ * Mesma máscara, para exibição fora de campo de texto (lista de estabelecimentos).
+ *
+ * Segue a convenção deste arquivo, onde `formatCurrencyDigits` e `formatMonthYearDigits` já
+ * existem pelo mesmo motivo: o dado é guardado só com dígitos e formatado na hora de mostrar.
+ * Valor com tamanho inesperado volta como veio, em vez de virar texto truncado.
+ */
+fun formatCnpjDigits(digits: String): String = if (digits.length != CNPJ_LENGTH) digits else buildCnpjMask(digits)
+
+/**
+ * A posição na máscara é a posição em dígitos mais os separadores já emitidos antes dela.
+ *
+ * Contar em vez de enumerar as faixas mantém esta função e [buildCnpjMask] presas à mesma
+ * lista: mover um separador de lugar não deixa as duas discordando, que é o erro que faria o
+ * Compose lançar exceção ao posicionar o cursor.
+ */
+private fun cnpjOriginalToTransformed(offset: Int): Int = offset + CNPJ_SEPARATORS.count { it < offset }
+
+private fun cnpjTransformedToOriginal(
+    offset: Int,
+    masked: String,
+    totalDigits: Int,
+): Int {
+    var digitsSeen = 0
+    for (i in 0 until offset.coerceAtMost(masked.length)) {
+        if (masked[i].isDigit()) digitsSeen++
+    }
+    return digitsSeen.coerceAtMost(totalDigits)
+}
+
 /**
  * Máscara de mês/ano: MM/AAAA
  * Aceita até 6 dígitos. Insere "/" após os 2 primeiros.
