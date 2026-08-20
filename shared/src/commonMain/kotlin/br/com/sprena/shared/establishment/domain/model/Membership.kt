@@ -16,4 +16,19 @@ data class Membership(
     val uid: String,
     val role: MemberRole,
     val active: Boolean,
+    /**
+     * Nome para exibição, copiado para cá no momento da vinculação.
+     *
+     * É denormalização deliberada. As rules de `users/{uid}` e `user_profiles/{uid}` liberam
+     * leitura **apenas ao próprio dono** — inclusive contra o ADM —, então sem este campo a
+     * tela de membros listaria identificadores opacos. Abrir aquelas rules para resolver isso
+     * ampliaria a superfície de PII e custaria um `get()` por linha da lista.
+     *
+     * O dado já existe no fluxo que cria o vínculo: o pré-cadastro por CPF carrega CPF e
+     * apelido. Quem escreve é o Admin SDK, junto do resto do documento.
+     *
+     * `null` para os vínculos semeados à mão pelo Console antes de F1.7.3b. A UI cai no uid
+     * abreviado nesse caso, em vez de mostrar um espaço vazio.
+     */
+    val displayName: String? = null,
 )
