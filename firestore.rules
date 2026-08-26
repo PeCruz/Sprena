@@ -194,6 +194,27 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Colecoes escritas SO pelo Admin SDK, dentro das callables de vinculo (F1.7.3c).
+    // O default deny la embaixo ja negaria as tres; a negacao esta escrita a mao porque
+    // colecao de seguranca merece ser legivel como decisao, e nao como consequencia.
+    //
+    // `cpf_claims` e a trava 1-CPF-por-conta. O id dela E o HMAC do CPF, entao um `get`
+    // que distinguisse existente de inexistente viraria oraculo de "este CPF tem conta
+    // aqui" — exatamente o que a vinculacao write-only foi desenhada para nao ter.
+    match /cpf_claims/{cpfHmac} {
+      allow read, write: if false;
+    }
+
+    // Nem o proprio dono le: saber quantas tentativas restam ajuda quem esta adivinhando
+    // CPF a se manter abaixo do limite.
+    match /rate_limits/{uid} {
+      allow read, write: if false;
+    }
+
+    match /security_events/{eventId} {
+      allow read, write: if false;
+    }
+
     // Preferencia de contexto do seletor global de estabelecimento (F1.7.1).
     //
     // Nao pode morar em `users` (toda escrita e negada) nem em `user_profiles` — a
@@ -304,6 +325,36 @@ service cloud.firestore {
       match /sport_clients/{clientId} {
         allow read: if isStaffOf(estId) || isAdm();
         allow create, update, delete: if isStaffOf(estId) || isAdm();
+      }
+
+      // Pre-cadastros por CPF de quem ainda nao tem conta (F1.7.3c).
+      //
+      // Guarda apenas o CPF mascarado — o numero completo nunca e gravado, e o id do
+      // documento e um HMAC com pepper do lado do servidor. Quem le e o staff, para
+      // acompanhar o que esta pendente; quem escreve e so a callable.
+      match /preregistrations/{cpfHmac} {
+        allow read: if isStaffOf(estId) || isAdm();
+        allow write: if false;
+      }
+
+      // "Vinculos recentes": o aviso de que alguem reclamou um pre-cadastro e entrou.
+      //
+      // A unica mutacao que o cliente faz e marcar como revisado. Reescrever o resto
+      // apagaria a prova de que o vinculo aconteceu, e e justamente essa trilha que
+      // permite ao Client desfazer um vinculo indevido.
+      match /member_events/{eventId} {
+        allow read: if isStaffOf(estId) || isAdm();
+        allow create, delete: if false;
+        allow update: if isStaffOf(estId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['reviewed', 'reviewedBy'])
+          && request.resource.data.reviewedBy == request.auth.uid;
+      }
+
+      // Trilha de quem mexeu no grafo de membros. So o ADM le; ninguem escreve pelo app.
+      match /audit/{entryId} {
+        allow read: if isAdm();
+        allow write: if false;
       }
     }
 
