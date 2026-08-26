@@ -627,6 +627,69 @@ Com o APK da F1.7.1 instalado e logado como a pessoa vinculada:
 3. O ADM lista `establishments`; MOD e CLIENT recebem `PERMISSION_DENIED` no `list` — é o
    esperado, eles chegam pelo próprio vínculo.
 
+## Parte J — Deploy das callables de vínculo (F1.7.3c)
+
+### J.1 — Criar o segredo `CPF_PEPPER` (uma vez, antes do primeiro deploy)
+
+O pepper é um valor que **você gera**; não existe pronto em lugar nenhum. Ele entra no
+`HMAC-SHA256` que transforma CPF em id de documento.
+
+```bash
+openssl rand -base64 32 | firebase functions:secrets:set CPF_PEPPER --project sprena-a9b55
+firebase functions:secrets:access CPF_PEPPER --project sprena-a9b55   # confirma que existe
+```
+
+Se o CLI pedir o valor por prompt em vez de ler do pipe, rode `openssl rand -base64 32`
+separado e cole o resultado.
+
+⚠️ **O valor nunca pode mudar depois que houver pré-cadastro.** O HMAC é o *id do documento*,
+então trocar o pepper torna toda pendência irreclamável: o CPF da pessoa passa a gerar outro
+id e ela nunca encontra o próprio vínculo. Rotacionar seria migração de dados.
+
+O emulador **não** usa o Secret Manager — ele cai num pepper fixo de desenvolvimento. Isso é
+deliberado: o projeto `demo-*` não existe no Secret Manager, e tentar resolver o segredo lá
+volta `403` com cara de falta de permissão da conta de serviço.
+
+### J.2 — Publicar
+
+```bash
+firebase deploy --only firestore,functions --project sprena-a9b55
+```
+
+`firestore` junto porque as rules das coleções novas (`cpf_claims`, `rate_limits`,
+`security_events`, `preregistrations`, `member_events`, `audit`) precisam existir antes de as
+funções escreverem nelas — as funções usam Admin SDK e não passam por rules, mas o **app**
+lê `preregistrations` e `member_events`, e sem as rules essas leituras batem no default deny.
+
+### J.3 — Conferir
+
+```bash
+firebase functions:list --project sprena-a9b55
+```
+
+Devem aparecer, todas em `southamerica-east1`: `deleteMyAccount`, `bootstrapAccount`,
+`linkMemberByCpf`, `setMemberRole`, `removeMember`, `leaveEstablishment`.
+
+Região divergente devolve `NOT_FOUND` no cliente, indistinguível de "função não deployada" —
+a constante `FUNCTIONS_REGION` existe em dois lugares (`functions/src/index.ts` e
+`PlatformModule.android.kt`) e precisa bater.
+
+### J.4 — Validar em device
+
+1. Entre com uma conta nova. `users/{uid}` deve nascer com `role: 'USER'`.
+2. Entre de novo com a **conta ADM**. O papel dela **continua** `ADM` — se virar `USER`, o
+   `bootstrapAccount` está fazendo `set` em vez de `create`, e isso é incidente.
+3. Como ADM, vincule um CPF válido de alguém que ainda não tem conta → a pendência aparece em
+   `establishments/{id}/preregistrations`, com `cpfMasked` e **sem** o CPF completo.
+4. Tente vincular com papel `ADM` pela API → recusado, e um documento novo em
+   `security_events`.
+
+### J.5 — App Check
+
+As callables aplicam `enforceAppCheck` por conta própria, independente da chave do Console.
+Um build **debug** sem token de App Check registrado (Parte G.1) recebe `unauthenticated` —
+parece bug e não é.
+
 ## Registro local
 
 Guardar os dados reais (email, senha, UID) em **`docs/ops/test-users.local.md`** â€” gitignorado via
