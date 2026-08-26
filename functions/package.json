@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc",
     "lint": "eslint src",
-    "test": "node --test",
+    "test": "node --test --test-concurrency=1",
     "test:emulator": "firebase --config ../firebase.json emulators:exec --only auth,firestore,functions --project demo-sprena \"npm test\""
   },
   "dependencies": {
