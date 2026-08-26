@@ -724,3 +724,82 @@ Publicar só as rules deixa a consulta de vínculos falhando em produção.
 - [ ] `user_profiles` continua sem `establishmentIds` na allowlist (caso 34)
 - [ ] Nenhuma regra do arquivo lê `user_settings` (caso 70)
 
+---
+
+## F1.7.2 — `sport_clients` entra no estabelecimento
+
+Segunda fatia de F1.7, e a que fecha o buraco que este documento vinha registrando desde
+F1.4. Move `sport_clients/{id}` para `establishments/{estId}/sport_clients/{id}`.
+
+### O que estava aberto
+
+A regra anterior era:
+
+```
+match /sport_clients/{clientId} {
+  allow read: if isSignedIn();          // <- qualquer conta autenticada
+  allow create, update, delete: if isStaff();
+}
+```
+
+`sport_clients` guarda **CPF e telefone** de cada cliente. `read: if isSignedIn()` significa
+que qualquer conta autenticada lia a base inteira, independentemente de papel ou de
+estabelecimento.
+
+Enquanto só existiam ADM, MOD e CLIENT — todos provisionados à mão pelo Console — o risco
+era contido pelo cadastro fechado: não havia como obter uma conta sem que o dono do sistema
+a criasse. F1.7.3 remove exatamente essa contenção, porque o primeiro login passa a criar a
+conta sozinho. Sem esta fase antes daquela, **abrir o cadastro seria publicar a base de
+CPFs**.
+
+É a razão de `1.7.2 → 1.7.3` ser a única ordem rígida do plano, e é o alerta que a seção
+"Fora de escopo (F1.7)" de F1.6a já fazia ao dizer que criar a constante `USER` cedo seria
+"ativamente perigoso".
+
+### A regra nova
+
+```
+match /sport_clients/{clientId} {
+  allow read: if isStaffOf(estId) || isAdm();
+  allow create, update, delete: if isStaffOf(estId) || isAdm();
+}
+```
+
+`isStaffOf` e não `canReadTenant`: o **USER é membro do estabelecimento e ainda assim não
+entra aqui**. Frequentar o lugar não dá acesso ao cadastro de quem mais frequenta. O caso 7
+dos testes é o que guarda essa garantia, e o 9d falha se o bloco global voltar ao arquivo.
+
+### `isStaff()` foi removido
+
+O helper de F1.4 tinha `sport_clients` como único consumidor. Com o papel MOD deixando de
+ser global, a pergunta que ele respondia — "é ADM ou MOD?" — não tem mais resposta sem um
+estabelecimento em mãos. Quem precisar dela agora usa `isStaffOf(estId)`.
+
+### Contrato Kotlin
+
+`SportClientRepository` passa a receber `establishmentId` em cada chamada (e não no
+construtor, porque o estabelecimento ativo muda em runtime) e a devolver `Result<T>` em vez
+de lançar.
+
+A troca de contrato foi feita agora porque a interface **não tem nenhum consumidor**: o
+`SportClientViewModel` guarda os clientes em memória e nunca chegou a injetar o repositório,
+apesar de ele estar registrado no Koin desde F0. Ligá-lo é F1.7.3, quando o seletor de
+contexto existir na UI — e é mais simples ligá-lo a um contrato já no formato definitivo do
+que trocar o formato depois, com consumidor em cima.
+
+### Ordem de release
+
+Esta é a primeira fase de F1.7 com uma remoção, mas **não é bloqueante**: o único código que
+lia `sport_clients` nunca foi ligado, então nenhum APK em campo perde acesso. Publicar as
+rules e depois apagar os documentos da coleção antiga pelo Console é suficiente.
+
+Se em algum momento a coleção global voltar a ter dados (por exemplo, um APK antigo de
+desenvolvimento), eles ficam inacessíveis, não expostos — o default deny cobre.
+
+### Verificação manual (pré-merge)
+
+- [ ] `cd tools/firestore-rules-tests && npm run test:emulator` — `fail 0` (78 casos)
+- [ ] `grep -c "match /sport_clients" firestore.rules` devolve `0`
+- [ ] `grep -c "isStaff()" firestore.rules` devolve `0`
+- [ ] Caso 7 (USER não lê) e caso 9d (coleção global morta) presentes e passando
+

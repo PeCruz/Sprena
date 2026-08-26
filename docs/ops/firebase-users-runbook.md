@@ -602,7 +602,23 @@ estabelecimentos — e ninguém recebe erro, a lista só volta vazia.
 (`MemberRole.fromRaw` devolve `null`), com o mesmo efeito. `active` ausente conta como
 desligado.
 
-### I.4 — Conferir
+### I.4 — Aposentar a coleção global `sport_clients` (F1.7.2)
+
+Os clientes esportivos passaram a viver em
+`establishments/{estId}/sport_clients/{id}`. A coleção global de mesmo nome não tem mais
+regra nenhuma — cai no default deny.
+
+1. Publique as rules (`firebase deploy --only firestore`).
+2. Firestore → `sport_clients` → conferir se sobrou algum documento.
+3. Se sobrou, recrie cada um sob o estabelecimento correto (mesmos campos) e apague a
+   coleção antiga.
+
+Não há pressa nem risco de exposição: sem regra, os documentos remanescentes ficam
+inacessíveis para todo mundo, inclusive para o ADM. E nenhum APK em campo perde
+funcionalidade — o `SportClientViewModel` nunca chegou a ler do Firestore, os dados dele
+sempre estiveram em memória.
+
+### I.5 — Conferir
 
 Com o APK da F1.7.1 instalado e logado como a pessoa vinculada:
 

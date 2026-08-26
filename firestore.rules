@@ -24,20 +24,6 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    // `&&` faz curto-circuito: sem login nao chama get(), e sem doc nao le .data
-    // (acessar .data de null e evaluation error, que negaria por acidente).
-    //
-    // NOTA: em request NEGADO que passa por aqui, o emulador loga
-    // "evaluation error at L<n>" seguido de "false" na mesma linha. E o motor
-    // avaliando antes de resolver o get() e reavaliando depois — a decisao que
-    // vale e a segunda. Nao e bug da regra: escrita de ADM/MOD passa (ver
-    // casos 8a/8b em tools/firestore-rules-tests/rules.test.mjs).
-    function isStaff() {
-      return isSignedIn()
-        && profile() != null
-        && profile().data.role in ['ADM', 'MOD'];
-    }
-
     // -------------------------------------------------------------------------
     // F1.7.1 — multi-tenancy.
     //
@@ -51,8 +37,20 @@ service cloud.firestore {
     // query o motor avalia a rule por documento, mas guarda o resultado do get() quando
     // a expressao do path e identica. Com o tenant no path, listar N comandas custa 1
     // get; com o tenant num campo, o path muda a cada documento e o cache morre.
+    //
+    // O `isStaff()` de F1.4 foi removido em F1.7.2 junto com seu unico consumidor, a
+    // colecao global `sport_clients`. O papel MOD deixou de ser global, entao a pergunta
+    // que ele respondia ("e ADM ou MOD?") nao tem mais resposta sem um estabelecimento.
     // -------------------------------------------------------------------------
 
+    // `&&` faz curto-circuito: sem login nao chama get(), e sem doc nao le .data
+    // (acessar .data de null e evaluation error, que negaria por acidente).
+    //
+    // NOTA, valida para todos os helpers deste bloco: em request NEGADO que passa por
+    // aqui, o emulador loga "evaluation error at L<n>" seguido de "false" na mesma linha.
+    // E o motor avaliando antes de resolver o get() e reavaliando depois — a decisao que
+    // vale e a segunda. Nao e bug da regra: as escritas legitimas passam (ver os casos 6
+    // e 8 em tools/firestore-rules-tests/rules.test.mjs).
     function isAdm() {
       return isSignedIn()
         && profile() != null
@@ -63,9 +61,6 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/establishments/$(estId)/members/$(request.auth.uid));
     }
 
-    // Mesmo idioma de curto-circuito de isStaff() — e gera o mesmo
-    // "evaluation error at L<n>" no log do emulador em request negado. Ver a nota
-    // acima de isStaff(): a decisao que vale e a segunda avaliacao, nao e bug da regra.
     function isMemberOf(estId) {
       return isSignedIn()
         && memberDoc(estId) != null
@@ -99,13 +94,6 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if isSignedIn() && request.auth.uid == uid;
       allow write: if false;
-    }
-
-    // Clientes esportivos — contem PII (CPF, telefone).
-    // Leitura para qualquer autenticado; escrita so ADM/MOD.
-    match /sport_clients/{clientId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isStaff();
     }
 
     // Aceite da politica de privacidade (F1.5).
@@ -298,6 +286,24 @@ service cloud.firestore {
       match /members/{memberUid} {
         allow read: if canReadTenant(estId);
         allow write: if false;
+      }
+
+      // Clientes esportivos — contem PII (CPF, telefone). Vieram da colecao global
+      // `sport_clients` em F1.7.2.
+      //
+      // La a regra era `read: if isSignedIn()`: qualquer conta autenticada lia o CPF e o
+      // telefone de TODOS os clientes. Enquanto so existiam ADM, MOD e CLIENT, todos
+      // provisionados a mao pelo Console, o risco era contido pelo cadastro fechado.
+      //
+      // F1.7.3 abre o cadastro — primeiro login vira conta automaticamente. Esta regra e
+      // o que impede que abrir o cadastro signifique publicar a base de CPFs, e e por isso
+      // que ela precisa estar publicada ANTES daquela fase.
+      //
+      // `isStaffOf` e nao `canReadTenant`: USER e membro do estabelecimento e mesmo assim
+      // nao entra aqui. Frequentar o lugar nao da acesso ao cadastro de quem mais frequenta.
+      match /sport_clients/{clientId} {
+        allow read: if isStaffOf(estId) || isAdm();
+        allow create, update, delete: if isStaffOf(estId) || isAdm();
       }
     }
 
