@@ -668,6 +668,39 @@ firebase deploy --only firestore,functions --project sprena-a9b55
 funções escreverem nelas — as funções usam Admin SDK e não passam por rules, mas o **app**
 lê `preregistrations` e `member_events`, e sem as rules essas leituras batem no default deny.
 
+### J.2b — Duas armadilhas do **primeiro** deploy (observadas em 2026-08-27)
+
+**1. `iam.serviceaccounts.actAs` negado.** A primeira tentativa falha com:
+
+```
+Could not create Cloud Run service ... Permission 'iam.serviceaccounts.actAs' denied on
+service account <numero>-compute@developer.gserviceaccount.com (or it may not exist).
+```
+
+Não é falta de permissão da sua conta. O deploy habilita cinco APIs (`cloudfunctions`,
+`cloudbuild`, `artifactregistry`, `run`, `eventarc`) **durante a própria execução**, e a service
+account padrão do Compute Engine nasce junto com elas — as permissões dela propagam de forma
+assíncrona. O `(or it may not exist)` da mensagem é a pista.
+
+**Correção: esperar alguns minutos e rodar de novo.** Só se repetir idêntico depois de ~10 min é
+que vale investigar IAM de verdade.
+
+**2. A política de limpeza não é criada sozinha, e a região padrão está errada.** O deploy
+termina com erro mesmo tendo publicado a função:
+
+```
+Functions successfully deployed but could not set up cleanup policy in location southamerica-east1
+```
+
+`firebase functions:artifacts:setpolicy` sem argumentos procura em **`us-central1`** e responde
+que o repositório não existe — mandando investigar o lugar errado. Precisa da região:
+
+```bash
+firebase functions:artifacts:setpolicy --location southamerica-east1 --days 3 --force   --project sprena-a9b55
+```
+
+Feito em 2026-08-27; vale para os deploys seguintes.
+
 ### J.3 — Conferir
 
 ```bash
