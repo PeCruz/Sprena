@@ -1,6 +1,7 @@
 package br.com.sprena.shared.establishment.di
 
 import br.com.sprena.shared.establishment.domain.usecase.GetEstablishmentUseCase
+import br.com.sprena.shared.establishment.domain.usecase.LinkMemberByCpfUseCase
 import br.com.sprena.shared.establishment.domain.usecase.ObserveEstablishmentMembersUseCase
 import br.com.sprena.shared.establishment.domain.usecase.ObserveEstablishmentsUseCase
 import br.com.sprena.shared.establishment.domain.usecase.ObserveMyEstablishmentsUseCase
@@ -22,6 +23,7 @@ fun establishmentModule() =
         factory { GetEstablishmentUseCase(repository = get()) }
         factory { SetEstablishmentActiveUseCase(repository = get()) }
         factory { ObserveEstablishmentMembersUseCase(repository = get()) }
+        factory { LinkMemberByCpfUseCase(repository = get()) }
         factory {
             ObserveMyEstablishmentsUseCase(
                 memberships = get(),
