@@ -1,9 +1,11 @@
 package br.com.sprena.presentation.establishment
 
 import br.com.sprena.shared.establishment.domain.model.Establishment
+import br.com.sprena.shared.establishment.domain.model.MemberLinkResult
 import br.com.sprena.shared.establishment.domain.model.MemberRole
 import br.com.sprena.shared.establishment.domain.model.Membership
 import br.com.sprena.shared.establishment.domain.repository.EstablishmentRepository
+import br.com.sprena.shared.establishment.domain.repository.MemberMutationRepository
 import br.com.sprena.shared.establishment.domain.repository.MembershipRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -95,3 +97,38 @@ fun membership(
     active = active,
     displayName = displayName,
 )
+
+/** Mutações do grafo passam por callable; aqui só se registra o que foi pedido. */
+class FakeMemberMutationRepo(
+    var linkResult: MemberLinkResult = MemberLinkResult.Pending,
+    var removeResult: Result<Unit> = Result.success(Unit),
+) : MemberMutationRepository {
+    var linkCalls: MutableList<Triple<String, String, MemberRole>> = mutableListOf()
+    var removed: MutableList<String> = mutableListOf()
+
+    override suspend fun linkByCpf(
+        establishmentId: String,
+        cpf: String,
+        name: String,
+        role: MemberRole,
+    ): MemberLinkResult {
+        linkCalls += Triple(establishmentId, cpf, role)
+        return linkResult
+    }
+
+    override suspend fun setRole(
+        establishmentId: String,
+        targetUid: String,
+        role: MemberRole,
+    ): Result<Unit> = Result.success(Unit)
+
+    override suspend fun remove(
+        establishmentId: String,
+        targetUid: String,
+    ): Result<Unit> {
+        removed += targetUid
+        return removeResult
+    }
+
+    override suspend fun leave(establishmentId: String): Result<Unit> = Result.success(Unit)
+}
