@@ -93,19 +93,12 @@ Roadmap de evolução do MVP até nível production-ready. As fases são indepen
 **Status atual:** F0 concluída. F1.1–F1.6a implementadas. F1.7 em execução. F2–F6 pendentes de
 priorização do mantenedor.
 
-> ## ⚠️ Só 1 das 6 Cloud Functions está publicada
->
-> **Implementado ≠ no ar.** Situação em 2026-08-27:
->
-> | Função | No ar |
-> |---|---|
-> | `deleteMyAccount` (F1.6a) | ✅ sim — o bloqueio da Play Store caiu |
-> | as cinco callables de vínculo (F1.7.3c) | ❌ não |
->
-> Enquanto as cinco não forem deployadas, login não cria a própria conta e a vinculação por CPF
-> não funciona — tratar como não entregue.
->
-> Esta caixa some quando `firebase functions:list --project sprena-a9b55` listar as seis.
+**Cloud Functions:** as seis publicadas em `southamerica-east1` (2026-08-27) — `bootstrapAccount`,
+`linkMemberByCpf`, `setMemberRole`, `removeMember`, `leaveEstablishment` e `deleteMyAccount`.
+Com `deleteMyAccount` no ar, o bloqueio da Play Store caiu.
+
+> **Ao mexer em Cloud Functions, lembrar:** implementado ≠ no ar. `firebase functions:list` é o
+> que responde o que está publicado; teste verde no emulador não diz nada sobre produção.
 
 **Pré-requisito de deploy — `CPF_PEPPER`:** as callables de vínculo exigem o segredo no Secret
 Manager antes do primeiro deploy (Parte J.1 do [runbook](./docs/ops/firebase-users-runbook.md)).
