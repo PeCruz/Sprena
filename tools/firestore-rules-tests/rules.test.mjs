@@ -111,6 +111,29 @@ beforeEach(async () => {
     await membersA(USER_UID, 'USER');
     await membersA(INACTIVE_UID, 'USER', false);
 
+    // F1.7.3c — colecoes escritas so pelas callables (Admin SDK).
+    await setDoc(doc(db, 'establishments', EST_A, 'preregistrations', 'hash_pendente'), {
+      cpfHmac: 'hash_pendente',
+      apelido: 'Fulano',
+      cpfMasked: '***.456.789-**',
+      status: 'pending',
+      role: 'USER',
+    });
+    await setDoc(doc(db, 'establishments', EST_A, 'member_events', 'ev1'), {
+      type: 'auto_link',
+      uid: USER_UID,
+      apelido: 'Fulano',
+      cpfMasked: '***.456.789-**',
+      reviewed: false,
+    });
+    await setDoc(doc(db, 'establishments', EST_A, 'audit', 'a1'), {
+      action: 'link_member',
+      actorUid: ADM_UID,
+    });
+    await setDoc(doc(db, 'cpf_claims', 'hash_reclamado'), { uid: USER_UID });
+    await setDoc(doc(db, 'rate_limits', USER_UID), { count: 1 });
+    await setDoc(doc(db, 'security_events', 's1'), { type: 'role_escalation_attempt' });
+
     // F1.7.2 — clientes esportivos passam a viver dentro do estabelecimento.
     for (const estId of [EST_A, EST_B]) {
       await setDoc(doc(db, 'establishments', estId, 'sport_clients', 'c1'), {
@@ -768,6 +791,105 @@ describe('cnpj_index/{cnpj}', () => {
   it('74. nega criar para MOD', async () => {
     await assertFails(
       setDoc(doc(as(MOD_UID), 'cnpj_index', '99888777000166'), { establishmentId: EST_A }),
+    );
+  });
+});
+
+/**
+ * F1.7.3c — colecoes que so o Admin SDK escreve.
+ *
+ * Sao as tres pecas da vinculacao por CPF: a pendencia (`preregistrations`), a trava
+ * 1-CPF-por-conta (`cpf_claims`) e o aviso ao Client (`member_events`). Nenhuma delas aceita
+ * escrita do cliente — quem grava e a callable, com Admin SDK, que nao passa por estas rules.
+ *
+ * `cpf_claims` e negada ate para leitura porque o id dela E o HMAC do CPF: um `get` que
+ * distinguisse existente de inexistente viraria oraculo de "este CPF tem conta aqui", que e
+ * exatamente o que a vinculacao write-only foi desenhada para nao ter.
+ */
+describe('colecoes de vinculo (F1.7.3c)', () => {
+  it('75. nega cpf_claims para todos, inclusive ADM', async () => {
+    for (const uid of [ADM_UID, MOD_UID, CLIENT_UID, USER_UID]) {
+      const db = as(uid);
+      await assertFails(getDoc(doc(db, 'cpf_claims', 'hash_reclamado')));
+      await assertFails(setDoc(doc(db, 'cpf_claims', 'hash_novo'), { uid }));
+    }
+  });
+
+  it('76. nega security_events e rate_limits para todos', async () => {
+    const db = as(ADM_UID);
+    await assertFails(getDoc(doc(db, 'security_events', 's1')));
+    await assertFails(setDoc(doc(db, 'security_events', 's2'), { type: 'x' }));
+    await assertFails(getDoc(doc(db, 'rate_limits', ADM_UID)));
+    // Nem o proprio dono le o rate limit: saber quantas tentativas restam ajuda quem esta
+    // tentando adivinhar CPF a se manter abaixo do limite.
+    await assertFails(getDoc(doc(as(USER_UID), 'rate_limits', USER_UID)));
+    await assertFails(setDoc(doc(as(USER_UID), 'rate_limits', USER_UID), { count: 0 }));
+  });
+
+  it('77. staff le as pendencias do proprio estabelecimento', async () => {
+    for (const uid of [MOD_UID, CLIENT_UID]) {
+      await assertSucceeds(
+        getDoc(doc(as(uid), 'establishments', EST_A, 'preregistrations', 'hash_pendente')),
+      );
+    }
+    await assertSucceeds(
+      getDoc(doc(as(ADM_UID), 'establishments', EST_A, 'preregistrations', 'hash_pendente')),
+    );
+  });
+
+  it('78. USER e forasteiro nao leem pendencias', async () => {
+    // A pendencia guarda o CPF mascarado de quem ainda nem tem conta. Quem so frequenta o
+    // lugar nao tem o que fazer com essa lista.
+    for (const uid of [USER_UID, OUTSIDER_UID, INACTIVE_UID]) {
+      await assertFails(
+        getDoc(doc(as(uid), 'establishments', EST_A, 'preregistrations', 'hash_pendente')),
+      );
+    }
+    await assertFails(
+      getDoc(doc(as(MOD_UID), 'establishments', EST_B, 'preregistrations', 'hash_pendente')),
+    );
+  });
+
+  it('79. ninguem escreve pendencia pelo app', async () => {
+    for (const uid of [ADM_UID, MOD_UID, CLIENT_UID]) {
+      const db = as(uid);
+      await assertFails(
+        setDoc(doc(db, 'establishments', EST_A, 'preregistrations', 'hash_novo'), {
+          cpfHmac: 'hash_novo',
+          status: 'pending',
+        }),
+      );
+      await assertFails(
+        deleteDoc(doc(db, 'establishments', EST_A, 'preregistrations', 'hash_pendente')),
+      );
+    }
+  });
+
+  it('80. staff le os vinculos recentes; USER nao', async () => {
+    await assertSucceeds(getDocs(collection(as(CLIENT_UID), 'establishments', EST_A, 'member_events')));
+    await assertFails(getDocs(collection(as(USER_UID), 'establishments', EST_A, 'member_events')));
+  });
+
+  it('81. staff so consegue marcar o vinculo como revisado', async () => {
+    const ref = doc(as(CLIENT_UID), 'establishments', EST_A, 'member_events', 'ev1');
+
+    await assertSucceeds(updateDoc(ref, { reviewed: true, reviewedBy: CLIENT_UID }));
+    // Reescrever o evento apagaria a prova de que o vinculo aconteceu.
+    await assertFails(updateDoc(ref, { uid: ADM_UID }));
+    await assertFails(updateDoc(ref, { reviewed: true, reviewedBy: MOD_UID }));
+    await assertFails(deleteDoc(ref));
+    await assertFails(
+      setDoc(doc(as(CLIENT_UID), 'establishments', EST_A, 'member_events', 'ev2'), { type: 'x' }),
+    );
+  });
+
+  it('82. so o ADM le a auditoria, e ninguem escreve', async () => {
+    await assertSucceeds(getDocs(collection(as(ADM_UID), 'establishments', EST_A, 'audit')));
+    for (const uid of [MOD_UID, CLIENT_UID, USER_UID]) {
+      await assertFails(getDocs(collection(as(uid), 'establishments', EST_A, 'audit')));
+    }
+    await assertFails(
+      setDoc(doc(as(ADM_UID), 'establishments', EST_A, 'audit', 'a2'), { action: 'x' }),
     );
   });
 });
