@@ -10,14 +10,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,9 +28,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,13 +43,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import br.com.sprena.core.ui.components.ThemeToggleButton
+import br.com.sprena.core.ui.mask.CpfMaskTransformation
+import br.com.sprena.core.ui.mask.filterDigitsOnly
 import br.com.sprena.presentation.core.theme.ThemeViewModel
+import br.com.sprena.shared.establishment.domain.model.MemberRole
 import org.koin.compose.viewmodel.koinViewModel
 
 private const val INACTIVE_ALPHA = 0.5f
+private const val CPF_DIGITS = 11
 
 /**
  * Membros de um estabelecimento (ADM).
@@ -60,9 +72,26 @@ fun ModeratorsScreen(
     viewModel: ModeratorsViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is ModeratorsEffect.ShowMessage -> snackbarHostState.showSnackbar(effect.message)
+            }
+        }
+    }
+
+    state.linkDraft?.let { draft ->
+        LinkDialog(
+            draft = draft,
+            onIntent = viewModel::handleIntent,
+        )
+    }
 
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Moderadores") },
@@ -102,18 +131,11 @@ private fun MembersContent(
         )
 
         OutlinedButton(
-            onClick = {},
-            enabled = false,
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            onClick = { viewModel.handleIntent(ModeratorsIntent.LinkClicked) },
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp),
         ) {
             Text("Vincular por CPF")
         }
-        Text(
-            text = "A vinculação por CPF chega na próxima atualização.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
-        )
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
@@ -140,7 +162,11 @@ private fun MembersContent(
 
                 else ->
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        items(state.members, key = { it.uid }) { member -> MemberLine(member) }
+                        items(state.members, key = { it.uid }) { member ->
+                            MemberLine(member) {
+                                viewModel.handleIntent(ModeratorsIntent.RemoveMember(member.uid))
+                            }
+                        }
                     }
             }
         }
@@ -182,7 +208,10 @@ private fun EstablishmentPicker(
 }
 
 @Composable
-private fun MemberLine(member: MemberRow) {
+private fun MemberLine(
+    member: MemberRow,
+    onRemove: () -> Unit,
+) {
     Row(
         modifier =
             Modifier
@@ -202,6 +231,9 @@ private fun MemberLine(member: MemberRow) {
             }
         }
         AssistChip(onClick = {}, enabled = false, label = { Text(member.role.displayName) })
+        if (member.active) {
+            TextButton(onClick = onRemove) { Text("Desligar") }
+        }
     }
 }
 
@@ -212,5 +244,78 @@ private fun BoxScope.Centered(message: String) {
         style = MaterialTheme.typography.bodyLarge,
         textAlign = TextAlign.Center,
         modifier = Modifier.align(Alignment.Center).padding(32.dp),
+    )
+}
+
+/**
+ * Formulário de vinculação.
+ *
+ * O CPF é o único campo obrigatório de verdade — mas o nome também é exigido, porque sem ele o
+ * vínculo nasceria sem `displayName` e a lista mostraria um identificador opaco.
+ *
+ * O texto de rodapé é deliberado: quem vincula precisa saber que não descobre nada sobre o CPF
+ * digitado. Sem isso, a tela pareceria uma busca que não achou ninguém.
+ */
+@Composable
+private fun LinkDialog(
+    draft: LinkDraft,
+    onIntent: (ModeratorsIntent) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = { onIntent(ModeratorsIntent.LinkDismissed) },
+        title = { Text("Vincular por CPF") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = draft.cpf,
+                    onValueChange = {
+                        onIntent(ModeratorsIntent.LinkCpfChanged(filterDigitsOnly(it, CPF_DIGITS)))
+                    },
+                    label = { Text("CPF") },
+                    isError = draft.cpfError != null,
+                    supportingText = draft.cpfError?.let { message -> { Text(message) } },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    visualTransformation = CpfMaskTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = draft.name,
+                    onValueChange = { onIntent(ModeratorsIntent.LinkNameChanged(it)) },
+                    label = { Text("Nome") },
+                    isError = draft.nameError != null,
+                    supportingText = draft.nameError?.let { message -> { Text(message) } },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MemberRole.entries.forEach { role ->
+                        FilterChip(
+                            selected = draft.role == role,
+                            onClick = { onIntent(ModeratorsIntent.LinkRoleChanged(role)) },
+                            label = { Text(role.displayName) },
+                        )
+                    }
+                }
+                Text(
+                    text =
+                        "Se a pessoa ainda não usa o app, o vínculo vale assim que ela " +
+                            "entrar e informar este CPF.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onIntent(ModeratorsIntent.LinkConfirmed) },
+                enabled = draft.canSubmit,
+            ) {
+                Text(if (draft.isSubmitting) "Vinculando..." else "Vincular")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { onIntent(ModeratorsIntent.LinkDismissed) }) { Text("Cancelar") }
+        },
     )
 }
