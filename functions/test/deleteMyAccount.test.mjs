@@ -97,7 +97,10 @@ beforeEach(async () => {
   // Limpa Auth e Firestore entre casos — cada teste semeia o proprio estado.
   const { users } = await auth.listUsers();
   await Promise.all(users.map((u) => auth.deleteUser(u.uid)));
-  for (const name of ['users', 'user_profiles', 'user_consents', 'account_deletions']) {
+  for (const name of [
+    'users', 'user_profiles', 'user_consents', 'account_deletions',
+    'establishments', 'cpf_claims', 'user_settings',
+  ]) {
     const snap = await db.collection(name).get();
     await Promise.all(snap.docs.map((d) => db.recursiveDelete(d.ref)));
   }
@@ -126,6 +129,32 @@ describe('deleteMyAccount', () => {
 
     assert.equal(data.status, 'deleted');
     assert.equal(await exists(`users/${ownerUid}`), false);
+  });
+
+  it('2b. apaga vinculos, contexto ativo e a trava de CPF (F1.7.3c)', async () => {
+    ownerUid = await seedAccount(OWNER);
+    const cpfHmac = 'hash_do_cpf_do_titular';
+    await db.doc(`users/${ownerUid}`).update({ cpfHmac });
+    await db.doc(`cpf_claims/${cpfHmac}`).set({ uid: ownerUid });
+    await db.doc(`user_settings/${ownerUid}`).set({ activeEstablishmentId: 'est_a' });
+    for (const estId of ['est_a', 'est_b']) {
+      await db.doc(`establishments/${estId}`).set({ name: estId, active: true });
+      await db.doc(`establishments/${estId}/members/${ownerUid}`).set({
+        uid: ownerUid, role: 'CLIENT', active: true, displayName: 'Titular',
+      });
+    }
+
+    const { data } = await callAsSignedIn(OWNER);
+
+    // Vinculo orfao nao vazaria nada — as rules leem o grafo, nao o contrario —, mas
+    // carrega displayName e continuaria aparecendo na lista de membros apontando para uma
+    // conta que nao existe mais. Sumir pela metade e pior que nao sumir.
+    assert.equal(data.membershipsRemoved, 2);
+    assert.equal(await exists('establishments/est_a/members/' + ownerUid), false);
+    assert.equal(await exists('establishments/est_b/members/' + ownerUid), false);
+    assert.equal(await exists(`user_settings/${ownerUid}`), false);
+    // Liberar a trava permite reivindicar o mesmo CPF numa conta futura.
+    assert.equal(await exists(`cpf_claims/${cpfHmac}`), false);
   });
 
   it('3. chamada sem autenticacao e recusada', async () => {

@@ -11,6 +11,7 @@ export interface DeleteMyAccountResponse {
   deletedAt: string;
   financialAnonymized: number;
   authUserDeleted: boolean;
+  membershipsRemoved: number;
 }
 
 /**
@@ -56,10 +57,24 @@ export async function handleDeleteMyAccount(
   //    invisível no Console, fazendo o operador acreditar que o dado sumiu.
   const historyDeleted = await deleteCollection(`user_consents/${uid}/history`);
 
+  // 3b. Vínculos e trava de CPF, antes de `users` — é de lá que sai o `cpfHmac`.
+  //
+  //     Deixar member docs órfãos não vazaria nada (as rules leem o grafo, não o contrário),
+  //     mas eles carregam `displayName` e continuariam aparecendo na lista de membros de cada
+  //     estabelecimento, apontando para uma conta que não existe mais. O titular pediu para
+  //     sumir; sumir pela metade é pior que não sumir.
+  const membershipsRemoved = await removeMemberships(uid);
+  const cpfHmac = (await db.doc(`users/${uid}`).get()).get('cpfHmac');
+  if (typeof cpfHmac === 'string' && cpfHmac.length > 0) {
+    // Liberar a trava permite que a pessoa reivindique o mesmo CPF numa conta futura.
+    await db.doc(`cpf_claims/${cpfHmac}`).delete();
+  }
+
   // 4-6. Documentos do titular. Delete de doc inexistente é no-op — é isso que torna a
   //      função idempotente e segura de reexecutar sobre um uid órfão (runbook H.7).
   await db.doc(`user_consents/${uid}`).delete();
   await db.doc(`user_profiles/${uid}`).delete();
+  await db.doc(`user_settings/${uid}`).delete();
   await db.doc(`users/${uid}`).delete();
 
   // 7. Trilha SEM PII: nem e-mail, nem nome, nem CPF. É prova de que a exclusão
@@ -70,6 +85,7 @@ export async function handleDeleteMyAccount(
     policyVersionAtDeletion,
     financialAnonymized,
     consentHistoryDeleted: historyDeleted,
+    membershipsRemoved,
     requestedFrom: 'app',
     appCheckVerified: request.app !== undefined,
   });
@@ -83,6 +99,7 @@ export async function handleDeleteMyAccount(
     uid,
     financialAnonymized,
     consentHistoryDeleted: historyDeleted,
+    membershipsRemoved,
     authUserDeleted,
   });
 
@@ -92,7 +109,26 @@ export async function handleDeleteMyAccount(
     deletedAt: new Date().toISOString(),
     financialAnonymized,
     authUserDeleted,
+    membershipsRemoved,
   };
+}
+
+/**
+ * Apaga todos os vínculos do titular, em qualquer estabelecimento.
+ *
+ * Collection group porque não há como saber de quais estabelecimentos a pessoa participa sem
+ * varrer — é a mesma query que alimenta o seletor no app, e ela depende do índice de escopo
+ * collection group declarado em `firestore.indexes.json`.
+ */
+async function removeMemberships(uid: string): Promise<number> {
+  const db = getFirestore();
+  const snapshot = await db.collectionGroup('members').where('uid', '==', uid).get();
+  if (snapshot.empty) return 0;
+
+  const batch = db.batch();
+  snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+  await batch.commit();
+  return snapshot.size;
 }
 
 /** `user-not-found` conta como sucesso: a segunda chamada precisa ser idempotente. */

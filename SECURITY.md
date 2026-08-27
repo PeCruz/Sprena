@@ -803,3 +803,125 @@ desenvolvimento), eles ficam inacessíveis, não expostos — o default deny cob
 - [ ] `grep -c "isStaff()" firestore.rules` devolve `0`
 - [ ] Caso 7 (USER não lê) e caso 9d (coleção global morta) presentes e passando
 
+
+
+---
+
+## F1.7.3c — Callables de vínculo
+
+As funções que escrevem a aresta de autorização. `members` é `write: if false` desde F1.7.1
+justamente para que este seja o único caminho — um ponto de decisão, com auditoria garantida.
+
+### `bootstrapAccount` e a idempotência como controle de segurança
+
+Cria `users/{uid}` com papel `USER` no primeiro acesso. Existe porque `users` é
+`write: if false`: se o cliente pudesse criar o próprio documento de papel, criaria com
+`role: 'ADM'`.
+
+A função usa **`create`, nunca `set`**. Se o documento já existe, ela lê e devolve o que está
+lá. Isso não é economia de escrita — é o que impede a chamada repetida de rebaixar um
+administrador. Um `set` transformaria a conta mais poderosa do sistema na mais fraca, e nada
+no log pareceria um ataque: seria só alguém reabrindo o app.
+
+O caso 2 de `functions/test/membership.test.mjs` é o que guarda essa propriedade.
+
+### Vinculação write-only
+
+`linkMemberByCpf` é o **único** caminho de vinculação. ADM→MOD, MOD→CLIENT e CLIENT→USER são a
+mesma operação com papel diferente.
+
+O desenho anterior buscava a pessoa por e-mail e vinculava pelo uid. Foi descartado: a busca
+seria um oráculo de *"esta pessoa tem conta nesta plataforma"*, consultável por qualquer
+moderador sobre qualquer endereço, sem em momento algum deixar de parecer uso legítimo.
+
+Agora quem vincula digita o CPF e recebe apenas `linked`, `pending` ou `already` — o suficiente
+para saber se deve avisar a pessoa a entrar no app, e nada além disso sobre CPFs que não sejam
+o que ele mesmo digitou.
+
+### O CPF nunca é gravado
+
+O id do documento é `HMAC-SHA256(pepper, cpfDigits)`, e o pré-cadastro guarda apenas
+`***.456.789-**`.
+
+O CPF tem 11 dígitos, dois dos quais são verificadores — cerca de 10⁹ combinações úteis. Um
+hash **sem** segredo seria varrido por força bruta em minutos por quem conseguisse ler a
+coleção, e o efeito prático seria ter CPF em claro. Com o pepper no Secret Manager, o mesmo
+ataque exige também vazar o segredo.
+
+É por isso que o cliente nunca calcula esse valor: ele manda o CPF pela callable, e só o
+servidor sabe transformá-lo em id.
+
+**O pepper nunca pode mudar depois que houver pré-cadastro.** O HMAC é o id do documento;
+trocá-lo torna toda pendência irreclamável, porque o CPF da pessoa passa a gerar outro id.
+Rotacionar seria migração de dados, não troca de variável.
+
+### A escada de papéis
+
+| Quem chama | Pode conceder |
+|---|---|
+| ADM | MOD, CLIENT, USER |
+| MOD do estabelecimento | CLIENT, USER |
+| CLIENT do estabelecimento | USER |
+| USER, forasteiro | nada |
+
+Ninguém concede o próprio papel nem um acima dele, então nenhuma corrente de vinculações
+produz alguém mais poderoso que quem a iniciou.
+
+`setMemberRole` e `removeMember` aplicam a escada **duas vezes**: sobre o papel novo e sobre o
+papel **atual** do alvo. Sem a segunda checagem, um CLIENT — que pode conceder `USER` —
+rebaixaria o MOD do estabelecimento para `USER` e assumiria o lugar dele. Uma promoção
+disfarçada de remoção. É o caso 14 dos testes.
+
+### `ADM` é recusado antes de tudo
+
+`assertAssignableRole` rejeita `role: 'ADM'` em qualquer callable, **inclusive quando quem
+chama é um ADM**, e registra a tentativa em `security_events`.
+
+Não é redundante com a escada: aquela responde "este chamador pode conceder este papel?", e
+para um ADM a resposta seria sim. Esta responde "este papel pode existir num member doc?",
+cuja resposta é sempre não. Administrador é papel global, criado só pelo Console — esta é a
+única garantia que impede o app inteiro de fabricar um administrador.
+
+### Desligar, não apagar
+
+`removeMember` e `leaveEstablishment` marcam `active: false`. As rules tratam `active != true`
+como "não é membro", então o efeito de acesso é imediato; manter o documento preserva a trilha
+de quem já teve acesso, junto do `displayName` — a única forma de saber depois quem era.
+
+`leaveEstablishment` não pede permissão a ninguém, e é isso que a torna necessária: é o remédio
+de quem foi vinculado sem pedir, o caso do CPF digitado errado que alcançou a pessoa errada.
+Sem ela, a saída dependeria de convencer quem fez o vínculo a desfazê-lo.
+
+### Exclusão de conta
+
+`deleteMyAccount` passa a varrer os vínculos (collection group), apagar `user_settings` e
+liberar a trava em `cpf_claims`.
+
+Vínculo órfão não vazaria nada — as rules leem o grafo, não o contrário —, mas carrega
+`displayName` e continuaria aparecendo na lista de membros de cada estabelecimento, apontando
+para uma conta que não existe mais. O titular pediu para sumir; sumir pela metade é pior que
+não sumir. Liberar a trava permite reivindicar o mesmo CPF numa conta futura.
+
+### App Check
+
+Todas as callables aplicam `enforceAppCheck` por conta própria, independente da chave do
+Console. Importa mais aqui do que em `deleteMyAccount`: `bootstrapAccount` é chamável por
+qualquer conta autenticada e **cria documento**, então sem App Check ela seria uma forma barata
+de encher a coleção `users`.
+
+### O risco que sobra
+
+Um dígito errado num CPF que por acaso também seja válido cria uma pendência presa ao número de
+outra pessoa. Se essa pessoa entrar no app e informar aquele CPF, assume o vínculo — e, se o
+papel era MOD, assume o estabelecimento.
+
+Três defesas, nenhuma completa isoladamente: o dígito verificador barra a maioria dos erros de
+digitação (só passa quem errar para outro CPF válido); a pendência fica visível na lista do
+estabelecimento; e todo vínculo consumado vira um `member_event` que o staff vê e pode desfazer.
+
+### Verificação manual (pré-merge)
+
+- [ ] `cd functions && npm run lint && npm run build`
+- [ ] `cd functions && npm run test:emulator` — `fail 0` (28 casos)
+- [ ] `cd tools/firestore-rules-tests && npm run test:emulator` — `fail 0` (86 casos)
+- [ ] `grep -c "'ADM'" functions/src/membership.ts` — a recusa continua explícita
