@@ -36,12 +36,18 @@ Roadmap de evolução do MVP até nível production-ready. As fases são indepen
     coleção — `isStaffOf`, não `canReadTenant`.
   - 🔄 **F1.7.3** — Papel `USER`, contexto ativo, abas por papel, administração de
     estabelecimentos e callables de vínculo.
-    - ⬜ Papel `USER`, `TenantContext`, `tabsFor()`, tela de "sem estabelecimento" e telas de
-      Estabelecimentos e Moderadores (PR #19).
+    - ✅ Papel `USER`, `TenantContext`, `tabsFor()` e tela de "sem estabelecimento vinculado".
+      A barra deixou de ser fixa e passou a ser montada pelo papel efetivo no estabelecimento
+      ativo.
+    - ✅ Telas de Estabelecimentos (CRUD) e Moderadores (leitura) na aba Config do ADM.
+      `Membership` ganhou `displayName` porque as rules impedem o ADM de ler o nome de
+      qualquer outra pessoa.
     - ✅ Callables `bootstrapAccount`, `linkMemberByCpf`, `setMemberRole`, `removeMember` e
       `leaveEstablishment`; `deleteMyAccount` varre vínculos e libera a trava de CPF.
       Vinculação é **write-only por CPF**: quem vincula não descobre se a pessoa já tem conta.
       Exige o segredo `CPF_PEPPER` antes do deploy (Parte J do runbook).
+    - ⬜ Ligar o app às callables: `bootstrapAccount` no login e os botões de vincular,
+      promover e desligar na tela de Moderadores.
   - ⬜ **F1.7.4** — Google Sign-In + account linking.
   - ⬜ **F1.7.5** — Pré-cadastro por CPF, claim no primeiro login e vínculos recentes.
   - ⬜ **F1.7.6 a F1.7.9** — Comandas, eventos, financeiro e cardápio saem da memória para
@@ -84,17 +90,39 @@ Roadmap de evolução do MVP até nível production-ready. As fases são indepen
 
 ---
 
-**Status atual:** F0 concluída. F1 fechada (F1.1–F1.6a). F1.7 e F2–F6 pendentes de priorização do
-mantenedor.
+**Status atual:** F0 concluída. F1.1–F1.6a implementadas. F1.7 em execução. F2–F6 pendentes de
+priorização do mantenedor.
+
+> ## ⚠️ Nada de Cloud Functions está publicado
+>
+> **Implementado ≠ no ar.** `deleteMyAccount` (F1.6a) e as callables de vínculo (F1.7.3c)
+> existem no código, têm teste e nunca foram deployadas — o projeto ficou no plano Spark até
+> 2026-08-26, e Functions não deploya lá.
+>
+> Consequência prática enquanto não houver `firebase deploy --only functions`:
+>
+> - **"Excluir conta" falha no app.** É o botão que a review da Play Store testa, e a razão de
+>   F1.6a existir. **Isto bloqueia a publicação.**
+> - Login não consegue criar a própria conta (`bootstrapAccount`).
+> - Vinculação por CPF não funciona.
+>
+> Esta caixa some quando `firebase functions:list --project sprena-a9b55` listar as seis
+> funções. Antes disso, tratar toda funcionalidade que dependa de callable como não entregue.
+
+**Pré-requisito de deploy — `CPF_PEPPER`:** as callables de vínculo exigem o segredo no Secret
+Manager antes do primeiro deploy (Parte J.1 do [runbook](./docs/ops/firebase-users-runbook.md)).
+O valor **nunca pode mudar** depois que houver pré-cadastro: o HMAC é o id do documento, então
+trocá-lo torna toda pendência irreclamável.
 
 **Pendência operacional:** o App Check (F1.4b) está no código, mas a *enforcement* de Firestore e
 Auth é uma chave no Firebase Console — enquanto não for ligada (Parte G do
 [runbook](./docs/ops/firebase-users-runbook.md)), a proteção não está valendo em produção.
 (O callable `deleteMyAccount` de F1.6a aplica App Check por conta própria, independente dessa chave.)
 
-**Pendência operacional:** F1.6a exige o **plano Blaze** ativo — Cloud Functions não deploya no
-Spark. O free tier cobre a carga; configurar a limpeza do Artifact Registry no primeiro deploy
-(Parte H.1 do runbook).
+**Plano Blaze:** ativo desde 2026-08-26. O free tier cobre a carga atual. **Falta configurar a
+limpeza do Artifact Registry** (Parte H.1 do runbook) — sem ela, as imagens de container de cada
+deploy se acumulam, e é daí que vem a única cobrança que costuma aparecer num projeto deste
+tamanho.
 
 **Ordem de release de F1.5 (bloqueante):** as rules de `user_consents` precisam ser publicadas
 (`firebase deploy --only firestore:rules --project <projeto>`) **antes** de o APK com o gate de

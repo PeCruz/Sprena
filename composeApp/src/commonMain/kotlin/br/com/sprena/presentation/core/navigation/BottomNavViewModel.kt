@@ -22,12 +22,31 @@ class BottomNavViewModel :
 
     override fun handleIntent(intent: BottomNavIntent) {
         when (intent) {
-            is BottomNavIntent.TabSelected -> {
-                _state.value = _state.value.copy(current = intent.tab)
-                viewModelScope.launch {
-                    _effects.emit(BottomNavEffect.NavigateTo(intent.tab))
-                }
-            }
+            is BottomNavIntent.TabsResolved -> resolve(intent.tabs)
+            is BottomNavIntent.TabSelected -> select(intent.tab)
+        }
+    }
+
+    private fun resolve(tabs: List<BottomTab>) {
+        _state.value =
+            _state.value.copy(
+                tabs = tabs,
+                // Mantém a aba atual se ela sobreviveu à mudança de papel; senão vai para a
+                // primeira. Sem isso, quem estivesse no Financeiro e fosse rebaixado de MOD
+                // para CLIENT ficaria numa aba que não existe mais na barra.
+                current = _state.value.current?.takeIf { it in tabs } ?: tabs.firstOrNull(),
+                resolved = true,
+            )
+    }
+
+    private fun select(tab: BottomTab) {
+        // Aba fora da lista do papel é ignorada. Não é barreira de segurança — as rules é que
+        // negam o dado — mas evita deixar a barra num estado sem item selecionado.
+        if (tab !in _state.value.tabs) return
+
+        _state.value = _state.value.copy(current = tab)
+        viewModelScope.launch {
+            _effects.emit(BottomNavEffect.NavigateTo(tab))
         }
     }
 }

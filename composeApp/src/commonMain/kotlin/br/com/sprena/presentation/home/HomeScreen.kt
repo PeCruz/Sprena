@@ -148,4 +148,5 @@ private fun roleEmoji(role: UserRole): String =
         UserRole.ADM -> "👑"
         UserRole.MOD -> "🛡️"
         UserRole.CLIENT -> "🛶"
+        UserRole.USER -> "🏐"
     }

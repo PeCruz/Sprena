@@ -592,6 +592,13 @@ ser o uid** da pessoa (o mesmo de `users/{uid}`).
 | `uid` | string | o mesmo uid do ID do documento |
 | `role` | string | `MOD`, `CLIENT` ou `USER` |
 | `active` | boolean | `true` |
+| `displayName` | string | nome da pessoa, como deve aparecer na lista |
+
+`displayName` entrou em F1.7.3b e é denormalização deliberada. As rules de `users/{uid}` e
+`user_profiles/{uid}` liberam leitura **apenas ao próprio dono** — inclusive contra o ADM —,
+então sem este campo a tela de Moderadores lista identificadores opacos. Vínculos criados antes
+disso não têm o campo e aparecem pelos 8 primeiros caracteres do uid; para corrigir, basta
+acrescentá-lo ao documento.
 
 O campo `uid` repetir o ID do documento não é redundância à toa: a rule do collection group
 compara `resource.data.uid`, porque numa query o motor não consegue casar a condição com o

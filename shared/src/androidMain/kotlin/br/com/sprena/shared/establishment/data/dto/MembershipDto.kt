@@ -19,6 +19,7 @@ internal object MembershipDto {
     const val FIELD_UID = "uid"
     const val FIELD_ROLE = "role"
     const val FIELD_ACTIVE = "active"
+    const val FIELD_DISPLAY_NAME = "displayName"
 
     /**
      * [establishmentId] vem do path, não do documento.
@@ -41,6 +42,9 @@ internal object MembershipDto {
                 // Ausente é tratado como desligado — o oposto de `active`, onde a omissão
                 // é benigna. Aqui a omissão é a diferença entre ter e não ter acesso.
                 active = doc.getBoolean(FIELD_ACTIVE) ?: false,
+                // Ausente nos vínculos semeados à mão antes de F1.7.3b. Em branco também
+                // vira null, para a UI cair no uid abreviado em vez de renderizar vazio.
+                displayName = doc.getString(FIELD_DISPLAY_NAME)?.takeIf { it.isNotBlank() },
             )
         }
 
