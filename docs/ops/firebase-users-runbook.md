@@ -668,6 +668,39 @@ firebase deploy --only firestore,functions --project sprena-a9b55
 funções escreverem nelas — as funções usam Admin SDK e não passam por rules, mas o **app**
 lê `preregistrations` e `member_events`, e sem as rules essas leituras batem no default deny.
 
+### J.2b — Duas armadilhas do **primeiro** deploy (observadas em 2026-08-27)
+
+**1. `iam.serviceaccounts.actAs` negado.** A primeira tentativa falha com:
+
+```
+Could not create Cloud Run service ... Permission 'iam.serviceaccounts.actAs' denied on
+service account <numero>-compute@developer.gserviceaccount.com (or it may not exist).
+```
+
+Não é falta de permissão da sua conta. O deploy habilita cinco APIs (`cloudfunctions`,
+`cloudbuild`, `artifactregistry`, `run`, `eventarc`) **durante a própria execução**, e a service
+account padrão do Compute Engine nasce junto com elas — as permissões dela propagam de forma
+assíncrona. O `(or it may not exist)` da mensagem é a pista.
+
+**Correção: esperar alguns minutos e rodar de novo.** Só se repetir idêntico depois de ~10 min é
+que vale investigar IAM de verdade.
+
+**2. A política de limpeza não é criada sozinha, e a região padrão está errada.** O deploy
+termina com erro mesmo tendo publicado a função:
+
+```
+Functions successfully deployed but could not set up cleanup policy in location southamerica-east1
+```
+
+`firebase functions:artifacts:setpolicy` sem argumentos procura em **`us-central1`** e responde
+que o repositório não existe — mandando investigar o lugar errado. Precisa da região:
+
+```bash
+firebase functions:artifacts:setpolicy --location southamerica-east1 --days 3 --force   --project sprena-a9b55
+```
+
+Feito em 2026-08-27; vale para os deploys seguintes.
+
 ### J.3 — Conferir
 
 ```bash
@@ -696,6 +729,114 @@ a constante `FUNCTIONS_REGION` existe em dois lugares (`functions/src/index.ts` 
 As callables aplicam `enforceAppCheck` por conta própria, independente da chave do Console.
 Um build **debug** sem token de App Check registrado (Parte G.1) recebe `unauthenticated` —
 parece bug e não é.
+
+## Parte K — Validação em device de F1.7.3 (multi-tenancy)
+
+Primeira validação real das callables. Cobre o que existe hoje; o que ainda não existe está
+marcado, para não virar caça a bug inexistente.
+
+### K.0 — O que ainda NÃO funciona (não teste)
+
+- **Vincular nunca devolve "vinculado", só "pendente".** `linkMemberByCpf` consulta
+  `cpf_claims` para saber se o CPF já pertence a alguém, e **nada escreve nessa coleção
+  ainda** — quem escreveria é `claimPreRegistrations`, que é F1.7.5. Então toda vinculação
+  hoje cria pendência, mesmo que a pessoa já tenha conta no app.
+- **Não há tela de CPF no primeiro login** (F1.7.4/F1.7.5). Sem ela, ninguém reivindica uma
+  pendência, e nenhum vínculo nasce por esse caminho.
+- **Consequência:** para testar `setMemberRole` e `removeMember` você precisa de um membro
+  criado à mão (Parte I.3).
+
+### K.1 — Preparação
+
+**App Check é obrigatório agora.** As callables aplicam `enforceAppCheck` por conta própria,
+independente da chave do Console. Build debug sem token registrado recebe `unauthenticated` em
+toda callable — parece bug e não é. Registre o token pela **Parte G.1** antes de começar.
+
+```bash
+./gradlew :composeApp:installDebug
+adb logcat -c
+adb logcat -s FirebaseAuthRepo AccountBootstrapRepo MemberMutationRepo EstablishmentRepo
+```
+
+Semear pelo Console, se ainda não houver:
+- 1 conta **ADM** (Partes A e B, `role: ADM`)
+- 1 conta comum para virar membro à mão (Parte I.3, com `displayName`)
+
+### K.2 — O cenário mais crítico: o ADM continua ADM
+
+Este é o único que, falhando, é **incidente**. `bootstrapAccount` usa `create` e nunca `set`
+justamente para isso; se falhar, a conta mais poderosa do sistema virou a mais fraca.
+
+- [ ] Entrar com a conta **ADM** → a aba **Config** aparece
+- [ ] Fechar o app (swipe dos recentes) e reabrir → **continua ADM**, Config continua lá
+- [ ] Console → `users/{uid}` do ADM → `role` ainda é `ADM`
+
+**Se virar `USER`:** parar tudo, avisar, e reverter o deploy das functions.
+
+### K.3 — Conta nova nasce USER
+
+- [ ] Criar um usuário só no **Authentication** (Parte A), **sem** doc em `users`
+- [ ] Entrar com ele no app → entra, não dá mais "Conta não autorizada"
+- [ ] Console → `users/{uid}` foi criado, com `role: USER`, `provider: password`
+- [ ] O app mostra **"Você não possui Estabelecimento vinculado, favor contatar algum Moderador"**
+- [ ] Log: `AccountBootstrapRepo` sem erro; `FirebaseAuthRepo user doc ausente, criando conta`
+
+### K.4 — Abas por papel
+
+- [ ] **ADM** → Eventos · Comandas · Financeiro · Config (**sem** Home)
+- [ ] **MOD** (membro à mão) → Home · Eventos · Comandas · Financeiro · Perfil
+- [ ] **CLIENT** → Home · Eventos · Comandas · Perfil (**sem** Financeiro)
+- [ ] **USER** vinculado → Comandas · Eventos · Perfil
+- [ ] Desligar o vínculo no Console (`active: false`) e reabrir → cai na tela de sem estabelecimento
+
+### K.5 — Estabelecimentos (ADM → Config → Estabelecimentos)
+
+- [ ] Criar com CNPJ válido → aparece na lista
+- [ ] Criar outro com o **mesmo CNPJ** → *"Já existe um estabelecimento com este CNPJ"*, no campo
+- [ ] CNPJ com dígito verificador errado → recusado no formulário, **sem** tocar a rede
+- [ ] Console → o doc guarda `cnpj` e `phone` **só com dígitos**, e existe `cnpj_index/{14 dígitos}`
+- [ ] Desativar pelo switch → fica esmaecido com etiqueta "Inativo", não some
+- [ ] O MOD vinculado a ele perde as abas ao reabrir o app
+
+### K.6 — Vincular por CPF (ADM → Config → Moderadores)
+
+- [ ] Selecionar o estabelecimento → membros aparecem **com nome** (não uid)
+- [ ] Membro semeado sem `displayName` aparece pelos 8 primeiros caracteres do uid
+- [ ] "Vincular por CPF" com CPF **inválido** → campo marcado, diálogo **continua aberto**
+- [ ] Com CPF válido + nome + papel → mensagem *"vale quando a pessoa entrar e informar o CPF"*
+- [ ] Console → `establishments/{id}/preregistrations/{hash}`:
+      **`cpfMasked` presente, campo `cpf` ausente** ← é o que prova que o CPF não é gravado
+- [ ] Repetir a mesma vinculação → *"já estava vinculada"*, sem duplicar a pendência
+
+### K.7 — A garantia que não pode cair
+
+- [ ] Como **MOD**, tentar vincular alguém como **MOD** → recusado por permissão
+
+Ninguém concede o próprio papel nem um acima. Se passar, a escada de `canGrantRole` quebrou.
+
+### K.8 — Desligar membro
+
+- [ ] Na lista, "Desligar" num membro → some da lista ativa
+- [ ] Console → o doc **continua existindo** com `active: false` e `displayName` preservado
+- [ ] A pessoa desligada, ao reabrir o app, perde as abas daquele estabelecimento
+
+### K.9 — Excluir conta (o caminho da Play Store)
+
+Usar uma conta descartável, vinculada a pelo menos um estabelecimento.
+
+- [ ] Perfil → Excluir conta → só habilita depois de digitar `EXCLUIR`
+- [ ] Console: sumiram `users`, `user_profiles`, `user_consents` + `history`
+- [ ] **Sumiu também o member doc** em `establishments/{id}/members/{uid}` e o `user_settings`
+- [ ] `account_deletions/{uid}` existe, **sem PII**, com `membershipsRemoved` > 0
+- [ ] Reabrir o app cai no **Login**, não no gate de consentimento
+
+### Notas de ambiente
+
+- **`FLAG_SECURE` está ativo**: `adb exec-out screencap` sai **preto**. É o comportamento correto
+  (F1.1). Para registrar evidência, fotografe a tela.
+- Logs só existem em **debug** — em release o Napier vira no-op.
+- Nenhum CPF deve aparecer no logcat, nem mascarado: a operação é rastreada pela trilha em
+  `establishments/{id}/audit`, com o prefixo do HMAC.
 
 ## Registro local
 

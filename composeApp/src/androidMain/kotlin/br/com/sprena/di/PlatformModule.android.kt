@@ -2,7 +2,9 @@ package br.com.sprena.di
 
 import br.com.sprena.BuildConfig
 import br.com.sprena.shared.account.data.repository.FirestoreUserProfileRepository
+import br.com.sprena.shared.account.data.repository.FunctionsAccountBootstrapRepository
 import br.com.sprena.shared.account.data.repository.FunctionsAccountDeletionRepository
+import br.com.sprena.shared.account.domain.repository.AccountBootstrapRepository
 import br.com.sprena.shared.account.domain.repository.AccountDeletionRepository
 import br.com.sprena.shared.account.domain.repository.UserProfileRepository
 import br.com.sprena.shared.auth.data.repository.FirebaseAuthRepositoryImpl
@@ -10,8 +12,10 @@ import br.com.sprena.shared.auth.domain.repository.AuthRepository
 import br.com.sprena.shared.establishment.data.repository.FirestoreActiveEstablishmentRepository
 import br.com.sprena.shared.establishment.data.repository.FirestoreEstablishmentRepository
 import br.com.sprena.shared.establishment.data.repository.FirestoreMembershipRepository
+import br.com.sprena.shared.establishment.data.repository.FunctionsMemberMutationRepository
 import br.com.sprena.shared.establishment.domain.repository.ActiveEstablishmentRepository
 import br.com.sprena.shared.establishment.domain.repository.EstablishmentRepository
+import br.com.sprena.shared.establishment.domain.repository.MemberMutationRepository
 import br.com.sprena.shared.establishment.domain.repository.MembershipRepository
 import br.com.sprena.shared.privacy.data.repository.FirestoreConsentRepository
 import br.com.sprena.shared.privacy.domain.repository.ConsentRepository
@@ -64,6 +68,7 @@ fun platformModule() =
                 auth = get(),
                 firestore = get(),
                 logger = get(),
+                bootstrap = get(),
             )
         }
 
@@ -104,5 +109,14 @@ fun platformModule() =
         }
         single<ActiveEstablishmentRepository> {
             FirestoreActiveEstablishmentRepository(firestore = get(), auth = get(), logger = get())
+        }
+
+        // F1.7.3d: as callables. Leitura do grafo vai direto ao Firestore; escrita nao tem
+        // como ir, porque `members` e write: if false — dai repositorios separados.
+        single<AccountBootstrapRepository> {
+            FunctionsAccountBootstrapRepository(functions = get(), logger = get())
+        }
+        single<MemberMutationRepository> {
+            FunctionsMemberMutationRepository(functions = get(), logger = get())
         }
     }

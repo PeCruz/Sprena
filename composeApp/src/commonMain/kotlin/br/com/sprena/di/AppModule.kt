@@ -25,6 +25,7 @@ import br.com.sprena.presentation.privacy.PolicyTextLoader
 import br.com.sprena.presentation.profile.ProfileViewModel
 import br.com.sprena.presentation.settings.SettingsViewModel
 import br.com.sprena.presentation.sportclient.SportClientViewModel
+import org.koin.core.module.Module
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
@@ -56,20 +57,7 @@ fun appModule() =
         viewModel { EventosViewModel() }
         viewModel { CreateEventViewModel() }
         viewModel { SettingsViewModel(sessionStore = get(), logout = get()) }
-        viewModel {
-            EstablishmentListViewModel(observeEstablishments = get(), setActive = get())
-        }
-        viewModel { parameters ->
-            // O id vem da rota, não do grafo — `null` significa criar. É o único ViewModel do
-            // app que recebe parâmetro de navegação por Koin; a alternativa seria devolver o
-            // resultado por savedStateHandle, como faz a edição de cliente esportivo.
-            EstablishmentEditViewModel(
-                establishmentId = parameters.getOrNull(),
-                getEstablishment = get(),
-                saveEstablishment = get(),
-            )
-        }
-        viewModel { ModeratorsViewModel(observeEstablishments = get(), observeMembers = get()) }
+        establishmentViewModels()
         viewModel {
             ConsentViewModel(
                 policyLoader = get(),
@@ -90,3 +78,30 @@ fun appModule() =
             )
         }
     }
+
+/**
+ * ViewModels de estabelecimento, separados para manter [appModule] sob o limite de tamanho do
+ * detekt. A divisão é por feature, e não arbitrária: são os três que dependem do domínio de
+ * multi-tenancy.
+ */
+private fun Module.establishmentViewModels() {
+    viewModel { EstablishmentListViewModel(observeEstablishments = get(), setActive = get()) }
+    viewModel { parameters ->
+        // O id vem da rota, não do grafo — `null` significa criar. É o único ViewModel do app
+        // que recebe parâmetro de navegação por Koin; a alternativa seria devolver o resultado
+        // por savedStateHandle, como faz a edição de cliente esportivo.
+        EstablishmentEditViewModel(
+            establishmentId = parameters.getOrNull(),
+            getEstablishment = get(),
+            saveEstablishment = get(),
+        )
+    }
+    viewModel {
+        ModeratorsViewModel(
+            observeEstablishments = get(),
+            observeMembers = get(),
+            linkMemberByCpf = get(),
+            memberMutation = get(),
+        )
+    }
+}

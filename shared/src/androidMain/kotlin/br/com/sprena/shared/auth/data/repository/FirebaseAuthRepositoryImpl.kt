@@ -1,5 +1,6 @@
 package br.com.sprena.shared.auth.data.repository
 
+import br.com.sprena.shared.account.domain.repository.AccountBootstrapRepository
 import br.com.sprena.shared.auth.domain.model.AuthResult
 import br.com.sprena.shared.auth.domain.model.UserModel
 import br.com.sprena.shared.auth.domain.model.UserRole
@@ -21,6 +22,14 @@ class FirebaseAuthRepositoryImpl(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
     private val logger: Logger,
+    /**
+     * Cria `users/{uid}` quando ele não existe (F1.7.3d).
+     *
+     * Até aqui, doc ausente significava "conta não autorizada" e derrubava o login — o app não
+     * tinha cadastro, e toda conta era provisionada à mão no Console. Com o bootstrap, a conta
+     * nasce sozinha com o papel mais restrito.
+     */
+    private val bootstrap: AccountBootstrapRepository,
 ) : AuthRepository {
     // ReturnCount: 4 distinct error paths (no uid / missing doc / invalid role / success) are
     // clearer as guards than via collapsed Result chains. TooGenericExceptionCaught: Firebase
@@ -42,19 +51,41 @@ class FirebaseAuthRepositoryImpl(
                     .document(uid)
                     .get()
                     .await()
-            if (!doc.exists()) {
-                logger.warn(TAG, "user doc missing email=${PiiMasker.email(email)} uid=$uid")
+            // Doc ausente deixa de ser erro: a conta nasce aqui, com papel USER. O bootstrap
+            // é idempotente e nunca faz update, então chamá-lo numa conta existente devolve o
+            // papel real — nada é rebaixado se este caminho for percorrido por engano.
+            val resolved =
+                if (doc.exists()) {
+                    doc
+                } else {
+                    logger.info(TAG, "user doc ausente, criando conta uid=$uid")
+                    bootstrap.bootstrap().getOrElse { error ->
+                        logger.warn(TAG, "bootstrap falhou uid=$uid", error)
+                        return AuthResult.Error("Não foi possível preparar sua conta. Tente de novo.")
+                    }
+                    // Relê em vez de confiar no papel devolvido: `name` e os demais campos vêm
+                    // do documento, e uma segunda fonte de verdade aqui divergiria na primeira
+                    // vez que o bootstrap mudasse.
+                    firestore
+                        .collection(USERS_COLLECTION)
+                        .document(uid)
+                        .get()
+                        .await()
+                }
+
+            if (!resolved.exists()) {
+                logger.warn(TAG, "user doc ausente apos bootstrap uid=$uid")
                 return AuthResult.Error("Conta não autorizada. Contate o administrador.")
             }
 
-            val roleStr = doc.getString("role")
+            val roleStr = resolved.getString("role")
             val role =
                 roleStr?.let { runCatching { UserRole.valueOf(it.uppercase()) }.getOrNull() }
                     ?: run {
                         logger.warn(TAG, "user doc has invalid role uid=$uid raw=$roleStr")
                         return AuthResult.Error("Conta sem perfil válido")
                     }
-            val name = doc.getString("name") ?: email.substringBefore('@')
+            val name = resolved.getString("name") ?: email.substringBefore('@')
 
             logger.info(TAG, "login ok uid=$uid email=${PiiMasker.email(email)}")
             AuthResult.Success(UserModel(id = uid, email = email, name = name, role = role))

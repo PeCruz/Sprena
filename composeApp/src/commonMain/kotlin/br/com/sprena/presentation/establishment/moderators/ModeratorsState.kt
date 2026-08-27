@@ -36,6 +36,23 @@ data class MemberRow(
 }
 
 /**
+ * Rascunho do formulário de vinculação.
+ *
+ * [cpf] guarda só dígitos — a pontuação é máscara visual, como no cadastro de estabelecimento.
+ */
+data class LinkDraft(
+    val cpf: String = "",
+    val name: String = "",
+    val role: MemberRole = MemberRole.USER,
+    val isSubmitting: Boolean = false,
+    val cpfError: String? = null,
+    val nameError: String? = null,
+) {
+    val canSubmit: Boolean
+        get() = !isSubmitting
+}
+
+/**
  * Membros de um estabelecimento (ADM).
  *
  * [error] e [membersError] são separados de propósito: falhar ao listar estabelecimentos
@@ -50,6 +67,8 @@ data class ModeratorsState(
     val isLoadingMembers: Boolean = false,
     val error: String? = null,
     val membersError: String? = null,
+    /** `null` = diálogo fechado. O rascunho nasce vazio a cada abertura. */
+    val linkDraft: LinkDraft? = null,
 ) : UiState {
     val selectedEstablishment: Establishment?
         get() = establishments.firstOrNull { it.id == selectedEstablishmentId }

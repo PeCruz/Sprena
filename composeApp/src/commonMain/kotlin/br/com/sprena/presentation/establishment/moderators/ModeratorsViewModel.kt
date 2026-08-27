@@ -3,6 +3,9 @@ package br.com.sprena.presentation.establishment.moderators
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.sprena.shared.core.mvi.MviViewModel
+import br.com.sprena.shared.establishment.domain.model.MemberLinkResult
+import br.com.sprena.shared.establishment.domain.repository.MemberMutationRepository
+import br.com.sprena.shared.establishment.domain.usecase.LinkMemberByCpfUseCase
 import br.com.sprena.shared.establishment.domain.usecase.ObserveEstablishmentMembersUseCase
 import br.com.sprena.shared.establishment.domain.usecase.ObserveEstablishmentsUseCase
 import kotlinx.coroutines.Job
@@ -29,6 +32,8 @@ import kotlinx.coroutines.launch
 class ModeratorsViewModel(
     observeEstablishments: ObserveEstablishmentsUseCase,
     private val observeMembers: ObserveEstablishmentMembersUseCase,
+    private val linkMemberByCpf: LinkMemberByCpfUseCase,
+    private val memberMutation: MemberMutationRepository,
 ) : ViewModel(),
     MviViewModel<ModeratorsState, ModeratorsIntent, ModeratorsEffect> {
     private val _state = MutableStateFlow(ModeratorsState())
@@ -66,6 +71,86 @@ class ModeratorsViewModel(
     override fun handleIntent(intent: ModeratorsIntent) {
         when (intent) {
             is ModeratorsIntent.EstablishmentSelected -> select(intent.id)
+            is ModeratorsIntent.LinkClicked -> _state.value = _state.value.copy(linkDraft = LinkDraft())
+            is ModeratorsIntent.LinkDismissed -> _state.value = _state.value.copy(linkDraft = null)
+            is ModeratorsIntent.LinkConfirmed -> submitLink()
+            is ModeratorsIntent.RemoveMember -> removeMember(intent.uid)
+            else -> updateDraft(intent)
+        }
+    }
+
+    /** Separado para manter a complexidade ciclomática sob o limite do detekt. */
+    private fun updateDraft(intent: ModeratorsIntent) {
+        val draft = _state.value.linkDraft ?: return
+        _state.value =
+            _state.value.copy(
+                linkDraft =
+                    when (intent) {
+                        is ModeratorsIntent.LinkCpfChanged ->
+                            draft.copy(cpf = intent.value, cpfError = null)
+                        is ModeratorsIntent.LinkNameChanged ->
+                            draft.copy(name = intent.value, nameError = null)
+                        is ModeratorsIntent.LinkRoleChanged -> draft.copy(role = intent.value)
+                        else -> draft
+                    },
+            )
+    }
+
+    private fun submitLink() {
+        val draft = _state.value.linkDraft?.takeIf { !it.isSubmitting } ?: return
+        val establishmentId = _state.value.selectedEstablishmentId ?: return
+
+        _state.value = _state.value.copy(linkDraft = draft.copy(isSubmitting = true))
+
+        viewModelScope.launch {
+            applyLinkResult(linkMemberByCpf(establishmentId, draft.cpf, draft.name, draft.role))
+        }
+    }
+
+    /**
+     * `Linked` e `Pending` são sucessos diferentes e a mensagem precisa distinguir os dois:
+     * no primeiro a pessoa já tem acesso, no segundo ela precisa entrar no app e informar o
+     * CPF. Dizer "vinculado" nos dois casos faria quem vinculou não cobrar a ação necessária.
+     */
+    private suspend fun applyLinkResult(result: MemberLinkResult) {
+        val draft = _state.value.linkDraft ?: return
+
+        when (result) {
+            is MemberLinkResult.Linked -> closeLink(LINKED)
+            is MemberLinkResult.Pending -> closeLink(PENDING)
+            is MemberLinkResult.AlreadyLinked -> closeLink(ALREADY)
+
+            // Erro de preenchimento fica no campo e o diálogo continua aberto — fechar
+            // perderia o que foi digitado.
+            is MemberLinkResult.Invalid ->
+                _state.value =
+                    _state.value.copy(
+                        linkDraft = draft.copy(isSubmitting = false, cpfError = result.message),
+                    )
+
+            // Falta de permissão não se resolve tentando de novo, então vira mensagem e o
+            // diálogo fecha.
+            is MemberLinkResult.Denied -> closeLink(result.message)
+            is MemberLinkResult.Failed ->
+                _state.value =
+                    _state.value.copy(linkDraft = draft.copy(isSubmitting = false)).also {
+                        _effects.emit(ModeratorsEffect.ShowMessage(result.message))
+                    }
+        }
+    }
+
+    private suspend fun closeLink(message: String) {
+        _state.value = _state.value.copy(linkDraft = null)
+        _effects.emit(ModeratorsEffect.ShowMessage(message))
+    }
+
+    private fun removeMember(uid: String) {
+        val establishmentId = _state.value.selectedEstablishmentId ?: return
+        viewModelScope.launch {
+            memberMutation
+                .remove(establishmentId, uid)
+                .onSuccess { _effects.emit(ModeratorsEffect.ShowMessage(REMOVED)) }
+                .onFailure { _effects.emit(ModeratorsEffect.ShowMessage(REMOVE_FAILED)) }
         }
     }
 
@@ -104,5 +189,10 @@ class ModeratorsViewModel(
     private companion object {
         const val LOAD_FAILED = "Não foi possível carregar os estabelecimentos."
         const val MEMBERS_FAILED = "Não foi possível carregar os membros deste estabelecimento."
+        const val LINKED = "Vinculado. A pessoa já tem acesso."
+        const val PENDING = "Cadastrado. O vínculo vale quando a pessoa entrar e informar o CPF."
+        const val ALREADY = "Esta pessoa já estava vinculada com este papel."
+        const val REMOVED = "Vínculo desligado."
+        const val REMOVE_FAILED = "Não foi possível desligar o vínculo. Tente de novo."
     }
 }
