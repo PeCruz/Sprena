@@ -93,21 +93,19 @@ Roadmap de evolução do MVP até nível production-ready. As fases são indepen
 **Status atual:** F0 concluída. F1.1–F1.6a implementadas. F1.7 em execução. F2–F6 pendentes de
 priorização do mantenedor.
 
-> ## ⚠️ Nada de Cloud Functions está publicado
+> ## ⚠️ Só 1 das 6 Cloud Functions está publicada
 >
-> **Implementado ≠ no ar.** `deleteMyAccount` (F1.6a) e as callables de vínculo (F1.7.3c)
-> existem no código, têm teste e nunca foram deployadas — o projeto ficou no plano Spark até
-> 2026-08-26, e Functions não deploya lá.
+> **Implementado ≠ no ar.** Situação em 2026-08-27:
 >
-> Consequência prática enquanto não houver `firebase deploy --only functions`:
+> | Função | No ar |
+> |---|---|
+> | `deleteMyAccount` (F1.6a) | ✅ sim — o bloqueio da Play Store caiu |
+> | as cinco callables de vínculo (F1.7.3c) | ❌ não |
 >
-> - **"Excluir conta" falha no app.** É o botão que a review da Play Store testa, e a razão de
->   F1.6a existir. **Isto bloqueia a publicação.**
-> - Login não consegue criar a própria conta (`bootstrapAccount`).
-> - Vinculação por CPF não funciona.
+> Enquanto as cinco não forem deployadas, login não cria a própria conta e a vinculação por CPF
+> não funciona — tratar como não entregue.
 >
-> Esta caixa some quando `firebase functions:list --project sprena-a9b55` listar as seis
-> funções. Antes disso, tratar toda funcionalidade que dependa de callable como não entregue.
+> Esta caixa some quando `firebase functions:list --project sprena-a9b55` listar as seis.
 
 **Pré-requisito de deploy — `CPF_PEPPER`:** as callables de vínculo exigem o segredo no Secret
 Manager antes do primeiro deploy (Parte J.1 do [runbook](./docs/ops/firebase-users-runbook.md)).
@@ -119,10 +117,9 @@ Auth é uma chave no Firebase Console — enquanto não for ligada (Parte G do
 [runbook](./docs/ops/firebase-users-runbook.md)), a proteção não está valendo em produção.
 (O callable `deleteMyAccount` de F1.6a aplica App Check por conta própria, independente dessa chave.)
 
-**Plano Blaze:** ativo desde 2026-08-26. O free tier cobre a carga atual. **Falta configurar a
-limpeza do Artifact Registry** (Parte H.1 do runbook) — sem ela, as imagens de container de cada
-deploy se acumulam, e é daí que vem a única cobrança que costuma aparecer num projeto deste
-tamanho.
+**Plano Blaze:** ativo desde 2026-08-26. O free tier cobre a carga atual. Limpeza do Artifact
+Registry configurada em 2026-08-27 (imagens com mais de 3 dias são apagadas) — era a única
+cobrança recorrente que costuma aparecer num projeto deste tamanho.
 
 **Ordem de release de F1.5 (bloqueante):** as rules de `user_consents` precisam ser publicadas
 (`firebase deploy --only firestore:rules --project <projeto>`) **antes** de o APK com o gate de
