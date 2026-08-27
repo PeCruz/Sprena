@@ -34,8 +34,16 @@ Roadmap de evolução do MVP até nível production-ready. As fases são indepen
     duro de F1.7.3**, que abre o cadastro: sem esta fase antes, abrir o cadastro seria
     publicar a base de CPFs. USER é membro do estabelecimento e mesmo assim não lê esta
     coleção — `isStaffOf`, não `canReadTenant`.
-  - ⬜ **F1.7.3** — Papel `USER`, `bootstrapAccount` e callables de vínculo; contexto ativo e
-    abas por papel.
+  - 🔄 **F1.7.3** — Papel `USER`, contexto ativo, abas por papel e administração de
+    estabelecimentos.
+    - ✅ Papel `USER`, `TenantContext`, `tabsFor()` e tela de "sem estabelecimento vinculado".
+      A barra deixou de ser fixa e passou a ser montada pelo papel efetivo no estabelecimento
+      ativo.
+    - ✅ Telas de Estabelecimentos (CRUD) e Moderadores (leitura) na aba Config do ADM.
+      `Membership` ganhou `displayName` porque as rules impedem o ADM de ler o nome de
+      qualquer outra pessoa.
+    - ⬜ Cloud Functions `bootstrapAccount`, `linkMemberByCpf`, `setMemberRole`,
+      `removeMember` e `leaveEstablishment`. Dependem do secret `CPF_PEPPER`.
   - ⬜ **F1.7.4** — Google Sign-In + account linking.
   - ⬜ **F1.7.5** — Pré-cadastro por CPF, claim no primeiro login e vínculos recentes.
   - ⬜ **F1.7.6 a F1.7.9** — Comandas, eventos, financeiro e cardápio saem da memória para

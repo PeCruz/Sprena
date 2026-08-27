@@ -3,13 +3,8 @@ package br.com.sprena.navigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -46,7 +41,15 @@ import br.com.sprena.presentation.consent.ConsentViewModel
 import br.com.sprena.presentation.core.navigation.BottomNavIntent
 import br.com.sprena.presentation.core.navigation.BottomNavViewModel
 import br.com.sprena.presentation.core.navigation.BottomTab
+import br.com.sprena.presentation.core.navigation.NoEstablishmentScreen
+import br.com.sprena.presentation.core.navigation.TabIcon
+import br.com.sprena.presentation.core.navigation.label
+import br.com.sprena.presentation.core.navigation.tabsFor
+import br.com.sprena.presentation.core.tenant.TenantViewModel
 import br.com.sprena.presentation.core.theme.ThemeViewModel
+import br.com.sprena.presentation.establishment.EstablishmentListScreen
+import br.com.sprena.presentation.establishment.edit.EstablishmentEditScreen
+import br.com.sprena.presentation.establishment.moderators.ModeratorsScreen
 import br.com.sprena.presentation.eventos.EventCategory
 import br.com.sprena.presentation.eventos.EventosIntent
 import br.com.sprena.presentation.eventos.EventosScreen
@@ -90,6 +93,7 @@ import br.com.sprena.shared.privacy.domain.usecase.CheckConsentUseCase
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 /**
  * Rotas de navegacao do app.
@@ -106,6 +110,19 @@ object Routes {
     const val CATEGORY = "category"
     const val CONSENT = "consent"
     const val PRIVACY_POLICY = "privacy_policy"
+    const val ESTABLISHMENTS = "establishments"
+    const val MODERATORS = "moderators"
+
+    /**
+     * O id vai no path e vazio significa "criar".
+     *
+     * Deliberadamente diferente de EDIT_SPORT_CLIENT, que passa dez campos por
+     * savedStateHandle: com o id na rota, o formulário lê o cadastro pelo repositório e o
+     * NavGraph não precisa saber nada sobre estabelecimento.
+     */
+    const val ESTABLISHMENT_EDIT = "establishment_edit/{establishmentId}"
+
+    fun establishmentEdit(id: String?): String = "establishment_edit/${id.orEmpty()}"
 }
 
 /** Monta a rota da Home com os argumentos que ela espera no path. */
@@ -502,6 +519,35 @@ fun NavGraph(themeViewModel: ThemeViewModel) {
                 onNavigateBack = { navController.popBackStack() },
             )
         }
+
+        composable(route = Routes.ESTABLISHMENTS) {
+            EstablishmentListScreen(
+                themeViewModel = themeViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEdit = { id -> navController.navigate(Routes.establishmentEdit(id)) },
+            )
+        }
+
+        composable(
+            route = Routes.ESTABLISHMENT_EDIT,
+            arguments = listOf(navArgument("establishmentId") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            // Vazio significa criar. O ViewModel recebe o id pelo Koin (parametersOf) e le o
+            // cadastro pelo repositorio — nada de savedStateHandle entre as duas telas.
+            val id = backStackEntry.arguments?.getString("establishmentId").orEmpty()
+            EstablishmentEditScreen(
+                themeViewModel = themeViewModel,
+                viewModel = koinViewModel { parametersOf(id.ifBlank { null }) },
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(route = Routes.MODERATORS) {
+            ModeratorsScreen(
+                themeViewModel = themeViewModel,
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
     }
 }
 
@@ -526,6 +572,20 @@ private fun HomeWithBottomNav(
 ) {
     val bottomNavViewModel: BottomNavViewModel = koinViewModel()
     val bottomNavState by bottomNavViewModel.state.collectAsState()
+
+    // F1.7.3: as abas passam a depender do papel efetivo no estabelecimento ativo, não mais do
+    // papel global. Enquanto o contexto for null a barra fica em carregamento.
+    val tenantViewModel: TenantViewModel = koinViewModel()
+    val tenantContext by tenantViewModel.context.collectAsState()
+    val userRole = tenantContext?.effectiveRole ?: authenticatedUser?.role ?: UserRole.USER
+
+    LaunchedEffect(tenantContext) {
+        tenantContext?.let { ctx ->
+            bottomNavViewModel.handleIntent(
+                BottomNavIntent.TabsResolved(tabsFor(ctx.effectiveRole, ctx.hasEstablishment)),
+            )
+        }
+    }
 
     val homeViewModel: HomeViewModel = koinViewModel()
     val sportClientViewModel: SportClientViewModel = koinViewModel()
@@ -690,86 +750,66 @@ private fun HomeWithBottomNav(
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = bottomNavState.current == BottomTab.HOME,
-                    onClick = {
-                        bottomNavViewModel.handleIntent(
-                            BottomNavIntent.TabSelected(BottomTab.HOME),
+            // A barra passou a ser montada a partir de `tabsFor(papel, temEstabelecimento)`
+            // em F1.7.3. Antes eram cinco NavigationBarItem escritos à mão, e adicionar uma
+            // aba exigia editar três lugares deste arquivo sem nada garantindo a sincronia.
+            if (bottomNavState.tabs.isNotEmpty()) {
+                NavigationBar {
+                    bottomNavState.tabs.forEach { tab ->
+                        NavigationBarItem(
+                            selected = bottomNavState.current == tab,
+                            onClick = {
+                                bottomNavViewModel.handleIntent(BottomNavIntent.TabSelected(tab))
+                            },
+                            icon = { tab.TabIcon() },
+                            label = { Text(tab.label) },
                         )
-                    },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.Home,
-                            contentDescription = "Home",
-                        )
-                    },
-                    label = { Text("Home") },
-                )
-                NavigationBarItem(
-                    selected = bottomNavState.current == BottomTab.EVENTOS,
-                    onClick = {
-                        bottomNavViewModel.handleIntent(
-                            BottomNavIntent.TabSelected(BottomTab.EVENTOS),
-                        )
-                    },
-                    icon = {
-                        Text(
-                            text = "📅",
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    },
-                    label = { Text("Eventos") },
-                )
-                NavigationBarItem(
-                    selected = bottomNavState.current == BottomTab.BAR,
-                    onClick = {
-                        bottomNavViewModel.handleIntent(
-                            BottomNavIntent.TabSelected(BottomTab.BAR),
-                        )
-                    },
-                    icon = {
-                        Text(
-                            text = "🍺",
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    },
-                    label = { Text("Comandas") },
-                )
-                NavigationBarItem(
-                    selected = bottomNavState.current == BottomTab.FINANCIAL,
-                    onClick = {
-                        bottomNavViewModel.handleIntent(
-                            BottomNavIntent.TabSelected(BottomTab.FINANCIAL),
-                        )
-                    },
-                    icon = {
-                        Text(
-                            text = "R$",
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    },
-                    label = { Text("Financeiro") },
-                )
-                NavigationBarItem(
-                    selected = bottomNavState.current == BottomTab.PROFILE,
-                    onClick = {
-                        bottomNavViewModel.handleIntent(
-                            BottomNavIntent.TabSelected(BottomTab.PROFILE),
-                        )
-                    },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Perfil",
-                        )
-                    },
-                    label = { Text("Perfil") },
-                )
+                    }
+                }
             }
         },
     ) { bottomNavPadding ->
         when (bottomNavState.current) {
+            // Ainda resolvendo o papel, ou resolvido sem vínculo nenhum. A distinção existe
+            // para não mostrar "procure um Moderador" a quem só está esperando a leitura dos
+            // vínculos terminar.
+            null ->
+                if (bottomNavState.isWithoutEstablishment) {
+                    NoEstablishmentScreen(
+                        role = userRole,
+                        modifier = Modifier.padding(bottomNavPadding),
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(bottomNavPadding),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+
+            // A Config reaproveita o Perfil com a seção "Administração" ligada: o ADM também
+            // é titular, e uma tela própria deixaria a exportação e a exclusão de conta
+            // (F1.6a) só do lado dos outros papéis.
+            BottomTab.CONFIG ->
+                ProfileScreen(
+                    themeViewModel = themeViewModel,
+                    modifier = Modifier.padding(bottomNavPadding),
+                    navigation =
+                        ProfileNavigation(
+                            onNavigateToLogin = {
+                                navController.navigate(Routes.LOGIN) {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            },
+                            onNavigateSettings = { navController.navigate(Routes.SETTINGS) },
+                            onNavigatePrivacyPolicy = { navController.navigate(Routes.PRIVACY_POLICY) },
+                            onNavigateEstablishments = { navController.navigate(Routes.ESTABLISHMENTS) },
+                            onNavigateModerators = { navController.navigate(Routes.MODERATORS) },
+                        ),
+                    showAdminSection = true,
+                )
+
             BottomTab.HOME -> {
                 SportClientScreen(
                     viewModel = sportClientViewModel,

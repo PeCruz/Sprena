@@ -62,6 +62,7 @@ class HomeViewModel : ViewModel() {
             UserRole.ADM -> "Painel Admin"
             UserRole.MOD -> "Painel Moderador"
             UserRole.CLIENT -> "Sprena"
+            UserRole.USER -> "Sprena"
         }
 
     private fun buildSubtitle(
@@ -72,6 +73,7 @@ class HomeViewModel : ViewModel() {
             UserRole.ADM -> "Olá, $name! Acesso total ao sistema."
             UserRole.MOD -> "Olá, $name! Gestão de eventos e visualizações."
             UserRole.CLIENT -> "Olá, $name! Acompanhe suas atividades."
+            UserRole.USER -> "Olá, $name! Suas comandas e eventos."
         }
 
     private fun handleRefresh() {

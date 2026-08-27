@@ -1,6 +1,5 @@
 package br.com.sprena.presentation.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,10 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.ButtonDefaults
@@ -31,8 +28,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import br.com.sprena.core.ui.components.SectionTitle
+import br.com.sprena.core.ui.components.SettingsRow
 import br.com.sprena.core.ui.components.ThemeToggleButton
 import br.com.sprena.presentation.core.theme.ThemeViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -166,7 +164,7 @@ private fun AccountSection(
 @Composable
 private fun ComandasSection(onNavigateMenu: () -> Unit) {
     SectionTitle(title = "Comandas")
-    SettingsItem(
+    SettingsRow(
         icon = {
             Icon(
                 imageVector = Icons.Default.Menu,
@@ -184,7 +182,7 @@ private fun ComandasSection(onNavigateMenu: () -> Unit) {
 @Composable
 private fun FinanceiroSection(onNavigateCategory: () -> Unit) {
     SectionTitle(title = "Categorias")
-    SettingsItem(
+    SettingsRow(
         icon = {
             Text(
                 text = "R$",
@@ -202,7 +200,7 @@ private fun FinanceiroSection(onNavigateCategory: () -> Unit) {
 @Composable
 private fun PrivacidadeSection(onNavigatePrivacyPolicy: () -> Unit) {
     SectionTitle(title = "Privacidade")
-    SettingsItem(
+    SettingsRow(
         icon = {
             Icon(
                 imageVector = Icons.Default.Lock,
@@ -215,51 +213,4 @@ private fun PrivacidadeSection(onNavigatePrivacyPolicy: () -> Unit) {
         onClick = onNavigatePrivacyPolicy,
     )
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-}
-
-@Composable
-private fun SectionTitle(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-    )
-}
-
-@Composable
-private fun SettingsItem(
-    icon: @Composable () -> Unit,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        icon()
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
 }

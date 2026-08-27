@@ -5,7 +5,11 @@ import br.com.sprena.presentation.bar.addclient.AddClientViewModel
 import br.com.sprena.presentation.category.CategoryViewModel
 import br.com.sprena.presentation.consent.ConsentViewModel
 import br.com.sprena.presentation.core.navigation.BottomNavViewModel
+import br.com.sprena.presentation.core.tenant.TenantViewModel
 import br.com.sprena.presentation.core.theme.ThemeViewModel
+import br.com.sprena.presentation.establishment.EstablishmentListViewModel
+import br.com.sprena.presentation.establishment.edit.EstablishmentEditViewModel
+import br.com.sprena.presentation.establishment.moderators.ModeratorsViewModel
 import br.com.sprena.presentation.eventos.EventosViewModel
 import br.com.sprena.presentation.eventos.createevent.CreateEventViewModel
 import br.com.sprena.presentation.financial.FinancialViewModel
@@ -36,6 +40,13 @@ fun appModule() =
         viewModel { FinancialViewModel() }
         viewModel { AddTransactionViewModel() }
         viewModelOf(::BottomNavViewModel)
+        viewModel {
+            TenantViewModel(
+                memberships = get(),
+                activeEstablishment = get(),
+                sessionStore = get(),
+            )
+        }
         viewModelOf(::ThemeViewModel)
         viewModelOf(::BarViewModel)
         viewModelOf(::AddClientViewModel)
@@ -45,6 +56,20 @@ fun appModule() =
         viewModel { EventosViewModel() }
         viewModel { CreateEventViewModel() }
         viewModel { SettingsViewModel(sessionStore = get(), logout = get()) }
+        viewModel {
+            EstablishmentListViewModel(observeEstablishments = get(), setActive = get())
+        }
+        viewModel { parameters ->
+            // O id vem da rota, não do grafo — `null` significa criar. É o único ViewModel do
+            // app que recebe parâmetro de navegação por Koin; a alternativa seria devolver o
+            // resultado por savedStateHandle, como faz a edição de cliente esportivo.
+            EstablishmentEditViewModel(
+                establishmentId = parameters.getOrNull(),
+                getEstablishment = get(),
+                saveEstablishment = get(),
+            )
+        }
+        viewModel { ModeratorsViewModel(observeEstablishments = get(), observeMembers = get()) }
         viewModel {
             ConsentViewModel(
                 policyLoader = get(),
